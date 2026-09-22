@@ -1,9 +1,7 @@
+import LandingPage from "./pages/landingPage";
+
 function App() {
-  return (
-    <main>
-      <h1>Badminton Social Connect</h1>
-    </main>
-  )
+  return <LandingPage />;
 }
 
-export default App
+export default App;
