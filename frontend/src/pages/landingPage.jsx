@@ -1,5 +1,6 @@
 import "../styles/landingPage.css";
 import landingPageSplash from "../assets/images/landingPageSplash.avif";
+import { Link } from "react-router-dom";
 
 function LandingPage() {
   return (
@@ -63,13 +64,17 @@ function LandingPage() {
 
         <div className="landing-actions">
 
+        <Link to="/signup">
           <button className="get-started-button">
             Get Started
           </button>
+        </Link>
 
+        <Link to="/login">
           <button className="sign-in-button">
             Sign In
           </button>
+        </Link>
 
         </div>
 
