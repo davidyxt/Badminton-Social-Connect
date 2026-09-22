@@ -1,0 +1,320 @@
+/* =========================
+   LANDING PAGE
+========================= */
+
+.landing-page {
+    position: relative;
+    overflow: hidden;
+  
+    width: 100%;
+    min-height: 100dvh;
+  
+    margin: 0 auto;
+    padding: 16px 22px 24px;
+  
+    background: #2e4d84;
+    color: white;
+  
+    display: flex;
+    flex-direction: column;
+  }
+  
+  
+  /* =========================
+     BACKGROUND SPLASH IMAGE
+  ========================= */
+  
+  .landing-image-wrapper {
+    position: absolute;
+  
+    top: 0;
+    left: 0;
+  
+    width: 100%;
+    height: 46%;
+  
+    overflow: hidden;
+  
+    z-index: 0;
+  }
+  
+  
+  .landing-splash {
+    width: 100%;
+    height: 100%;
+  
+    object-fit: cover;
+    object-position: center 20%;
+  
+    opacity: 0.45;
+  }
+  
+  
+  /* Fade the image into the blue background */
+  
+  .landing-image-overlay {
+    position: absolute;
+    inset: 0;
+  
+    background: linear-gradient(
+      to bottom,
+      rgba(46, 77, 132, 0.15) 0%,
+      rgba(46, 77, 132, 0.3) 40%,
+      rgba(46, 77, 132, 0.7) 75%,
+      #2e4d84 100%
+    );
+  }
+  
+  
+  /* =========================
+     BADMINTON VICTORIA BADGE
+  ========================= */
+  
+  .landing-badge {
+    position: relative;
+    z-index: 1;
+  
+    align-self: center;
+  
+    padding: 11px 28px;
+  
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 999px;
+  
+    background: rgba(255, 255, 255, 0.1);
+  
+    box-shadow:
+      inset 0 0 6px rgba(255, 255, 255, 0.08),
+      0 2px 6px rgba(0, 0, 0, 0.08);
+  
+    font-size: 12px;
+    font-weight: 800;
+  
+    letter-spacing: 0.2px;
+  
+    white-space: nowrap;
+  }
+  
+  
+  /* =========================
+     MAIN CONTENT
+  ========================= */
+  
+  .landing-content {
+    position: relative;
+    z-index: 1;
+  
+    margin-top: auto;
+  }
+  
+  
+  /* =========================
+     TITLE
+  ========================= */
+  
+  .landing-title {
+    margin: 0 0 14px;
+  
+    font-size: clamp(40px, 11vw, 50px);
+    line-height: 1.05;
+  
+    font-weight: 800;
+    letter-spacing: -1.5px;
+  }
+  
+  
+  /* =========================
+     DESCRIPTION
+  ========================= */
+  
+  .landing-description {
+    margin: 0 0 18px;
+  
+    font-size: 16px;
+    line-height: 1.45;
+  
+    font-weight: 400;
+  
+    color: rgba(255, 255, 255, 0.9);
+  }
+  
+  
+  /* =========================
+     FEATURE CARDS
+  ========================= */
+  
+  .landing-features {
+    display: grid;
+  
+    grid-template-columns: repeat(3, 1fr);
+  
+    gap: 8px;
+  
+    margin-bottom: 18px;
+  }
+  
+  
+  .feature-card {
+    min-width: 0;
+    height: 72px;
+  
+    padding: 7px 4px;
+  
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 20px;
+  
+    background: rgba(255, 255, 255, 0.1);
+  
+    color: white;
+  
+    display: flex;
+    flex-direction: column;
+  
+    align-items: center;
+    justify-content: center;
+  
+    gap: 3px;
+  
+    cursor: pointer;
+  
+    transition:
+      transform 0.15s ease,
+      background 0.15s ease;
+  }
+  
+  
+  .feature-card:hover {
+    background: rgba(255, 255, 255, 0.16);
+  }
+  
+  
+  .feature-card:active {
+    transform: scale(0.97);
+  }
+  
+  
+  .feature-icon {
+    font-size: 17px;
+    line-height: 1;
+  }
+  
+  
+  .feature-label {
+    font-size: 12px;
+    line-height: 1.1;
+  
+    font-weight: 700;
+    text-align: center;
+  }
+  
+  
+  /* =========================
+     ACTION BUTTONS
+  ========================= */
+  
+  .landing-actions {
+    display: flex;
+    flex-direction: column;
+  
+    gap: 12px;
+  }
+  
+  
+  .get-started-button,
+  .sign-in-button {
+    width: 100%;
+    height: 60px;
+  
+    border-radius: 22px;
+  
+    font-size: 21px;
+    font-weight: 800;
+  
+    cursor: pointer;
+  
+    transition:
+      transform 0.15s ease,
+      opacity 0.15s ease;
+  }
+  
+  
+  .get-started-button {
+    border: none;
+  
+    background: #f27a0b;
+    color: white;
+  }
+  
+  
+  .sign-in-button {
+    border: 1px solid rgba(255, 255, 255, 0.35);
+  
+    background: rgba(255, 255, 255, 0.1);
+  
+    color: white;
+  }
+  
+  
+  .get-started-button:hover,
+  .sign-in-button:hover {
+    opacity: 0.92;
+  }
+  
+  
+  .get-started-button:active,
+  .sign-in-button:active {
+    transform: scale(0.98);
+  }
+  
+  
+  /* =========================
+     SMALLER PHONES
+  ========================= */
+  
+  @media (max-width: 370px) {
+  
+    .landing-page {
+      padding: 14px 18px 20px;
+    }
+  
+  
+    .landing-badge {
+      padding: 10px 24px;
+  
+      font-size: 11px;
+    }
+  
+  
+    .landing-title {
+      font-size: 38px;
+    }
+  
+  
+    .landing-description {
+      font-size: 15px;
+    }
+  
+  
+    .feature-card {
+      height: 68px;
+    }
+  
+  
+    .feature-icon {
+      font-size: 16px;
+    }
+  
+  
+    .feature-label {
+      font-size: 11px;
+    }
+  
+  
+    .get-started-button,
+    .sign-in-button {
+      height: 56px;
+  
+      font-size: 19px;
+    }
+  
+  }
