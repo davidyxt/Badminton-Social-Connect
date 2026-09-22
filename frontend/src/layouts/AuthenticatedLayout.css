@@ -1,0 +1,8 @@
+.authenticated-layout {
+    min-height: 100dvh;
+    background: #f5f6f8;
+  }
+  
+  .authenticated-content {
+    width: 100%;
+  }

@@ -1,0 +1,841 @@
+.dashboard-page {
+    width: 100%;
+    max-width: 480px;
+  
+    min-height: 100dvh;
+  
+    margin: 0 auto;
+  
+    padding-top: 62px;
+    padding-bottom: 76px;
+  
+    background: #f5f6f8;
+  
+    color: #202536;
+  }
+  
+  
+  /* ======================================================
+     HERO
+     ====================================================== */
+  
+  .dashboard-hero {
+    padding: 22px 18px 20px;
+  
+    background: #315b9e;
+  
+    color: white;
+  }
+  
+  .dashboard-greeting {
+    margin: 0 0 4px;
+  
+    font-size: 13px;
+  
+    opacity: 0.92;
+  }
+  
+  .dashboard-name {
+    display: flex;
+    align-items: center;
+  
+    gap: 8px;
+  
+    margin: 0;
+  
+    font-size: 32px;
+    font-weight: 800;
+  
+    line-height: 1.15;
+  }
+  
+  .dashboard-racket {
+    font-size: 26px;
+  }
+  
+  .dashboard-subtitle {
+    margin: 4px 0 18px;
+  
+    font-size: 13px;
+  
+    opacity: 0.95;
+  }
+  
+  
+  /* ======================================================
+     ACTIONS
+     ====================================================== */
+  
+  .dashboard-actions {
+    display: grid;
+  
+    grid-template-columns: 1fr 1fr;
+  
+    gap: 8px;
+  }
+  
+  .dashboard-action-button {
+    height: 57px;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    gap: 10px;
+  
+    border-radius: 20px;
+  
+    font-size: 14px;
+    font-weight: 700;
+  
+    cursor: pointer;
+  }
+  
+  .dashboard-action-button.primary {
+    border: none;
+  
+    background: #f58220;
+  
+    color: white;
+  }
+  
+  .dashboard-action-button.secondary {
+    border: 1px solid rgba(255, 255, 255, 0.35);
+  
+    background: rgba(255, 255, 255, 0.14);
+  
+    color: white;
+  }
+  
+  
+  /* Search icon */
+  
+  .search-symbol {
+    width: 17px;
+    height: 17px;
+  
+    position: relative;
+  
+    display: inline-block;
+  
+    border: 2px solid white;
+    border-radius: 50%;
+  }
+  
+  .search-symbol::after {
+    content: "";
+  
+    position: absolute;
+  
+    width: 7px;
+    height: 2px;
+  
+    right: -6px;
+    bottom: -3px;
+  
+    border-radius: 3px;
+  
+    background: white;
+  
+    transform: rotate(45deg);
+  }
+  
+  .plus-symbol {
+    font-size: 28px;
+    font-weight: 300;
+  
+    line-height: 1;
+  }
+  
+  
+  /* ======================================================
+     CONTENT
+     ====================================================== */
+  
+  .dashboard-content {
+    display: flex;
+    flex-direction: column;
+  
+    gap: 20px;
+  
+    padding: 16px;
+  }
+  
+  
+  /* ======================================================
+     SHARED CARD
+     ====================================================== */
+  
+  .dashboard-card {
+    padding: 16px;
+  
+    border-radius: 18px;
+  
+    background: white;
+  
+    box-shadow:
+      0 3px 2px rgba(0, 0, 0, 0.12),
+      0 5px 10px rgba(0, 0, 0, 0.06);
+  }
+  
+  .card-top-row {
+    display: flex;
+  
+    align-items: center;
+    justify-content: space-between;
+  
+    margin-bottom: 8px;
+  }
+  
+  .card-label {
+    color: #73798a;
+  
+    font-size: 12px;
+    font-weight: 800;
+  }
+  
+  .card-link {
+    display: flex;
+    align-items: center;
+  
+    gap: 5px;
+  
+    padding: 0;
+  
+    border: none;
+  
+    background: none;
+  
+    color: #315b9e;
+  
+    font-size: 10px;
+    font-weight: 700;
+  
+    cursor: pointer;
+  }
+  
+  
+  /* ======================================================
+     RATING CARD
+     ====================================================== */
+  
+  .rating-main-row {
+    display: flex;
+  
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+  
+  .rating-number {
+    color: #202536;
+  
+    font-size: 46px;
+    font-weight: 800;
+  
+    line-height: 1;
+  }
+  
+  .rating-level {
+    margin-top: 7px;
+  
+    color: #4b78d3;
+  
+    font-size: 14px;
+    font-weight: 800;
+  }
+  
+  .rating-change {
+    margin-bottom: 2px;
+  
+    padding: 8px 10px;
+  
+    border-radius: 20px;
+  
+    background: #9ae9ac;
+  
+    color: #255c2b;
+  
+    font-size: 9px;
+    font-weight: 700;
+  }
+  
+  .rating-divider {
+    width: 100%;
+    height: 1px;
+  
+    margin: 14px 0 10px;
+  
+    background: #e8eaf0;
+  }
+  
+  .rating-stats {
+    display: grid;
+  
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .rating-stat {
+    display: flex;
+    flex-direction: column;
+  
+    align-items: center;
+  
+    gap: 2px;
+  }
+  
+  .rating-stat strong {
+    color: #202536;
+  
+    font-size: 20px;
+    font-weight: 800;
+  }
+  
+  .rating-stat span {
+    color: #73798a;
+  
+    font-size: 9px;
+  }
+  
+  
+  /* ======================================================
+     UPCOMING MATCH
+     ====================================================== */
+  
+  .confirmed-badge {
+    padding: 7px 13px;
+  
+    border-radius: 18px;
+  
+    background: #9ae9ac;
+  
+    color: #255c2b;
+  
+    font-size: 9px;
+    font-weight: 700;
+  }
+  
+  .match-main {
+    display: grid;
+  
+    grid-template-columns: 48px 1fr auto;
+  
+    align-items: center;
+  
+    gap: 10px;
+  
+    margin-top: 5px;
+  }
+  
+  .match-avatar {
+    width: 48px;
+    height: 48px;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    border-radius: 50%;
+  
+    background: #294b87;
+  
+    color: white;
+  
+    font-size: 18px;
+    font-weight: 700;
+  }
+  
+  .match-player-info {
+    display: flex;
+    flex-direction: column;
+  
+    gap: 3px;
+  }
+  
+  .match-player-info strong {
+    font-size: 17px;
+  }
+  
+  .match-player-info span {
+    color: #777d8e;
+  
+    font-size: 11px;
+  }
+  
+  .match-time {
+    display: flex;
+    flex-direction: column;
+  
+    align-items: flex-end;
+  
+    color: #294b87;
+  
+    font-size: 10px;
+  }
+  
+  .match-time strong {
+    color: #202536;
+  
+    font-size: 12px;
+  }
+  
+  .match-location {
+    display: flex;
+  
+    align-items: flex-start;
+  
+    gap: 10px;
+  
+    margin: 13px 0;
+  
+    color: #777d8e;
+  
+    font-size: 11px;
+  
+    line-height: 1.3;
+  }
+  
+  .location-pin {
+    color: #73798a;
+  
+    font-size: 13px;
+  }
+  
+  .match-buttons {
+    display: grid;
+  
+    grid-template-columns: 1fr 1fr;
+  
+    gap: 8px;
+  }
+  
+  .outline-button,
+  .muted-button {
+    height: 37px;
+  
+    border-radius: 20px;
+  
+    font-size: 11px;
+  
+    cursor: pointer;
+  }
+  
+  .outline-button {
+    border: 1px solid #315b9e;
+  
+    background: white;
+  
+    color: #315b9e;
+  }
+  
+  .muted-button {
+    border: 1px solid #dedfe5;
+  
+    background: #f5f6f8;
+  
+    color: #73798a;
+  }
+  
+  
+  /* ======================================================
+     LEAGUE
+     ====================================================== */
+  
+  .league-header {
+    display: flex;
+  
+    align-items: center;
+  
+    gap: 10px;
+  
+    margin-top: 3px;
+  }
+  
+  .league-icon {
+    width: 48px;
+    height: 48px;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    border-radius: 10px;
+  
+    background: #294b87;
+  
+    color: white;
+  
+    font-size: 26px;
+  }
+  
+  .league-header > div:last-child {
+    display: flex;
+    flex-direction: column;
+  
+    gap: 4px;
+  }
+  
+  .league-header strong {
+    font-size: 13px;
+  }
+  
+  .league-header span {
+    color: #777d8e;
+  
+    font-size: 10px;
+  }
+  
+  .league-bottom {
+    display: grid;
+  
+    grid-template-columns: 65px 1fr 88px;
+  
+    align-items: center;
+  
+    gap: 10px;
+  }
+  
+  .league-position {
+    display: flex;
+    flex-direction: column;
+  
+    align-items: center;
+  }
+  
+  .league-position strong {
+    color: #294b87;
+  
+    font-size: 22px;
+  }
+  
+  .league-position span {
+    color: #73798a;
+  
+    font-size: 8px;
+  }
+  
+  .league-next {
+    display: flex;
+    flex-direction: column;
+  
+    gap: 3px;
+  }
+  
+  .league-next strong {
+    font-size: 10px;
+  }
+  
+  .league-next span {
+    color: #73798a;
+  
+    font-size: 10px;
+  }
+  
+  .arrange-button {
+    height: 37px;
+  
+    border: none;
+    border-radius: 20px;
+  
+    background: #294b87;
+  
+    color: white;
+  
+    font-size: 11px;
+  
+    cursor: pointer;
+  }
+  
+  
+  /* ======================================================
+     RECENT ACTIVITY
+     ====================================================== */
+  
+  .activity-section {
+    margin-top: 4px;
+  }
+  
+  .activity-section h2 {
+    margin: 0 0 10px;
+  
+    color: #73798a;
+  
+    font-size: 12px;
+    font-weight: 800;
+  }
+  
+  .activity-list {
+    display: flex;
+    flex-direction: column;
+  
+    gap: 12px;
+  }
+  
+  .activity-card {
+    display: grid;
+  
+    grid-template-columns: 48px 1fr auto;
+  
+    align-items: center;
+  
+    gap: 10px;
+  
+    padding: 10px;
+  
+    border-radius: 16px;
+  
+    background: white;
+  
+    box-shadow:
+      0 3px 2px rgba(0, 0, 0, 0.11),
+      0 4px 9px rgba(0, 0, 0, 0.04);
+  }
+  
+  .activity-icon {
+    width: 48px;
+    height: 48px;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    border-radius: 9px;
+  
+    background: #294b87;
+  
+    color: white;
+  
+    font-size: 24px;
+  }
+  
+  .activity-information {
+    display: flex;
+    flex-direction: column;
+  
+    gap: 4px;
+  }
+  
+  .activity-information strong {
+    font-size: 11px;
+  }
+  
+  .activity-information span {
+    color: #73798a;
+  
+    font-size: 11px;
+  }
+  
+  .activity-time {
+    color: #777d8e;
+  
+    font-size: 10px;
+  
+    white-space: nowrap;
+  }
+  
+  
+  /* ======================================================
+     SMALL PHONES
+     ====================================================== */
+  
+  @media (max-width: 380px) {
+  
+    .dashboard-name {
+      font-size: 28px;
+    }
+  
+    .dashboard-actions {
+      grid-template-columns: 1fr;
+    }
+  
+    .match-main {
+      grid-template-columns: 44px 1fr;
+    }
+  
+    .match-time {
+      grid-column: 2;
+  
+      align-items: flex-start;
+    }
+  
+    .league-bottom {
+      grid-template-columns: 55px 1fr;
+    }
+  
+    .arrange-button {
+      grid-column: 1 / -1;
+    }
+  }
+
+  /* ======================================================
+   EMPTY DASHBOARD CARDS
+   ====================================================== */
+
+.empty-dashboard-card {
+    display: flex;
+    flex-direction: column;
+  
+    align-items: center;
+  
+    padding: 26px 20px;
+  
+    text-align: center;
+  }
+  
+  .empty-card-icon {
+    width: 54px;
+    height: 54px;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    margin-bottom: 14px;
+  
+    border-radius: 14px;
+  
+    background: #eef3fb;
+  
+    color: #315b9e;
+  }
+  
+  .empty-card-content {
+    max-width: 300px;
+  }
+  
+  .empty-card-content h3 {
+    margin: 0 0 7px;
+  
+    color: #202536;
+  
+    font-size: 16px;
+    font-weight: 750;
+  }
+  
+  .empty-card-content p {
+    margin: 0;
+  
+    color: #73798a;
+  
+    font-size: 12px;
+  
+    line-height: 1.5;
+  }
+  
+  .empty-card-actions {
+    width: 100%;
+  
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  
+    gap: 8px;
+  
+    margin-top: 18px;
+  }
+  
+  .empty-primary-button,
+  .empty-secondary-button {
+    height: 42px;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    gap: 7px;
+  
+    border-radius: 21px;
+  
+    font-size: 11px;
+    font-weight: 700;
+  
+    cursor: pointer;
+  }
+  
+  .empty-primary-button {
+    border: none;
+  
+    background: #315b9e;
+  
+    color: white;
+  }
+  
+  .empty-primary-button:hover {
+    background: #294b87;
+  }
+  
+  .empty-secondary-button {
+    border: 1px solid #315b9e;
+  
+    background: white;
+  
+    color: #315b9e;
+  }
+  
+  .empty-secondary-button:hover {
+    background: #f5f8fd;
+  }
+  
+  .empty-primary-button.full-width {
+    width: 100%;
+  
+    margin-top: 18px;
+  }
+
+  /* ======================================================
+   NO RECENT ACTIVITY
+   ====================================================== */
+
+.no-activity-card {
+    display: flex;
+    align-items: center;
+  
+    gap: 14px;
+  
+    padding: 18px;
+  
+    border-radius: 16px;
+  
+    background: white;
+  
+    box-shadow:
+      0 3px 2px rgba(0, 0, 0, 0.08),
+      0 4px 9px rgba(0, 0, 0, 0.04);
+  }
+  
+  .no-activity-icon {
+    width: 46px;
+    height: 46px;
+  
+    flex-shrink: 0;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    border-radius: 12px;
+  
+    background: #eef3fb;
+  
+    color: #315b9e;
+  
+    font-size: 23px;
+    font-weight: 700;
+  }
+  
+  .no-activity-card h3 {
+    margin: 0 0 4px;
+  
+    color: #202536;
+  
+    font-size: 14px;
+    font-weight: 700;
+  }
+  
+  .no-activity-card p {
+    margin: 0;
+  
+    color: #73798a;
+  
+    font-size: 11px;
+  
+    line-height: 1.45;
+  }
