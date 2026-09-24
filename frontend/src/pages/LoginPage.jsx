@@ -1,6 +1,12 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { signIn } from "../services/authService";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  signIn,
+  signInWithGoogle,
+  resendVerificationEmail,
+} from "../services/authService";
+import Captcha, { useCaptcha } from "../components/auth/Captcha";
+import { getAuthErrorMessage } from "../utils/authErrors";
 import "../styles/auth.css";
 
 function LoginPage() {
@@ -11,7 +17,22 @@ function LoginPage() {
     password: "",
   });
 
+  const [searchParams] = useSearchParams();
+  const captcha = useCaptcha();
+
   const [error, setError] = useState("");
+  const [message, setMessage] = useState(() => {
+    if (searchParams.get("verified")) {
+      return "Your email is verified. Log in to continue.";
+    }
+
+    if (searchParams.get("reset")) {
+      return "Your password has been updated. Log in with your new password.";
+    }
+
+    return "";
+  });
+  const [needsVerification, setNeedsVerification] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleChange = (event) => {
@@ -27,15 +48,55 @@ function LoginPage() {
     event.preventDefault();
 
     setError("");
+    setMessage("");
+    setNeedsVerification(false);
     setLoading(true);
 
     try {
-      await signIn(formData.email, formData.password);
+      await signIn(formData.email, formData.password, captcha.token);
 
-      navigate("/");
+      navigate("/dashboard");
     } catch (err) {
-      setError(err.message || "Unable to sign in.");
+      if (err.code === "email_not_confirmed") {
+        setNeedsVerification(true);
+        setError("Please verify your email before logging in.");
+      } else {
+        setError(getAuthErrorMessage(err, "Unable to sign in."));
+      }
     } finally {
+      captcha.reset();
+      setLoading(false);
+    }
+  };
+
+
+  const handleResend = async () => {
+    setError("");
+    setLoading(true);
+
+    try {
+      await resendVerificationEmail(formData.email, captcha.token);
+
+      setNeedsVerification(false);
+      setMessage("Verification email sent. Check your inbox.");
+    } catch (err) {
+      setError(
+        getAuthErrorMessage(err, "Unable to resend the verification email.")
+      );
+    } finally {
+      captcha.reset();
+      setLoading(false);
+    }
+  };
+
+  const handleGoogle = async () => {
+    setError("");
+    setLoading(true);
+
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      setError(err.message || "Unable to sign in with Google.");
       setLoading(false);
     }
   };
@@ -95,15 +156,16 @@ function LoginPage() {
               <div className="password-label-row">
                 <label htmlFor="password">Password</label>
 
-                <button
-                  type="button"
+                <Link
+                  to={
+                    formData.email
+                      ? `/forgot-password?email=${encodeURIComponent(formData.email)}`
+                      : "/forgot-password"
+                  }
                   className="text-button"
-                  onClick={() => {
-                    // Add password reset flow later
-                  }}
                 >
                   Forgot password?
-                </button>
+                </Link>
               </div>
 
               <input
@@ -118,20 +180,55 @@ function LoginPage() {
               />
             </div>
 
+            {message && (
+              <div className="auth-message" role="status">
+                {message}
+              </div>
+            )}
+
             {error && (
               <div className="auth-error" role="alert">
                 {error}
+
+                {needsVerification && (
+                  <>
+                    {" "}
+                    <button
+                      type="button"
+                      className="text-button"
+                      onClick={handleResend}
+                      disabled={loading || !captcha.ready}
+                    >
+                      Resend verification email
+                    </button>
+                  </>
+                )}
               </div>
             )}
+
+            <Captcha captcha={captcha} />
 
             <button
               type="submit"
               className="auth-primary-button"
-              disabled={loading}
+              disabled={loading || !captcha.ready}
             >
               {loading ? "Logging in..." : "Log In"}
             </button>
           </form>
+
+          <div className="auth-divider">
+            <span>or</span>
+          </div>
+
+          <button
+            type="button"
+            className="auth-oauth-button"
+            onClick={handleGoogle}
+            disabled={loading}
+          >
+            Continue with Google
+          </button>
 
           <div className="auth-footer-text">
             Don't have an account?{" "}
