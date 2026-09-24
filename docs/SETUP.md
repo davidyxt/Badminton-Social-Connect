@@ -65,7 +65,7 @@ Open **http://localhost:5173**. Use `localhost` rather than `127.0.0.1`: the bro
 
 ### Local Google sign-in (optional)
 
-Email sign-up works without this step. For Google sign-in, create `supabase/.env`, which is gitignored, containing SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID and 
+If you want to try using Google sign-in on your local, create `supabase/.env`, which is gitignored, containing SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID and 
 SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET.
 
 Ask the team for the shared credentials, or create your own as in section 3. Then restart Supabase: `npx supabase stop && npx supabase start`.
