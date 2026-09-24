@@ -3,6 +3,8 @@
   "private": true,
   "version": "0.0.1",
   "dependencies": {
+    "@marsidev/react-turnstile": "^1.6.1",
+    "@supabase/supabase-js": "^2.117.1",
     "lucide-react": "^1.47.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
@@ -14,6 +16,7 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:hosted": "vite --mode hosted",
     "build": "vite build",
     "preview": "vite preview"
   }
