@@ -115,6 +115,88 @@ echo "== 7. private helper schema is not reachable over the API =="
 check "private.is_admin is not exposed as an RPC" "ERR:PGRST202" \
   "$(count "$(as "$TA" POST "rpc/is_admin" '{}')")"
 echo
+echo "== 8. clubs as organisers =="
+SLUG="test-club-$RANDOM"
+BODY="{\"name\":\"Test Smashers\",\"slug\":\"$SLUG\",\"created_by\":\"$IDA\",\"state\":\"VIC\"}"
+R=$(as "$TA" POST "club" "$BODY")
+check "alice can register a club" 1 "$(count "$R")"
+CLUB=$(echo "$R" | python3 -c 'import sys,json
+d=json.load(sys.stdin)
+print(d[0]["club_id"] if isinstance(d,list) and d else "")')
+
+check "the trigger made her a representative" 1 \
+  "$(count "$(as "$TA" GET "club_representative?club_id=eq.$CLUB&player_id=eq.$IDA")")"
+check "bob is not a representative" 0 \
+  "$(count "$(as "$TB" GET "club_representative?club_id=eq.$CLUB&player_id=eq.$IDB")")"
+
+BODY="{\"organiser_club_id\":\"$CLUB\",\"format\":\"doubles\",\"proposed_time\":\"2026-10-05T18:00:00Z\"}"
+R=$(as "$TA" POST "game_post" "$BODY")
+check "a rep can post on the club's behalf" 1 "$(count "$R")"
+CPOST=$(echo "$R" | python3 -c 'import sys,json
+d=json.load(sys.stdin)
+print(d[0]["post_id"] if isinstance(d,list) and d else "")')
+
+R=$(as "$TB" POST "game_post" "$BODY")
+check "bob cannot post as a club he does not represent" "ERR:42501" "$(count "$R")"
+
+check "bob cannot edit the club's post" 0 \
+  "$(count "$(as "$TB" PATCH "game_post?post_id=eq.$CPOST" '{"status":"cancelled"}')")"
+check "the rep can edit the club's post" 1 \
+  "$(count "$(as "$TA" PATCH "game_post?post_id=eq.$CPOST" '{"suburb":"Box Hill"}')")"
+
+echo
+echo "== 9. exactly one organiser, enforced by the database =="
+# RLS is evaluated before check constraints. With no organiser at all, none of
+# the three policy clauses can be true, so this is refused as a permission
+# error (42501) and never reaches game_post_exactly_one_organiser. The test
+# below proves the constraint itself still fires.
+BODY="{\"format\":\"singles\",\"proposed_time\":\"2026-10-06T18:00:00Z\"}"
+R=$(as "$TA" POST "game_post" "$BODY")
+check "a post with no organiser is refused" "ERR:42501" "$(count "$R")"
+
+BODY="{\"organiser_id\":\"$IDA\",\"organiser_club_id\":\"$CLUB\",\"format\":\"singles\",\"proposed_time\":\"2026-10-06T18:00:00Z\"}"
+R=$(as "$TA" POST "game_post" "$BODY")
+check "a post with both organisers is rejected" "ERR:23514" "$(count "$R")"
+
+echo
+echo "== 10. club integrity =="
+check "nobody can verify their own club" "ERR:42501" \
+  "$(count "$(as "$TA" PATCH "club?club_id=eq.$CLUB" '{"is_verified":true}')")"
+check "bob cannot edit alice's club" 0 \
+  "$(count "$(as "$TB" PATCH "club?club_id=eq.$CLUB" '{"name":"Hijacked"}')")"
+
+BODY="{\"club_id\":\"$CLUB\",\"player_id\":\"$IDB\"}"
+R=$(as "$TB" POST "club_representative" "$BODY")
+check "bob cannot make himself a representative" "ERR:42501" "$(count "$R")"
+R=$(as "$TA" POST "club_representative" "$BODY")
+check "a rep can add another rep" 1 "$(count "$R")"
+check "a rep cannot remove another rep" 0 \
+  "$(count "$(as "$TB" DELETE "club_representative?club_id=eq.$CLUB&player_id=eq.$IDA")")"
+check "a rep can step down" 1 \
+  "$(count "$(as "$TB" DELETE "club_representative?club_id=eq.$CLUB&player_id=eq.$IDB")")"
+
+echo
+echo "== 11. the organiser embeds in one request =="
+# game_participant gives game_post a second path to player (many-to-many), so a
+# bare player(...) embed is ambiguous and PostgREST refuses it with PGRST201.
+# The hint after ! can be the column name or the constraint name; the column
+# name is shorter and survives a constraint being renamed.
+ORG='organiser:player!organiser_id(display_name)'
+EMB=$(as "$TA" GET "game_post?post_id=eq.$CPOST&select=post_id,club(name,slug),$ORG")
+check "club post embeds the club and a null organiser" '["Test Smashers",null]' \
+  "$(echo "$EMB" | python3 -c 'import sys,json
+d=json.load(sys.stdin)
+r=d[0] if isinstance(d,list) and d else {}
+c=r.get("club") or {}
+print(json.dumps([c.get("name"), r.get("organiser")], separators=(",",":")))')"
+EMB=$(as "$TA" GET "game_post?post_id=eq.$PID&select=post_id,club(name),$ORG")
+check "player post embeds the organiser and a null club" '["Alice",null]' \
+  "$(echo "$EMB" | python3 -c 'import sys,json
+d=json.load(sys.stdin)
+r=d[0] if isinstance(d,list) and d else {}
+p=r.get("organiser") or {}
+print(json.dumps([p.get("display_name"), r.get("club")], separators=(",",":")))')"
+echo
 echo "-------------------------------------"
 echo "  $pass passed, $fail failed"
 [[ $fail -eq 0 ]]
