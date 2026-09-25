@@ -197,6 +197,120 @@ r=d[0] if isinstance(d,list) and d else {}
 p=r.get("organiser") or {}
 print(json.dumps([p.get("display_name"), r.get("club")], separators=(",",":")))')"
 echo
+echo "== 12. requesting to join a game =="
+C=$(signup "carol-$RANDOM@example.com" 'Passw0rd!x' 'Carol')
+TC=$(echo "$C" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("access_token",""))')
+IDC=$(echo "$C" | python3 -c 'import sys,json;d=json.load(sys.stdin);print((d.get("user") or d).get("id",""))')
+
+# A singles game with two places. Alice organises, so she takes one of them.
+BODY="{\"organiser_id\":\"$IDA\",\"format\":\"singles\",\"player_limit\":2,\"proposed_time\":\"2026-11-01T18:00:00Z\"}"
+R=$(as "$TA" POST "game_post" "$BODY")
+GAME=$(echo "$R" | python3 -c 'import sys,json
+d=json.load(sys.stdin)
+print(d[0]["post_id"] if isinstance(d,list) and d else "")')
+check "the organiser is on the roster automatically" 1 \
+  "$(count "$(as "$TA" GET "game_participant?post_id=eq.$GAME&player_id=eq.$IDA&status=eq.accepted")")"
+
+BODY="{\"post_id\":\"$GAME\",\"player_id\":\"$IDB\",\"status\":\"accepted\"}"
+R=$(as "$TB" POST "game_participant" "$BODY")
+check "bob cannot let himself in" "ERR:42501" "$(count "$R")"
+
+BODY="{\"post_id\":\"$GAME\",\"player_id\":\"$IDB\"}"
+R=$(as "$TB" POST "game_participant" "$BODY")
+check "bob can request to join" 1 "$(count "$R")"
+
+# The USING clause lets bob see his own row, so the update is attempted and the
+# WITH CHECK then refuses it. That surfaces as a permission error rather than a
+# silent zero-row update, which is the better of the two outcomes.
+check "bob cannot accept his own request" "ERR:42501" \
+  "$(count "$(as "$TB" PATCH "game_participant?post_id=eq.$GAME&player_id=eq.$IDB" '{"status":"accepted"}')")"
+check "bob can withdraw his own request" 1 \
+  "$(count "$(as "$TB" PATCH "game_participant?post_id=eq.$GAME&player_id=eq.$IDB" '{"status":"withdrawn"}')")"
+check "the organiser can accept him" 1 \
+  "$(count "$(as "$TA" PATCH "game_participant?post_id=eq.$GAME&player_id=eq.$IDB" '{"status":"accepted"}')")"
+
+BODY="{\"post_id\":\"$GAME\",\"player_id\":\"$IDC\"}"
+R=$(as "$TC" POST "game_participant" "$BODY")
+check "carol can request even though the game is full" 1 "$(count "$R")"
+check "bob cannot see carol's pending request" 0 \
+  "$(count "$(as "$TB" GET "game_participant?post_id=eq.$GAME&player_id=eq.$IDC")")"
+check "the organiser can see it" 1 \
+  "$(count "$(as "$TA" GET "game_participant?post_id=eq.$GAME&player_id=eq.$IDC")")"
+check "accepting carol would exceed the limit" "ERR:23514" \
+  "$(count "$(as "$TA" PATCH "game_participant?post_id=eq.$GAME&player_id=eq.$IDC" '{"status":"accepted"}')")"
+
+echo
+echo "== 13. matches within a game =="
+BODY="{\"post_id\":\"$GAME\",\"created_by\":\"$IDA\",\"format\":\"singles\"}"
+R=$(as "$TA" POST "match" "$BODY")
+check "the organiser can record a match" 1 "$(count "$R")"
+M1=$(echo "$R" | python3 -c 'import sys,json
+d=json.load(sys.stdin)
+print(d[0]["match_id"] if isinstance(d,list) and d else "")')
+
+BODY="{\"post_id\":\"$GAME\",\"created_by\":\"$IDB\",\"format\":\"singles\"}"
+R=$(as "$TB" POST "match" "$BODY")
+check "a roster player can also record one" 1 "$(count "$R")"
+
+BODY="{\"post_id\":\"$GAME\",\"created_by\":\"$IDC\",\"format\":\"singles\"}"
+R=$(as "$TC" POST "match" "$BODY")
+check "someone not on the roster cannot" "ERR:42501" "$(count "$R")"
+
+BODY="{\"match_id\":\"$M1\",\"player_id\":\"$IDA\",\"side\":\"a\"}"
+R=$(as "$TA" POST "match_participant" "$BODY")
+check "alice takes side a" 1 "$(count "$R")"
+
+BODY="{\"match_id\":\"$M1\",\"player_id\":\"$IDC\",\"side\":\"b\"}"
+R=$(as "$TA" POST "match_participant" "$BODY")
+check "carol cannot play, she is not on the roster" "ERR:23514" "$(count "$R")"
+
+check "a singles match cannot be completed with one side empty" "ERR:23514" \
+  "$(count "$(as "$TA" PATCH "match?match_id=eq.$M1" '{"status":"completed"}')")"
+
+BODY="{\"match_id\":\"$M1\",\"player_id\":\"$IDB\",\"side\":\"b\"}"
+R=$(as "$TA" POST "match_participant" "$BODY")
+check "bob takes side b" 1 "$(count "$R")"
+
+check "now the match can be completed" 1 \
+  "$(count "$(as "$TA" PATCH "match?match_id=eq.$M1" '{"status":"completed"}')")"
+
+BODY="{\"match_id\":\"$M1\",\"submitted_by\":\"$IDA\",\"score\":\"21-18 21-15\",\"winning_side\":\"a\"}"
+R=$(as "$TA" POST "match_result" "$BODY")
+check "a participant submits a result naming the winning side" 1 "$(count "$R")"
+
+echo
+echo "== 14. side limits by format =="
+BODY="{\"post_id\":\"$GAME\",\"created_by\":\"$IDA\",\"format\":\"singles\"}"
+R=$(as "$TA" POST "match" "$BODY")
+M2=$(echo "$R" | python3 -c 'import sys,json
+d=json.load(sys.stdin)
+print(d[0]["match_id"] if isinstance(d,list) and d else "")')
+BODY="{\"match_id\":\"$M2\",\"player_id\":\"$IDA\",\"side\":\"a\"}"
+as "$TA" POST "match_participant" "$BODY" > /dev/null
+BODY="{\"match_id\":\"$M2\",\"player_id\":\"$IDB\",\"side\":\"a\"}"
+R=$(as "$TA" POST "match_participant" "$BODY")
+check "a singles side cannot hold two players" "ERR:23514" "$(count "$R")"
+check "several matches can belong to one game" 3 \
+  "$(count "$(as "$TA" GET "match?post_id=eq.$GAME&select=match_id")")"
+
+# game_participant is what makes a bare player(...) embed on game_post
+# ambiguous: before this migration there was only one route to player.
+check "a bare player embed is refused as ambiguous" "ERR:PGRST201" \
+  "$(count "$(as "$TA" GET "game_post?post_id=eq.$PID&select=post_id,player(display_name)")")"
+
+# The query the game screen needs: a post, its organiser, and its
+# accepted roster, in one round trip.
+SEL="post_id,player_limit,organiser:player!organiser_id(display_name)"
+SEL="$SEL,game_participant(status,player(display_name))"
+EMB=$(as "$TA" GET "game_post?post_id=eq.$GAME&select=$SEL")
+check "post, organiser and roster embed together" '["Alice",2]' \
+  "$(echo "$EMB" | python3 -c 'import sys,json
+d=json.load(sys.stdin)
+r=d[0] if isinstance(d,list) and d else {}
+o=r.get("organiser") or {}
+roster=[p for p in (r.get("game_participant") or []) if p.get("status")=="accepted"]
+print(json.dumps([o.get("display_name"), len(roster)], separators=(",",":")))')"
+echo
 echo "-------------------------------------"
 echo "  $pass passed, $fail failed"
 [[ $fail -eq 0 ]]
