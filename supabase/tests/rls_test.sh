@@ -311,6 +311,54 @@ o=r.get("organiser") or {}
 roster=[p for p in (r.get("game_participant") or []) if p.get("status")=="accepted"]
 print(json.dumps([o.get("display_name"), len(roster)], separators=(",",":")))')"
 echo
+echo "== 15. updated_at / updated_by =="
+field() { python3 -c 'import sys,json
+d=json.load(sys.stdin)
+r=d[0] if isinstance(d,list) and d else {}
+v=r.get(sys.argv[1])
+print("" if v is None else v)' "$1"; }
+
+BODY="{\"organiser_id\":\"$IDA\",\"format\":\"doubles\",\"proposed_time\":\"2026-12-01T18:00:00Z\",\"suburb\":\"Clayton\"}"
+R=$(as "$TA" POST "game_post" "$BODY")
+APOST=$(echo "$R" | field post_id)
+check "updated_by is stamped on insert" "$IDA" "$(echo "$R" | field updated_by)"
+T0=$(echo "$R" | field updated_at)
+check "updated_at is stamped on insert" "yes" "$([[ -n "$T0" ]] && echo yes || echo no)"
+
+# A client naming updated_by should not be believed.
+BODY="{\"suburb\":\"Clayton North\",\"updated_by\":\"$IDB\"}"
+R=$(as "$TA" PATCH "game_post?post_id=eq.$APOST" "$BODY")
+check "a forged updated_by is overwritten with the real actor" "$IDA" \
+  "$(echo "$R" | field updated_by)"
+T1=$(echo "$R" | field updated_at)
+check "a real edit bumps updated_at" "yes" \
+  "$([[ "$T1" > "$T0" ]] && echo yes || echo no)"
+
+# Setting a column to the value it already holds is not an edit.
+R=$(as "$TA" PATCH "game_post?post_id=eq.$APOST" '{"suburb":"Clayton North"}')
+check "a no-op patch leaves updated_at alone" "$T1" "$(echo "$R" | field updated_at)"
+
+# The actor, not the owner: alice accepted bob's request back in section 12.
+R=$(as "$TA" GET "game_participant?post_id=eq.$GAME&player_id=eq.$IDB&select=player_id,updated_by")
+check "updated_by records who made the change, not whose row it is" "$IDA" \
+  "$(echo "$R" | field updated_by)"
+
+# Every table that can change should expose the pair. Asking PostgREST for the
+# columns fails with 42703 if either is missing.
+MISSING=""
+for tbl in player player_profile venue mini_league league_standing game_post \
+           game_participant cancellation_record club match match_participant \
+           check_in match_result dispute ranking notification report admin_post
+do
+  RES=$(as "$TA" GET "$tbl?select=updated_at,updated_by&limit=1")
+  echo "$RES" | grep -q '"code"' && MISSING="$MISSING $tbl"
+done
+check "all 18 changeable tables expose the pair" "" "$MISSING"
+
+# club_representative has no updatable column, so it deliberately has neither.
+check "club_representative is deliberately excluded" "ERR:42703" \
+  "$(count "$(as "$TA" GET "club_representative?select=updated_at&limit=1")")"
+echo
 echo "-------------------------------------"
 echo "  $pass passed, $fail failed"
 [[ $fail -eq 0 ]]
