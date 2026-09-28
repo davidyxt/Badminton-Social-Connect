@@ -1,0 +1,240 @@
+.league-created-card {
+    width: 100%;
+  
+    padding: 20px;
+  
+    border-radius: 18px;
+  
+    background: #ffffff;
+  
+    text-align: left;
+  
+    box-shadow:
+      0 2px 5px rgba(0, 0, 0, 0.07),
+      0 8px 18px rgba(0, 0, 0, 0.04);
+  }
+  
+  
+  /* ======================================================
+     HEADER
+     ====================================================== */
+  
+  .league-created-header {
+    display: flex;
+    align-items: center;
+  
+    gap: 14px;
+  }
+  
+  
+  .league-created-avatar {
+    width: 58px;
+    height: 58px;
+  
+    flex-shrink: 0;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    border-radius: 14px;
+  
+    background: #294b87;
+  
+    color: white;
+  
+    font-size: 17px;
+    font-weight: 800;
+  }
+  
+  
+  .league-created-title {
+    min-width: 0;
+  }
+  
+  
+  .league-created-title h2 {
+    margin: 0 0 7px;
+  
+    color: #202536;
+  
+    font-size: 17px;
+    font-weight: 800;
+  
+    line-height: 1.2;
+  }
+  
+  
+  /* ======================================================
+     TAGS
+     ====================================================== */
+  
+  .league-created-tags {
+    display: flex;
+    flex-wrap: wrap;
+  
+    gap: 7px;
+  }
+  
+  
+  .league-created-tags span {
+    padding: 6px 12px;
+  
+    border-radius: 16px;
+  
+    background: #edf3ff;
+  
+    color: #315b9e;
+  
+    font-size: 10px;
+    font-weight: 700;
+  }
+  
+  
+  /* ======================================================
+     DIVIDER
+     ====================================================== */
+  
+  .league-created-divider {
+    width: 100%;
+    height: 1px;
+  
+    margin: 16px 0 4px;
+  
+    background: #e5e8ed;
+  }
+  
+  
+  /* ======================================================
+     DETAILS
+     ====================================================== */
+  
+  .league-created-detail {
+    min-height: 48px;
+  
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  
+    gap: 15px;
+  
+    border-bottom: 1px solid #e8eaf0;
+  }
+  
+  
+  .league-created-detail:last-child {
+    border-bottom: none;
+  }
+  
+  
+  .league-created-detail > span {
+    color: #73798a;
+  
+    font-size: 13px;
+  }
+  
+  
+  .league-created-detail > strong {
+    max-width: 65%;
+  
+    color: #202536;
+  
+    font-size: 13px;
+    font-weight: 750;
+  
+    text-align: right;
+  }
+  
+  
+  /* ======================================================
+     INVITED PLAYERS
+     ====================================================== */
+  
+  .league-created-invited {
+    display: flex;
+    align-items: center;
+  
+    gap: 10px;
+  }
+  
+  
+  .invited-avatars {
+    display: flex;
+    align-items: center;
+  }
+  
+  
+  .invited-avatar {
+    width: 31px;
+    height: 31px;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    margin-left: -6px;
+  
+    border: 2px solid white;
+    border-radius: 50%;
+  
+    background: #315b9e;
+  
+    color: white;
+  
+    font-size: 9px;
+    font-weight: 800;
+  }
+  
+  
+  .invited-avatar:first-child {
+    margin-left: 0;
+  }
+  
+  
+  .invited-avatar:nth-child(2) {
+    background: #f58220;
+  }
+  
+  
+  .invited-avatar:nth-child(3) {
+    background: #5486c8;
+  }
+  
+  
+  .invited-avatar:nth-child(4) {
+    background: #594a97;
+  }
+  
+  
+  .league-created-invited strong {
+    color: #315b9e;
+  
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  
+  
+  /* ======================================================
+     SMALL PHONE
+     ====================================================== */
+  
+  @media (max-width: 430px) {
+  
+    .league-created-card {
+      padding: 17px;
+    }
+  
+    .league-created-avatar {
+      width: 54px;
+      height: 54px;
+    }
+  
+    .league-created-title h2 {
+      font-size: 15px;
+    }
+  
+    .league-created-detail {
+      min-height: 45px;
+    }
+  
+  }
