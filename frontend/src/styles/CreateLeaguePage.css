@@ -1,0 +1,345 @@
+.create-league-page {
+    width: 100%;
+    max-width: 480px;
+    min-height: 100dvh;
+  
+    margin: 0 auto;
+    padding-top: 62px;
+    padding-bottom: 78px;
+  
+    background: #f5f6f8;
+    color: #202536;
+  }
+  
+  .create-league-header {
+    height: 54px;
+  
+    display: grid;
+    grid-template-columns: 42px 1fr 42px;
+    align-items: center;
+  
+    padding: 0 12px;
+  
+    background: white;
+    border-bottom: 1px solid #e4e7ec;
+  }
+  
+  .create-league-header h1 {
+    margin: 0;
+  
+    font-size: 16px;
+    font-weight: 800;
+  }
+  
+  .create-league-back-button {
+    width: 38px;
+    height: 38px;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    border: none;
+    background: transparent;
+    color: #202536;
+  
+    cursor: pointer;
+  }
+  
+  .create-league-form {
+    width: 100%;
+  }
+  
+  .create-league-card {
+    margin: 14px;
+    padding: 18px;
+  
+    border-radius: 18px;
+    background: white;
+  
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.06),
+      0 8px 18px rgba(0, 0, 0, 0.03);
+  }
+  
+  .create-league-field {
+    margin-bottom: 18px;
+  }
+  
+  .create-league-field:last-child {
+    margin-bottom: 0;
+  }
+  
+  .create-league-field label,
+  .toggle-label {
+    display: block;
+  
+    margin-bottom: 8px;
+  
+    color: #202536;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  
+  .create-league-field label span {
+    color: #73798a;
+    font-weight: 600;
+  }
+  
+  .create-league-field input,
+  .create-league-field textarea {
+    width: 100%;
+  
+    border: 1px solid #dfe3e9;
+    border-radius: 12px;
+  
+    background: white;
+    color: #202536;
+  
+    font-family: inherit;
+    font-size: 14px;
+  
+    outline: none;
+  
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+  
+  .create-league-field input {
+    height: 48px;
+    padding: 0 14px;
+  }
+  
+  .create-league-field textarea {
+    min-height: 96px;
+    padding: 14px;
+    resize: vertical;
+    line-height: 1.5;
+  }
+  
+  .create-league-field input:focus,
+  .create-league-field textarea:focus {
+    border-color: #315b9e;
+    box-shadow: 0 0 0 3px rgba(49, 91, 158, 0.1);
+  }
+  
+  .create-league-field input::placeholder,
+  .create-league-field textarea::placeholder {
+    color: #a6abb6;
+  }
+  
+  .create-league-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .skill-options .league-option {
+    flex: 1;
+    min-width: 90px;
+  }
+  
+  .league-option {
+    min-width: 88px;
+    height: 38px;
+  
+    padding: 0 16px;
+  
+    border: 1px solid #e6e2d5;
+    border-radius: 20px;
+  
+    background: #fff8e8;
+    color: #db7908;
+  
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+  
+    cursor: pointer;
+  }
+  
+  .league-option.selected {
+    border-color: #315b9e;
+    background: #edf3ff;
+    color: #315b9e;
+  }
+  
+  .create-league-two-column {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  
+  .create-league-two-column.aligned-top {
+    align-items: start;
+  }
+  
+  .input-with-icon {
+    position: relative;
+  }
+  
+  .input-with-icon input {
+    padding-right: 42px;
+  }
+  
+  .input-with-icon svg {
+    position: absolute;
+    top: 50%;
+    right: 14px;
+    transform: translateY(-50%);
+  
+    color: #8a8f9d;
+  }
+  
+  .input-with-icon.left-icon input {
+    padding-left: 42px;
+    padding-right: 14px;
+  }
+  
+  .input-with-icon.left-icon svg {
+    left: 14px;
+    right: auto;
+  }
+  
+  .toggle-switch {
+    position: relative;
+  
+    display: inline-block;
+  
+    width: 54px;
+    height: 30px;
+  
+    margin-top: 2px;
+  }
+  
+  .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  
+  .toggle-slider {
+    position: absolute;
+    inset: 0;
+  
+    border-radius: 999px;
+    background: #f58220;
+  
+    cursor: pointer;
+    transition: 0.2s ease;
+  }
+  
+  .toggle-slider::before {
+    content: "";
+  
+    position: absolute;
+    left: 4px;
+    top: 4px;
+  
+    width: 22px;
+    height: 22px;
+  
+    border-radius: 50%;
+    background: white;
+  
+    transition: 0.2s ease;
+  }
+  
+  .toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(24px);
+  }
+  
+  .field-helper-text {
+    margin: 6px 0 0;
+  
+    color: #8a8f9d;
+    font-size: 11px;
+  }
+  
+  .selected-players {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  
+    margin-top: 12px;
+  }
+  
+  .selected-player-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  
+    padding: 8px 12px;
+  
+    border-radius: 999px;
+  
+    background: #eef3fb;
+    color: #315b9e;
+  
+    font-size: 12px;
+    font-weight: 600;
+  }
+  
+  .selected-player-pill button {
+    border: none;
+    background: transparent;
+    color: #6f7684;
+  
+    font-size: 16px;
+    line-height: 1;
+  
+    cursor: pointer;
+  }
+  
+  .character-count {
+    margin-top: 6px;
+  
+    text-align: right;
+  
+    color: #8a8f9d;
+    font-size: 11px;
+  }
+  
+  .create-league-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  
+    padding: 0 14px 18px;
+  }
+  
+  .save-draft-button,
+  .create-league-submit-button {
+    height: 48px;
+  
+    border-radius: 14px;
+  
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 800;
+  
+    cursor: pointer;
+  }
+  
+  .save-draft-button {
+    border: 2px solid #315b9e;
+    background: white;
+    color: #315b9e;
+  }
+  
+  .create-league-submit-button {
+    border: none;
+    background: #f58220;
+    color: white;
+  }
+  
+  @media (max-width: 400px) {
+    .create-league-two-column {
+      grid-template-columns: 1fr;
+    }
+  
+    .create-league-actions {
+      grid-template-columns: 1fr;
+    }
+  }

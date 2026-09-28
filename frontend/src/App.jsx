@@ -10,6 +10,10 @@ import FindGamesPage from "./pages/FindGamesPage";
 import GameDetailsPage from "./pages/GameDetailsPage";
 import GameRequestConfirmationPage from "./pages/GameRequestConfirmationPage";
 import RankingsPage from "./pages/RankingsPage";
+import MiniLeaguesPage from "./pages/MiniLeaguesPage";
+import CreateLeaguePage from "./pages/CreateLeaguePage";
+import LeagueCreatedConfirmationPage from "./pages/LeagueCreatedConfirmationPage";
+import LeagueDetailsPage from "./pages/LeagueDetailsPage";
 
 import AuthenticatedLayout from "./layouts/AuthenticatedLayout";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
@@ -47,7 +51,6 @@ function App() {
 
         {/* Protected pages */}
 
-
           {/* Pages WITH top/bottom navigation */}
 
           <Route element={<AuthenticatedLayout />}>
@@ -80,6 +83,26 @@ function App() {
             <Route
             path="/games/:gameId/request-confirmation"
             element={<GameRequestConfirmationPage />}
+          />
+
+          <Route
+            path="/leagues"
+            element={<MiniLeaguesPage />}
+          />
+
+          <Route
+            path="/leagues/create"
+            element={<CreateLeaguePage />}
+          />
+
+          <Route
+            path="/leagues/:leagueId/created"
+            element={<LeagueCreatedConfirmationPage />}
+          />
+
+          <Route
+            path="/leagues/:leagueId"
+            element={<LeagueDetailsPage />}
           />
 
           </Route>
