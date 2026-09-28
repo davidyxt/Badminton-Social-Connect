@@ -16,6 +16,8 @@ import LeagueCreatedConfirmationPage from "./pages/LeagueCreatedConfirmationPage
 import LeagueDetailsPage from "./pages/LeagueDetailsPage";
 import ProfilePage from "./pages/ProfilePage";
 import PlayerProfilePage from "./pages/PlayerProfilePage";
+import NotificationsPage from "./pages/NotificationsPage";
+import PlayRequestPage from "./pages/PlayRequestPage";
 
 import AuthenticatedLayout from "./layouts/AuthenticatedLayout";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
@@ -115,6 +117,16 @@ function App() {
           <Route
             path="/players/:playerId"
             element={<PlayerProfilePage />}
+          />
+
+          <Route
+            path="/notifications"
+            element={<NotificationsPage />}
+          />
+          
+          <Route
+            path="/play-requests/:requestId"
+            element={<PlayRequestPage />}
           />
 
           </Route>
