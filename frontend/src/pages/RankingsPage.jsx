@@ -195,81 +195,85 @@ const leagueLeaderboard = [
   },
 ];
 
-
 function RatingTrendChart() {
-  const width = 300;
-  const height = 90;
-
-  const minRating = Math.min(...ratingHistory) - 10;
-  const maxRating = Math.max(...ratingHistory) + 10;
-
-  const points = ratingHistory
-    .map((rating, index) => {
-      const x =
-        (index / (ratingHistory.length - 1)) *
-        width;
-
-      const y =
-        height -
-        ((rating - minRating) /
-          (maxRating - minRating)) *
-          height;
-
-      return `${x},${y}`;
-    })
-    .join(" ");
-
-  return (
-    <div className="ranking-chart">
-
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="none"
-      >
-        <polyline
-          points={points}
-          className="ranking-chart-line"
-        />
-
-        {ratingHistory.map((rating, index) => {
-          const x =
-            (index /
-              (ratingHistory.length - 1)) *
-            width;
-
-          const y =
-            height -
-            ((rating - minRating) /
-              (maxRating - minRating)) *
-              height;
-
-          return (
-            <circle
-              key={index}
-              cx={x}
-              cy={y}
-              r="3"
-              className={
-                index ===
-                ratingHistory.length - 1
-                  ? "ranking-chart-point latest"
-                  : "ranking-chart-point"
-              }
-            />
-          );
-        })}
-
-      </svg>
-
-      <div className="ranking-chart-labels">
-        <span>Month 1</span>
-        <span>Latest</span>
+    const width = 300;
+    const height = 110;
+    const paddingTop = 12;
+    const paddingBottom = 18;
+  
+    const minRating = Math.min(...ratingHistory) - 10;
+    const maxRating = Math.max(...ratingHistory) + 10;
+  
+    const getX = (index) =>
+      (index / (ratingHistory.length - 1)) * width;
+  
+    const getY = (rating) =>
+      height -
+      paddingBottom -
+      ((rating - minRating) / (maxRating - minRating)) *
+        (height - paddingTop - paddingBottom);
+  
+    const points = ratingHistory
+      .map((rating, index) => {
+        const x = getX(index);
+        const y = getY(rating);
+        return `${x},${y}`;
+      })
+      .join(" ");
+  
+    return (
+      <div className="ranking-chart">
+        <svg viewBox={`0 0 ${width} ${height}`} className="ranking-chart-svg">
+          
+          {/* Vertical guide lines */}
+          {ratingHistory.map((_, index) => {
+            const x = getX(index);
+            return (
+              <line
+                key={`guide-${index}`}
+                x1={x}
+                y1={paddingTop}
+                x2={x}
+                y2={height - paddingBottom}
+                className="ranking-chart-guide"
+              />
+            );
+          })}
+  
+          {/* Trend line */}
+          <polyline
+            points={points}
+            className="ranking-chart-line"
+          />
+  
+          {/* Dots */}
+          {ratingHistory.map((rating, index) => {
+            const x = getX(index);
+            const y = getY(rating);
+  
+            return (
+              <circle
+                key={index}
+                cx={x}
+                cy={y}
+                r="4.5"
+                className={
+                  index === ratingHistory.length - 1
+                    ? "ranking-chart-point latest"
+                    : "ranking-chart-point"
+                }
+              />
+            );
+          })}
+        </svg>
+  
+        <div className="ranking-chart-labels">
+          <span>Month 1</span>
+          <span>Latest</span>
+        </div>
       </div>
-
-    </div>
-  );
-}
-
+    );
+  }
 
 function RankingsPage() {
   const [activeLeaderboard, setActiveLeaderboard] =

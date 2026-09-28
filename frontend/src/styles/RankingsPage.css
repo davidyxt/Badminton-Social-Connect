@@ -281,46 +281,46 @@
   }
   
   
-  /* ======================================================
-     RATING GRAPH
-     ====================================================== */
-  
-  .ranking-chart {
+ /* ======================================================
+   RATING GRAPH
+   ====================================================== */
+
+.ranking-chart {
     width: 100%;
   
     margin-top: 18px;
   }
   
-  
-  .ranking-chart svg {
+  .ranking-chart-svg {
     width: 100%;
-    height: 90px;
+    height: 110px;
   
-    overflow: visible;
+    display: block;
   }
   
+  .ranking-chart-guide {
+    stroke: #e3e7ef;
+    stroke-width: 1;
+  }
   
   .ranking-chart-line {
     fill: none;
   
     stroke: #4788dc;
   
-    stroke-width: 2.3;
+    stroke-width: 2.4;
   
     stroke-linecap: round;
     stroke-linejoin: round;
   }
   
-  
   .ranking-chart-point {
     fill: #4788dc;
   }
   
-  
   .ranking-chart-point.latest {
     fill: #f58220;
   }
-  
   
   .ranking-chart-labels {
     display: flex;
@@ -334,7 +334,7 @@
     font-size: 8px;
   }
   
-  
+
   /* ======================================================
      LEADERBOARD SECTION
      ====================================================== */
