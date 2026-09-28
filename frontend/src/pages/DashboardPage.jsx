@@ -70,6 +70,7 @@ function DashboardPage() {
           <button
             className="dashboard-action-button secondary"
             type="button"
+            onClick={() => navigate("/post-game")}
           >
             <span className="plus-symbol">+</span>
 
@@ -77,8 +78,8 @@ function DashboardPage() {
           </button>
 
         </div>
-      </section>
 
+      </section>
 
       {/* MAIN CONTENT */}
 
@@ -193,8 +194,10 @@ function DashboardPage() {
               <button
                 className="empty-secondary-button"
                 type="button"
+                onClick={() => navigate("/post-game")}
               >
                 <Plus size={18} />
+
                 Post a Game
               </button>
 

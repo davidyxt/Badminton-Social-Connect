@@ -1,8 +1,10 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import LandingPage from "./pages/LandingPage";
+import LandingPage from "./pages/landingPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
+import PostGamePage from "./pages/PostGamePage";
+import PostGameConfirmationPage from "./pages/PostGameConfirmationPage";
 
 import DashboardPage from "./pages/DashboardPage";
 
@@ -31,6 +33,12 @@ function App() {
           element={<SignupPage />}
         />
 
+         {/* Focused pages without bottom navigation */}
+
+        <Route
+          path="/post-game"
+          element={<PostGamePage />}
+        />
 
         {/* Pages WITH top/bottom navigation */}
 
@@ -41,7 +49,11 @@ function App() {
             element={<DashboardPage />}
           />
 
-          
+          <Route
+            path="/post-game/confirmation/:gameId"
+            element={<PostGameConfirmationPage />}
+          />
+
         </Route>
 
       </Routes>

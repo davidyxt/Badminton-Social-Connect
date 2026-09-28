@@ -16,10 +16,6 @@ function LandingPage() {
         <div className="landing-image-overlay" />
       </div>
 
-      <div className="landing-badge">
-        BADMINTON VICTORIA
-      </div>
-
       <section className="landing-content">
 
         <h1 className="landing-title">
