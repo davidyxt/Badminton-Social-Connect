@@ -1,13 +1,10 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import LandingPage from "./pages/LandingPage";
+import LandingPage from "./pages/landingPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
-import AuthCallbackPage from "./pages/AuthCallbackPage";
-import EmailConfirmedPage from "./pages/EmailConfirmedPage";
-import SignOutPage from "./pages/SignOutPage";
-import ForgotPasswordPage from "./pages/ForgotPasswordPage";
-import ResetPasswordPage from "./pages/ResetPasswordPage";
+import PostGamePage from "./pages/PostGamePage";
+import PostGameConfirmationPage from "./pages/PostGameConfirmationPage";
 
 import DashboardPage from "./pages/DashboardPage";
 
@@ -37,31 +34,12 @@ function App() {
           element={<SignupPage />}
         />
 
-        <Route
-          path="/auth/callback"
-          element={<AuthCallbackPage />}
-        />
+         {/* Focused pages without bottom navigation */}
 
         <Route
-          path="/auth/confirmed"
-          element={<EmailConfirmedPage />}
+          path="/post-game"
+          element={<PostGamePage />}
         />
-
-        <Route
-          path="/signout"
-          element={<SignOutPage />}
-        />
-
-        <Route
-          path="/forgot-password"
-          element={<ForgotPasswordPage />}
-        />
-
-        <Route
-          path="/reset-password"
-          element={<ResetPasswordPage />}
-        />
-
 
         {/* Pages WITH top/bottom navigation */}
 
@@ -73,7 +51,11 @@ function App() {
               element={<DashboardPage />}
             />
 
-          </Route>
+          <Route
+            path="/post-game/confirmation/:gameId"
+            element={<PostGameConfirmationPage />}
+          />
+
         </Route>
 
       </Routes>

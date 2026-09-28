@@ -1,0 +1,296 @@
+.post-game-page {
+    width: 100%;
+    max-width: 480px;
+  
+    min-height: 100dvh;
+  
+    margin: 0 auto;
+  
+    background: #f5f6f8;
+  
+    color: #202536;
+  }
+  
+  
+  /* HEADER */
+  
+  .post-game-header {
+    position: sticky;
+    top: 0;
+  
+    z-index: 100;
+  
+    height: 66px;
+  
+    display: grid;
+    grid-template-columns: 40px 1fr 40px;
+  
+    align-items: center;
+  
+    padding: 0 18px;
+  
+    background: #ffffff;
+  
+    border-bottom: 1px solid #e4e7ec;
+  }
+  
+  .post-game-header h1 {
+    margin: 0;
+  
+    font-size: 18px;
+    font-weight: 800;
+  }
+  
+  .post-game-back-button {
+    width: 38px;
+    height: 38px;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    padding: 0;
+  
+    border: none;
+  
+    background: transparent;
+  
+    color: #202536;
+  
+    cursor: pointer;
+  }
+  
+  
+  /* FORM */
+  
+  .post-game-form {
+    width: 100%;
+  }
+  
+  .post-game-card {
+    margin: 18px;
+  
+    padding: 20px;
+  
+    border: 1px solid #e4e7ec;
+    border-radius: 18px;
+  
+    background: #ffffff;
+  
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.06),
+      0 8px 18px rgba(0, 0, 0, 0.03);
+  }
+  
+  
+  /* SEGMENTED OPTIONS */
+  
+  .post-game-section {
+    margin-bottom: 22px;
+  }
+  
+  .post-game-label,
+  .post-game-field label {
+    display: block;
+  
+    margin-bottom: 9px;
+  
+    color: #73798a;
+  
+    font-size: 12px;
+    font-weight: 800;
+  }
+  
+  .post-game-options {
+    display: flex;
+  
+    gap: 8px;
+  }
+  
+  .post-game-option {
+    min-width: 78px;
+    height: 40px;
+  
+    padding: 0 17px;
+  
+    border: 1px solid #dfe3e9;
+    border-radius: 22px;
+  
+    background: #ffffff;
+  
+    color: #74798a;
+  
+    font-size: 13px;
+    font-weight: 700;
+  
+    cursor: pointer;
+  
+    transition:
+      background 0.15s ease,
+      color 0.15s ease,
+      border-color 0.15s ease;
+  }
+  
+  .post-game-option.selected {
+    border-color: #315b9e;
+  
+    background: #315b9e;
+  
+    color: #ffffff;
+  }
+  
+  
+  /* FIELDS */
+  
+  .post-game-field {
+    margin-bottom: 21px;
+  }
+  
+  .post-game-field:last-of-type {
+    margin-bottom: 0;
+  }
+  
+  .post-game-field input,
+  .post-game-field select,
+  .post-game-field textarea {
+    width: 100%;
+  
+    border: 1px solid #dfe3e9;
+    border-radius: 14px;
+  
+    outline: none;
+  
+    background: #ffffff;
+  
+    color: #202536;
+  
+    font-family: inherit;
+    font-size: 14px;
+  
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+  
+  .post-game-field input,
+  .post-game-field select {
+    height: 55px;
+  
+    padding: 0 16px;
+  }
+  
+  .post-game-field textarea {
+    min-height: 110px;
+  
+    padding: 15px 16px;
+  
+    resize: vertical;
+  
+    line-height: 1.5;
+  }
+  
+  .post-game-field textarea::placeholder {
+    color: #a6abb6;
+  }
+  
+  .post-game-field input:focus,
+  .post-game-field select:focus,
+  .post-game-field textarea:focus {
+    border-color: #315b9e;
+  
+    box-shadow:
+      0 0 0 3px
+      rgba(49, 91, 158, 0.1);
+  }
+  
+  .post-game-field label span {
+    font-weight: 600;
+  }
+  
+  
+  /* ERROR */
+  
+  .post-game-error {
+    margin-top: 18px;
+  
+    padding: 12px 14px;
+  
+    border: 1px solid #ffd2d2;
+    border-radius: 10px;
+  
+    background: #fff1f1;
+  
+    color: #b42318;
+  
+    font-size: 12px;
+  }
+  
+  
+  /* SUBMIT AREA */
+  
+  .post-game-submit-area {
+    position: sticky;
+    bottom: 0;
+  
+    z-index: 50;
+  
+    padding:
+      16px
+      18px
+      calc(16px + env(safe-area-inset-bottom));
+  
+    background: rgba(255, 255, 255, 0.97);
+  
+    border-top: 1px solid #e4e7ec;
+  }
+  
+  .post-game-submit-button {
+    width: 100%;
+    height: 56px;
+  
+    border: none;
+    border-radius: 18px;
+  
+    background: #315b9e;
+  
+    color: white;
+  
+    font-size: 15px;
+    font-weight: 800;
+  
+    cursor: pointer;
+  
+    transition:
+      background 0.15s ease,
+      transform 0.15s ease;
+  }
+  
+  .post-game-submit-button:hover {
+    background: #294b87;
+  }
+  
+  .post-game-submit-button:active {
+    transform: scale(0.99);
+  }
+  
+  .post-game-submit-button:disabled {
+    opacity: 0.65;
+  
+    cursor: not-allowed;
+  }
+  
+  
+  /* SMALL PHONES */
+  
+  @media (max-width: 400px) {
+    .post-game-card {
+      margin: 14px;
+  
+      padding: 17px;
+    }
+  
+    .post-game-submit-area {
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+  }
