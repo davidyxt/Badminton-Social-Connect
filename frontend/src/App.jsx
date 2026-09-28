@@ -18,6 +18,10 @@ import ProfilePage from "./pages/ProfilePage";
 import PlayerProfilePage from "./pages/PlayerProfilePage";
 import NotificationsPage from "./pages/NotificationsPage";
 import PlayRequestPage from "./pages/PlayRequestPage";
+import MatchDetailsPage from "./pages/MatchDetailsPage";
+import RecordResultPage from "./pages/RecordResultPage";
+import ResultSubmittedPage from "./pages/ResultSubmittedPage";
+import ResultConfirmedPage from "./pages/ResultConfirmedPage";
 
 import AuthenticatedLayout from "./layouts/AuthenticatedLayout";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
@@ -127,6 +131,26 @@ function App() {
           <Route
             path="/play-requests/:requestId"
             element={<PlayRequestPage />}
+          />
+          
+          <Route
+            path="/matches/:matchId"
+            element={<MatchDetailsPage />}
+          />
+
+          <Route
+            path="/matches/:matchId/record-result"
+            element={<RecordResultPage />}
+          />
+
+          <Route
+            path="/matches/:matchId/result-submitted"
+            element={<ResultSubmittedPage />}
+          />
+
+          <Route
+            path="/matches/:matchId/result-confirmed"
+            element={<ResultConfirmedPage />}
           />
 
           </Route>
