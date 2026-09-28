@@ -596,11 +596,17 @@ function FindGamesPage() {
                       <button
                         type="button"
                         className="game-secondary-button"
+                        onClick={() =>
+                          navigate(
+                            `/players/${player.id}`,
+                            {
+                              state: {
+                                player,
+                              },
+                            }
+                          )
+                        }
                       >
-                        <UserRound
-                          size={15}
-                        />
-
                         View Profile
                       </button>
 

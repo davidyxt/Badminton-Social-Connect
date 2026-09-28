@@ -14,6 +14,8 @@ import MiniLeaguesPage from "./pages/MiniLeaguesPage";
 import CreateLeaguePage from "./pages/CreateLeaguePage";
 import LeagueCreatedConfirmationPage from "./pages/LeagueCreatedConfirmationPage";
 import LeagueDetailsPage from "./pages/LeagueDetailsPage";
+import ProfilePage from "./pages/ProfilePage";
+import PlayerProfilePage from "./pages/PlayerProfilePage";
 
 import AuthenticatedLayout from "./layouts/AuthenticatedLayout";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
@@ -103,6 +105,16 @@ function App() {
           <Route
             path="/leagues/:leagueId"
             element={<LeagueDetailsPage />}
+          />
+
+          <Route
+            path="/profile"
+            element={<ProfilePage />}
+          />
+
+          <Route
+            path="/players/:playerId"
+            element={<PlayerProfilePage />}
           />
 
           </Route>

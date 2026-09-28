@@ -1,6 +1,10 @@
 import "./TopMenuBar.css";
+import { useNavigate } from "react-router-dom";
 
 function TopMenuBar() {
+
+  const navigate = useNavigate();
+
   return (
     <header className="top-menu-bar">
       <button
@@ -50,6 +54,7 @@ function TopMenuBar() {
           className="profile-avatar"
           aria-label="Open profile"
           type="button"
+          onClick={() => navigate("/profile")}
         >
           JD
         </button>
