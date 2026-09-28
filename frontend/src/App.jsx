@@ -5,8 +5,10 @@ import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import PostGamePage from "./pages/PostGamePage";
 import PostGameConfirmationPage from "./pages/PostGameConfirmationPage";
-
 import DashboardPage from "./pages/DashboardPage";
+import FindGamesPage from "./pages/FindGamesPage";
+import GameDetailsPage from "./pages/GameDetailsPage";
+import GameRequestConfirmationPage from "./pages/GameRequestConfirmationPage";
 
 import AuthenticatedLayout from "./layouts/AuthenticatedLayout";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
@@ -14,7 +16,6 @@ import ProtectedRoute from "./components/auth/ProtectedRoute";
 function App() {
   return (
     <BrowserRouter>
-
       <Routes>
 
         {/* Pages WITHOUT top/bottom navigation */}
@@ -34,16 +35,20 @@ function App() {
           element={<SignupPage />}
         />
 
-         {/* Focused pages without bottom navigation */}
+
+        {/* Focused pages without bottom navigation */}
 
         <Route
           path="/post-game"
           element={<PostGamePage />}
         />
 
-        {/* Pages WITH top/bottom navigation */}
 
-        <Route element={<ProtectedRoute />}>
+        {/* Protected pages */}
+
+
+          {/* Pages WITH top/bottom navigation */}
+
           <Route element={<AuthenticatedLayout />}>
 
             <Route
@@ -51,15 +56,31 @@ function App() {
               element={<DashboardPage />}
             />
 
-          <Route
-            path="/post-game/confirmation/:gameId"
-            element={<PostGameConfirmationPage />}
+            <Route
+              path="/find"
+              element={<FindGamesPage />}
+            />
+
+            <Route
+              path="/games/:gameId"
+              element={<GameDetailsPage />}
+            />
+
+            <Route
+              path="/post-game/confirmation/:gameId"
+              element={<PostGameConfirmationPage />}
+            />
+            
+            <Route
+            path="/games/:gameId/request-confirmation"
+            element={<GameRequestConfirmationPage />}
           />
 
-        </Route>
+          </Route>
+
+      {/* Remember to replace protected route after */}
 
       </Routes>
-
     </BrowserRouter>
   );
 }
