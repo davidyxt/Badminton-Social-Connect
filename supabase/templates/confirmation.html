@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!--
+    Sign-up verification email. Used locally via [auth.email.template.confirmation] in config.toml.
+    For the hosted project, paste this into Dashboard → Authentication → Emails → Confirm signup.
+    Inline styles and tables only: most email apps strip <style> blocks and modern CSS.
+    -->
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Verify your email</title>
+  </head>
+  <body style="margin: 0; padding: 0; background-color: #f3f4f6;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f3f4f6;">
+      <tr>
+        <td align="center" style="padding: 32px 16px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 520px; background-color: #ffffff; border-radius: 12px; overflow: hidden; font-family: Arial, Helvetica, sans-serif;">
+
+            <!-- Header -->
+            <tr>
+              <td style="background-color: #2e4d84; padding: 28px 32px;">
+                <div style="color: #ffffff; font-size: 22px; font-weight: bold;">
+                  Badminton Social Connect
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="background-color: #f27a0b; height: 4px; line-height: 4px; font-size: 0;">&nbsp;</td>
+            </tr>
+
+            <!-- Body -->
+            <tr>
+              <td style="padding: 32px; color: #111827;">
+                <h1 style="margin: 0 0 12px; font-size: 20px; color: #111827;">
+                  Hi {{ if .Data.first_name }}{{ .Data.first_name }}{{ else }}there{{ end }}, welcome! 👋
+                </h1>
+
+                <p style="margin: 0 0 24px; font-size: 15px; line-height: 1.6; color: #374151;">
+                  Confirm your email and you're ready to find your next game.
+                </p>
+
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="border-radius: 8px; background-color: #f27a0b;">
+                      <a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 14px 28px; color: #ffffff; font-size: 15px; font-weight: bold; text-decoration: none; border-radius: 8px;">
+                        Verify my email
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin: 24px 0 0; font-size: 15px; line-height: 1.6; color: #374151;">
+                  Then log in to get started. This link expires in 1 hour.
+                </p>
+
+                <p style="margin: 24px 0 0; font-size: 15px; line-height: 1.6; color: #374151;">
+                  See you on court,<br />
+                  <strong style="color: #2e4d84;">The Badminton Social Connect team</strong>
+                </p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td style="padding: 20px 32px; border-top: 1px solid #e5e7eb; font-size: 12px; line-height: 1.6; color: #6b7280;">
+                Didn't sign up? You can ignore this email.<br />
+                Button not working? Paste this link into your browser:<br />
+                <a href="{{ .ConfirmationURL }}" style="color: #2e4d84; word-break: break-all;">{{ .ConfirmationURL }}</a>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

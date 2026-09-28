@@ -9,6 +9,7 @@ import PostGameConfirmationPage from "./pages/PostGameConfirmationPage";
 import DashboardPage from "./pages/DashboardPage";
 
 import AuthenticatedLayout from "./layouts/AuthenticatedLayout";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 function App() {
   return (
@@ -42,12 +43,13 @@ function App() {
 
         {/* Pages WITH top/bottom navigation */}
 
-        <Route element={<AuthenticatedLayout />}>
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AuthenticatedLayout />}>
 
-          <Route
-            path="/dashboard"
-            element={<DashboardPage />}
-          />
+            <Route
+              path="/dashboard"
+              element={<DashboardPage />}
+            />
 
           <Route
             path="/post-game/confirmation/:gameId"

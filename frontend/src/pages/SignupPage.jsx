@@ -1,10 +1,14 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { signUp } from "../services/authService";
+import { signUp, signInWithGoogle } from "../services/authService";
+import Captcha, { useCaptcha } from "../components/auth/Captcha";
+import { getAuthErrorMessage } from "../utils/authErrors";
+import { PASSWORD_HINT, getPasswordError } from "../utils/passwordPolicy";
 import "../styles/auth.css";
 
 function SignupPage() {
   const navigate = useNavigate();
+  const captcha = useCaptcha();
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -15,6 +19,7 @@ function SignupPage() {
   });
 
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleChange = (event) => {
@@ -36,25 +41,49 @@ function SignupPage() {
       return;
     }
 
-    if (formData.password.length < 6) {
-      setError("Password must contain at least 6 characters.");
+    const passwordError = getPasswordError(formData.password);
+
+    if (passwordError) {
+      setError(passwordError);
       return;
     }
 
     setLoading(true);
 
     try {
-      await signUp({
+      const { session } = await signUp({
         email: formData.email,
         password: formData.password,
         firstName: formData.firstName,
         lastName: formData.lastName,
+        captchaToken: captcha.token,
       });
 
-      navigate("/login");
+      if (session) {
+        navigate("/dashboard");
+      } else {
+        // Email verification is on: no session until the link is clicked.
+        setMessage(
+          "Check your email and click the verification link, then log in to continue."
+        );
+      }
     } catch (err) {
-      setError(err.message || "Unable to create account.");
+      setError(getAuthErrorMessage(err, "Unable to create account."));
     } finally {
+      captcha.reset();
+      setLoading(false);
+    }
+  };
+
+
+  const handleGoogle = async () => {
+    setError("");
+    setLoading(true);
+
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      setError(err.message || "Unable to sign in with Google.");
       setLoading(false);
     }
   };
@@ -157,7 +186,7 @@ function SignupPage() {
               />
 
               <span className="form-hint">
-                Minimum 6 characters
+                {PASSWORD_HINT}
               </span>
             </div>
 
@@ -184,14 +213,35 @@ function SignupPage() {
               </div>
             )}
 
+            {message && (
+              <div className="auth-message" role="status">
+                {message}
+              </div>
+            )}
+
+            <Captcha captcha={captcha} />
+
             <button
               type="submit"
               className="auth-primary-button"
-              disabled={loading}
+              disabled={loading || !captcha.ready}
             >
               {loading ? "Creating account..." : "Create Account"}
             </button>
           </form>
+
+          <div className="auth-divider">
+            <span>or</span>
+          </div>
+
+          <button
+            type="button"
+            className="auth-oauth-button"
+            onClick={handleGoogle}
+            disabled={loading}
+          >
+            Continue with Google
+          </button>
 
           <div className="auth-footer-text">
             Already have an account?{" "}

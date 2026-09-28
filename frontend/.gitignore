@@ -1,4 +1,6 @@
+# Env files with real values (.env.example stays committed)
 .env
+.env*.local
 node_modules/
 dist/
 .DS_Store
