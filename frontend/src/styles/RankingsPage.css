@@ -1,0 +1,668 @@
+.rankings-page {
+    width: 100%;
+    max-width: 480px;
+  
+    min-height: 100dvh;
+  
+    margin: 0 auto;
+  
+    padding-top: 62px;
+    padding-bottom: 78px;
+  
+    background: #f5f6f8;
+  
+    color: #202536;
+  }
+  
+  
+  /* ======================================================
+     BLUE HERO
+     ====================================================== */
+  
+  .ranking-hero {
+    padding: 16px 16px 18px;
+  
+    background: #315b9e;
+  }
+  
+  
+  .ranking-hero > h1 {
+    margin: 0 0 10px;
+  
+    color: white;
+  
+    font-size: 17px;
+    font-weight: 800;
+  }
+  
+  
+  /* ======================================================
+     CURRENT USER CARD
+     ====================================================== */
+  
+  .ranking-user-card {
+    padding: 15px;
+  
+    border-radius: 17px;
+  
+    background: white;
+  
+    box-shadow:
+      0 3px 2px rgba(0, 0, 0, 0.12),
+      0 6px 12px rgba(0, 0, 0, 0.05);
+  }
+  
+  
+  .ranking-user-top {
+    display: grid;
+  
+    grid-template-columns:
+      52px 1fr auto;
+  
+    align-items: center;
+  
+    gap: 10px;
+  }
+  
+  
+  .ranking-avatar {
+    width: 52px;
+    height: 52px;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    border-radius: 50%;
+  
+    background: #294b87;
+  
+    color: white;
+  
+    font-size: 17px;
+    font-weight: 800;
+  }
+  
+  
+  .ranking-user-info {
+    display: flex;
+    flex-direction: column;
+  
+    gap: 5px;
+  }
+  
+  
+  .ranking-user-info strong {
+    font-size: 17px;
+    font-weight: 800;
+  }
+  
+  
+  .ranking-user-info span {
+    width: fit-content;
+  
+    padding: 4px 8px;
+  
+    border-radius: 8px;
+  
+    background: #edf3ff;
+  
+    color: #315b9e;
+  
+    font-size: 8px;
+    font-weight: 700;
+  }
+  
+  
+  .ranking-current-rank {
+    display: flex;
+    flex-direction: column;
+  
+    align-items: flex-end;
+  
+    gap: 2px;
+  }
+  
+  
+  .ranking-current-rank strong {
+    color: #294b87;
+  
+    font-size: 20px;
+    font-weight: 800;
+  }
+  
+  
+  .ranking-current-rank span {
+    color: #73798a;
+  
+    font-size: 8px;
+  }
+  
+  
+  .ranking-divider {
+    width: 100%;
+    height: 1px;
+  
+    margin: 13px 0;
+  
+    background: #e6e8ed;
+  }
+  
+  
+  /* ======================================================
+   USER STATISTICS
+   ====================================================== */
+
+.ranking-user-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+  
+    align-items: center;
+  
+    min-height: 72px;
+  }
+  
+  .ranking-stat {
+    display: flex;
+    flex-direction: column;
+  
+    align-items: center;
+    justify-content: center;
+  
+    gap: 5px;
+  
+    text-align: center;
+  }
+  
+  .ranking-stat > strong {
+    font-size: 18px;
+    font-weight: 800;
+  
+    line-height: 1;
+  }
+  
+  .ranking-stat > span {
+    color: #73798a;
+  
+    font-size: 8px;
+  }
+  
+  
+  /* Rating + change */
+  
+  .ranking-rating-value {
+    position: relative;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    width: fit-content;
+  
+    margin: 0 auto;
+  
+    line-height: 1;
+  }
+  
+  .ranking-rating-value strong {
+    font-size: 18px;
+    font-weight: 800;
+  }
+  
+  .ranking-positive-change {
+    position: absolute;
+  
+    left: 100%;
+    top: -4px;
+  
+    margin-left: 4px;
+  
+    color: #4ca35b;
+  
+    font-size: 8px;
+    font-weight: 800;
+  
+    white-space: nowrap;
+  }
+  
+  /* ======================================================
+     MAIN CONTENT
+     ====================================================== */
+  
+  .rankings-content {
+    display: flex;
+    flex-direction: column;
+  
+    gap: 17px;
+  
+    padding: 16px;
+  }
+  
+  
+  /* ======================================================
+     GENERIC CARD
+     ====================================================== */
+  
+  .ranking-card {
+    padding: 16px;
+  
+    border-radius: 17px;
+  
+    background: white;
+  
+    box-shadow:
+      0 3px 2px rgba(0, 0, 0, 0.1),
+      0 5px 12px rgba(0, 0, 0, 0.04);
+  }
+  
+  
+  .ranking-card-header {
+    display: flex;
+  
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  
+  .ranking-card-header h2 {
+    margin: 0;
+  
+    color: #111318;
+  
+    font-size: 14px;
+    font-weight: 800;
+  }
+  
+  
+  .ranking-card-header span {
+    color: #73798a;
+  
+    font-size: 10px;
+  }
+  
+  
+  /* ======================================================
+     RATING GRAPH
+     ====================================================== */
+  
+  .ranking-chart {
+    width: 100%;
+  
+    margin-top: 18px;
+  }
+  
+  
+  .ranking-chart svg {
+    width: 100%;
+    height: 90px;
+  
+    overflow: visible;
+  }
+  
+  
+  .ranking-chart-line {
+    fill: none;
+  
+    stroke: #4788dc;
+  
+    stroke-width: 2.3;
+  
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  
+  
+  .ranking-chart-point {
+    fill: #4788dc;
+  }
+  
+  
+  .ranking-chart-point.latest {
+    fill: #f58220;
+  }
+  
+  
+  .ranking-chart-labels {
+    display: flex;
+  
+    justify-content: space-between;
+  
+    margin-top: 7px;
+  
+    color: #afb3bd;
+  
+    font-size: 8px;
+  }
+  
+  
+  /* ======================================================
+     LEADERBOARD SECTION
+     ====================================================== */
+  
+  .leaderboard-heading {
+    display: flex;
+  
+    align-items: center;
+    justify-content: space-between;
+  
+    margin-bottom: 10px;
+  }
+  
+  
+  .leaderboard-heading h2 {
+    margin: 0;
+  
+    color: #111318;
+  
+    font-size: 14px;
+    font-weight: 800;
+  }
+  
+  
+  /* ======================================================
+     LEADERBOARD TABS
+     ====================================================== */
+  
+  .leaderboard-tabs {
+    display: flex;
+  
+    gap: 5px;
+  }
+  
+  
+  .leaderboard-tabs button {
+    height: 26px;
+  
+    padding: 0 12px;
+  
+    border: 1px solid #e2e5ea;
+    border-radius: 15px;
+  
+    background: white;
+  
+    color: #73798a;
+  
+    font-family: inherit;
+    font-size: 8px;
+    font-weight: 600;
+  
+    cursor: pointer;
+  }
+  
+  
+  .leaderboard-tabs button.active {
+    border-color: #294b87;
+  
+    background: #294b87;
+  
+    color: white;
+  }
+  
+  
+  /* ======================================================
+     LEADERBOARD CARD
+     ====================================================== */
+  
+  .leaderboard-card {
+    overflow: hidden;
+  
+    border-radius: 16px;
+  
+    background: white;
+  
+    box-shadow:
+      0 3px 2px rgba(0, 0, 0, 0.1),
+      0 5px 12px rgba(0, 0, 0, 0.04);
+  }
+  
+  
+  .leaderboard-list {
+    padding: 0 13px;
+  }
+  
+  
+  /* ======================================================
+     PLAYER ROW
+     ====================================================== */
+  
+  .leaderboard-row {
+    min-height: 58px;
+  
+    display: grid;
+  
+    grid-template-columns:
+      28px 37px 1fr auto;
+  
+    align-items: center;
+  
+    gap: 8px;
+  
+    border-bottom:
+      1px solid #eceef2;
+  }
+  
+  
+  .leaderboard-row:last-child {
+    border-bottom: none;
+  }
+  
+  
+  .leaderboard-position {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    color: #73798a;
+  
+    font-size: 10px;
+    font-weight: 800;
+  }
+  
+  
+  /* TOP THREE MEDALS */
+  
+  .position-1 {
+    color: #e5aa1b;
+  }
+  
+  .position-2 {
+    color: #9fa5b0;
+  }
+  
+  .position-3 {
+    color: #c67a39;
+  }
+  
+  
+  /* AVATAR */
+  
+  .leaderboard-avatar {
+    width: 32px;
+    height: 32px;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    border-radius: 50%;
+  
+    background: #40538f;
+  
+    color: white;
+  
+    font-size: 8px;
+    font-weight: 800;
+  }
+  
+  
+  .leaderboard-row:nth-child(2n)
+    .leaderboard-avatar {
+    background: #e57a22;
+  }
+  
+  
+  .leaderboard-row:nth-child(3n)
+    .leaderboard-avatar {
+    background: #5486c8;
+  }
+  
+  
+  /* PLAYER */
+  
+  .leaderboard-player {
+    min-width: 0;
+  
+    display: flex;
+    flex-direction: column;
+  
+    gap: 3px;
+  }
+  
+  
+  .leaderboard-player strong {
+    overflow: hidden;
+  
+    color: #202536;
+  
+    font-size: 10px;
+    font-weight: 750;
+  
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  
+  .leaderboard-player span {
+    color: #73798a;
+  
+    font-size: 8px;
+  }
+  
+  
+  /* RATING */
+  
+  .leaderboard-rating {
+    display: flex;
+    flex-direction: column;
+  
+    align-items: flex-end;
+  
+    gap: 2px;
+  }
+  
+  
+  .leaderboard-rating strong {
+    color: #202536;
+  
+    font-size: 10px;
+    font-weight: 800;
+  }
+  
+  
+  .leaderboard-rating span {
+    font-size: 8px;
+    font-weight: 700;
+  }
+  
+  
+  .rating-up {
+    color: #50a45c;
+  }
+  
+  
+  .rating-down {
+    color: #dc4c4c;
+  }
+  
+  
+  /* ======================================================
+     CURRENT USER
+     ====================================================== */
+  
+  .current-user-row {
+    margin: 0 -13px;
+  
+    padding: 0 13px;
+  
+    background: #e9f1ff;
+  
+    border-top: 1px solid #86a9df;
+  }
+  
+  
+  .current-user-row
+    .leaderboard-position {
+    color: #315b9e;
+  }
+  
+  
+  .current-user-row
+    .leaderboard-player strong {
+    color: #315b9e;
+  }
+  
+  
+  .current-user-avatar {
+    background: #315b9e !important;
+  }
+  
+  
+  .orange-change {
+    color: #f58220;
+  }
+  
+  
+  /* ======================================================
+     FOOTER MESSAGE
+     ====================================================== */
+  
+  .ranking-footer-message {
+    display: flex;
+  
+    align-items: center;
+    justify-content: center;
+  
+    gap: 7px;
+  
+    padding: 5px 0 12px;
+  
+    color: #8a909e;
+  
+    font-size: 10px;
+  }
+  
+  
+  .ranking-footer-message svg {
+    color: #315b9e;
+  }
+  
+  
+  /* ======================================================
+     SMALL PHONE
+     ====================================================== */
+  
+  @media (max-width: 380px) {
+  
+    .ranking-current-rank strong {
+      font-size: 17px;
+    }
+  
+  
+    .ranking-user-info strong {
+      font-size: 15px;
+    }
+  
+  
+    .leaderboard-tabs button {
+      padding: 0 8px;
+    }
+  
+  
+    .leaderboard-row {
+      grid-template-columns:
+        24px 34px 1fr auto;
+  
+      gap: 6px;
+    }
+  
+  }

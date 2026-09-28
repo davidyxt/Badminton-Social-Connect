@@ -9,6 +9,7 @@ import DashboardPage from "./pages/DashboardPage";
 import FindGamesPage from "./pages/FindGamesPage";
 import GameDetailsPage from "./pages/GameDetailsPage";
 import GameRequestConfirmationPage from "./pages/GameRequestConfirmationPage";
+import RankingsPage from "./pages/RankingsPage";
 
 import AuthenticatedLayout from "./layouts/AuthenticatedLayout";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
@@ -64,6 +65,11 @@ function App() {
             <Route
               path="/games/:gameId"
               element={<GameDetailsPage />}
+            />
+            
+            <Route
+              path="/rankings"
+              element={<RankingsPage />}
             />
 
             <Route
