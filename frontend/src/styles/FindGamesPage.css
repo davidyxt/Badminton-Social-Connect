@@ -1,0 +1,649 @@
+.find-games-page {
+    width: 100%;
+    max-width: 480px;
+  
+    min-height: 100dvh;
+  
+    margin: 0 auto;
+  
+    padding-top: 62px;
+    padding-bottom: 78px;
+  
+    background: #f5f6f8;
+  
+    color: #202536;
+  }
+  
+  
+  /* ======================================================
+     HEADER / SEARCH
+     ====================================================== */
+  
+  .find-games-header {
+    padding: 18px 16px 14px;
+  
+    background: white;
+  
+    border-bottom: 1px solid #e8eaf0;
+  }
+  
+  .find-games-header h1 {
+    margin: 0 0 12px;
+  
+    color: #111318;
+  
+    font-size: 20px;
+    font-weight: 800;
+  }
+  
+  
+  /* SEARCH */
+  
+  .find-search-wrapper {
+    width: 100%;
+    height: 42px;
+  
+    display: flex;
+    align-items: center;
+  
+    padding: 0 13px;
+  
+    border: 1px solid #dfe3e9;
+    border-radius: 22px;
+  
+    background: white;
+  }
+  
+  .find-search-wrapper input {
+    flex: 1;
+  
+    min-width: 0;
+  
+    border: none;
+    outline: none;
+  
+    background: transparent;
+  
+    color: #202536;
+  
+    font-family: inherit;
+    font-size: 13px;
+  }
+  
+  .find-search-wrapper input::placeholder {
+    color: #a5a9b2;
+  }
+  
+  .find-search-wrapper svg {
+    flex-shrink: 0;
+  
+    color: #202536;
+  }
+  
+  
+  /* ======================================================
+     MATCH / PLAYER TABS
+     ====================================================== */
+  
+  .find-tab-switcher {
+    width: 100%;
+    height: 40px;
+  
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  
+    margin-top: 9px;
+  
+    padding: 4px;
+  
+    border-radius: 22px;
+  
+    background: #dedede;
+  }
+  
+  .find-tab-switcher button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    gap: 5px;
+  
+    border: none;
+    border-radius: 18px;
+  
+    background: transparent;
+  
+    color: #315b9e;
+  
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+  
+    cursor: pointer;
+  }
+  
+  .find-tab-switcher button.active {
+    background: white;
+  
+    box-shadow:
+      0 1px 4px
+      rgba(0, 0, 0, 0.08);
+  }
+  
+  
+  /* ======================================================
+     FILTERS
+     ====================================================== */
+  
+  .find-filter-row {
+    display: flex;
+  
+    gap: 8px;
+  
+    margin-top: 10px;
+  }
+  
+  .find-filter-row select {
+    min-width: 110px;
+    height: 36px;
+  
+    padding: 0 42px 0 12px;
+  
+    border: 1px solid #202536;
+    border-radius: 20px;
+  
+    outline: none;
+  
+    background-color: white;
+  
+    color: #202536;
+  
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+  
+    cursor: pointer;
+  
+    appearance: none;
+    -webkit-appearance: none;
+  
+    background-image:
+      linear-gradient(45deg, transparent 50%, #202536 50%),
+      linear-gradient(135deg, #202536 50%, transparent 50%);
+  
+    background-position:
+      calc(100% - 19px) 15px,
+      calc(100% - 14px) 15px;
+  
+    background-size:
+      5px 5px,
+      5px 5px;
+  
+    background-repeat: no-repeat;
+  }
+  
+  /* ======================================================
+     RESULTS AREA
+     ====================================================== */
+  
+  .find-results {
+    display: flex;
+    flex-direction: column;
+  
+    gap: 14px;
+  
+    padding: 14px 16px 22px;
+  }
+  
+  
+  /* ======================================================
+     GAME CARD
+     ====================================================== */
+  
+  .game-card {
+    overflow: hidden;
+  
+    border-radius: 17px;
+  
+    background: white;
+  
+    box-shadow:
+      0 3px 2px
+        rgba(0, 0, 0, 0.12),
+      0 6px 12px
+        rgba(0, 0, 0, 0.05);
+  }
+  
+  
+  /* IMAGE */
+  
+  .game-image {
+    position: relative;
+  
+    width: 100%;
+    height: 132px;
+  
+    display: flex;
+    align-items: flex-end;
+  
+    padding: 16px;
+  
+    background-position: center;
+    background-size: cover;
+  
+    overflow: hidden;
+  }
+  
+  .game-image::after {
+    content: "";
+  
+    position: absolute;
+    inset: 0;
+  
+    background:
+      linear-gradient(
+        to top,
+        rgba(11, 22, 43, 0.7),
+        rgba(11, 22, 43, 0.05)
+      );
+  
+    z-index: 1;
+  }
+  
+  
+  /* EMPTY PHOTO */
+  
+  .game-image-empty {
+    background:
+      linear-gradient(
+        135deg,
+        #dfe7f4,
+        #cbd7ea
+      );
+  }
+  
+  .game-image-placeholder {
+    position: absolute;
+  
+    top: 50%;
+    left: 50%;
+  
+    transform:
+      translate(-50%, -50%);
+  
+    z-index: 0;
+  
+    color: #8b97a9;
+  
+    font-size: 12px;
+    font-weight: 600;
+  }
+  
+  
+  /* TITLE */
+  
+  .game-image h2 {
+    position: relative;
+  
+    z-index: 2;
+  
+    margin: 0;
+  
+    color: white;
+  
+    font-size: 17px;
+    font-weight: 800;
+  
+    line-height: 1.2;
+  }
+  
+  
+  /* BADGES */
+  
+  .game-badges {
+    position: absolute;
+  
+    top: 10px;
+    left: 10px;
+  
+    z-index: 3;
+  
+    display: flex;
+  
+    gap: 7px;
+  }
+  
+  .game-format-badge,
+  .game-style-badge {
+    padding: 6px 12px;
+  
+    border-radius: 18px;
+  
+    font-size: 9px;
+    font-weight: 700;
+  }
+  
+  .game-format-badge {
+    background: #edf3ff;
+  
+    color: #315b9e;
+  }
+  
+  .game-style-badge {
+    background: #fff6de;
+  
+    color: #e18210;
+  }
+  
+  .game-style-badge.competitive {
+    background: #fff4dc;
+  
+    color: #e07a00;
+  }
+  
+  
+  /* ======================================================
+     GAME INFORMATION
+     ====================================================== */
+  
+  .game-card-content {
+    padding: 13px 14px 14px;
+  }
+  
+  .game-info-row {
+    display: flex;
+    align-items: flex-start;
+  
+    gap: 9px;
+  
+    margin-bottom: 9px;
+  
+    color: #73798a;
+  
+    font-size: 11px;
+  
+    line-height: 1.35;
+  }
+  
+  .game-info-row svg {
+    flex-shrink: 0;
+  
+    color: #73798a;
+  }
+  
+  
+  /* BUTTONS */
+  
+  .game-card-actions,
+  .player-card-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  
+    gap: 8px;
+  
+    margin-top: 13px;
+  }
+  
+  .game-primary-button,
+  .game-secondary-button {
+    height: 39px;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    gap: 6px;
+  
+    border-radius: 21px;
+  
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 700;
+  
+    cursor: pointer;
+  }
+  
+  .game-primary-button {
+    border: none;
+  
+    background: #294b87;
+  
+    color: white;
+  }
+  
+  .game-primary-button:hover {
+    background: #213e70;
+  }
+  
+  .game-secondary-button {
+    border: 1px solid #dfe3e9;
+  
+    background: #f8f9fb;
+  
+    color: #73798a;
+  }
+  
+  .game-secondary-button:hover {
+    background: #f0f2f6;
+  }
+  
+  
+  /* ======================================================
+     PLAYER CARDS
+     ====================================================== */
+  
+  .player-card {
+    padding: 16px;
+  
+    border-radius: 17px;
+  
+    background: white;
+  
+    box-shadow:
+      0 3px 2px
+        rgba(0, 0, 0, 0.11),
+      0 6px 12px
+        rgba(0, 0, 0, 0.04);
+  }
+  
+  .player-main-row {
+    display: grid;
+  
+    grid-template-columns:
+      54px 1fr auto;
+  
+    align-items: center;
+  
+    gap: 12px;
+  }
+  
+  .player-avatar {
+    width: 54px;
+    height: 54px;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    border-radius: 50%;
+  
+    background: #294b87;
+  
+    color: white;
+  
+    font-size: 17px;
+    font-weight: 800;
+  }
+  
+  .player-information {
+    min-width: 0;
+  }
+  
+  .player-information h2 {
+    margin: 0 0 4px;
+  
+    color: #202536;
+  
+    font-size: 16px;
+    font-weight: 800;
+  }
+  
+  .player-rank {
+    display: block;
+  
+    margin-bottom: 5px;
+  
+    color: #315b9e;
+  
+    font-size: 11px;
+    font-weight: 700;
+  }
+  
+  .player-location {
+    display: flex;
+    align-items: center;
+  
+    gap: 4px;
+  
+    color: #73798a;
+  
+    font-size: 10px;
+  }
+  
+  .player-reliability {
+    display: flex;
+    flex-direction: column;
+  
+    align-items: flex-end;
+  
+    gap: 2px;
+  }
+  
+  .player-reliability strong {
+    color: #4caf60;
+  
+    font-size: 15px;
+  }
+  
+  .player-reliability span {
+    color: #8a8f9d;
+  
+    font-size: 8px;
+  }
+  
+  .player-divider {
+    width: 100%;
+    height: 1px;
+  
+    margin: 14px 0;
+  
+    background: #e8eaf0;
+  }
+  
+  
+  /* ======================================================
+     END OF RESULTS FOOTER
+     ====================================================== */
+  
+  .find-results-end {
+    display: flex;
+    flex-direction: column;
+  
+    align-items: center;
+  
+    padding: 26px 18px 12px;
+  
+    color: #73798a;
+  
+    text-align: center;
+  }
+  
+  .find-results-end > span {
+    margin-bottom: 7px;
+  
+    font-size: 22px;
+  }
+  
+  .find-results-end svg {
+    margin-bottom: 8px;
+  
+    color: #315b9e;
+  }
+  
+  .find-results-end strong {
+    margin-bottom: 4px;
+  
+    color: #5f6574;
+  
+    font-size: 12px;
+  }
+  
+  .find-results-end p {
+    margin: 0;
+  
+    color: #999eaa;
+  
+    font-size: 10px;
+  }
+  
+  
+  /* ======================================================
+     EMPTY SEARCH STATE
+     ====================================================== */
+  
+  .find-empty-state {
+    display: flex;
+    flex-direction: column;
+  
+    align-items: center;
+  
+    padding: 60px 20px;
+  
+    color: #73798a;
+  
+    text-align: center;
+  }
+  
+  .find-empty-state svg {
+    margin-bottom: 14px;
+  
+    color: #315b9e;
+  }
+  
+  .find-empty-state h3 {
+    margin: 0 0 6px;
+  
+    color: #202536;
+  
+    font-size: 15px;
+  }
+  
+  .find-empty-state p {
+    margin: 0;
+  
+    font-size: 11px;
+  }
+  
+  
+  /* ======================================================
+     SMALL PHONE
+     ====================================================== */
+  
+  @media (max-width: 380px) {
+  
+    .player-main-row {
+      grid-template-columns:
+        48px 1fr;
+    }
+  
+    .player-reliability {
+      grid-column: 2;
+  
+      align-items: flex-start;
+    }
+  
+    .game-card-actions,
+    .player-card-actions {
+      grid-template-columns: 1fr;
+    }
+  }
