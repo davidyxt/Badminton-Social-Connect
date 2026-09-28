@@ -1,0 +1,976 @@
+/* ======================================================
+   SHARED PAGE
+   ====================================================== */
+
+   .match-flow-page {
+    width: 100%;
+    max-width: 480px;
+  
+    min-height: 100dvh;
+  
+    margin: 0 auto;
+  
+    padding-top: 62px;
+    padding-bottom: 150px;
+  
+    background: #f5f6f8;
+  
+    color: #202536;
+  }
+  
+  
+  .match-flow-header {
+    height: 55px;
+  
+    display: grid;
+    grid-template-columns: 40px 1fr 40px;
+  
+    align-items: center;
+  
+    padding: 0 14px;
+  
+    background: white;
+  
+    border-bottom: 1px solid #e5e7eb;
+  }
+  
+  
+  .match-flow-header button {
+    width: 36px;
+    height: 36px;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    padding: 0;
+  
+    border: none;
+  
+    background: transparent;
+  
+    color: #202536;
+  
+    font-size: 22px;
+  
+    cursor: pointer;
+  }
+  
+  
+  .match-flow-header h1 {
+    margin: 0;
+  
+    font-size: 16px;
+    font-weight: 800;
+  }
+  
+  
+  .match-flow-content {
+    display: flex;
+    flex-direction: column;
+  
+    gap: 12px;
+  
+    padding: 16px;
+  }
+  
+  
+  /* ======================================================
+     CARD
+     ====================================================== */
+  
+  .match-flow-card {
+    padding: 17px;
+  
+    border-radius: 16px;
+  
+    background: white;
+  
+    box-shadow:
+      0 2px 5px rgba(0, 0, 0, 0.06),
+      0 6px 12px rgba(0, 0, 0, 0.03);
+  }
+  
+  
+  .match-flow-divider {
+    height: 1px;
+  
+    margin: 14px 0;
+  
+    background: #e5e8ed;
+  }
+  
+  
+  /* ======================================================
+     CONFIRMED BANNER
+     ====================================================== */
+  
+  .confirmed-banner {
+    padding: 17px;
+  
+    border-radius: 16px;
+  
+    background: #315b9e;
+  
+    color: white;
+  }
+  
+  
+  .confirmed-banner-title {
+    display: flex;
+    align-items: center;
+  
+    gap: 8px;
+  }
+  
+  
+  .confirmed-banner-title strong {
+    font-size: 14px;
+  }
+  
+  
+  .confirmed-banner p {
+    margin: 8px 0 0;
+  
+    color: rgba(255, 255, 255, 0.85);
+  
+    font-size: 10px;
+  }
+  
+  
+  /* ======================================================
+     MATCH DETAILS
+     ====================================================== */
+  
+  .match-opponent {
+    display: flex;
+    align-items: center;
+  
+    gap: 12px;
+  }
+  
+  
+  .match-avatar {
+    width: 56px;
+    height: 56px;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    border-radius: 50%;
+  
+    background: #294b87;
+  
+    color: white;
+  
+    font-size: 17px;
+    font-weight: 800;
+  }
+  
+  
+  .match-opponent h2 {
+    margin: 0 0 6px;
+  
+    font-size: 16px;
+  }
+  
+  
+  .match-level-pill {
+    padding: 4px 8px;
+  
+    border-radius: 10px;
+  
+    background: #edf3ff;
+  
+    color: #315b9e;
+  
+    font-size: 8px;
+    font-weight: 700;
+  }
+  
+  
+  .match-detail-row {
+    min-height: 37px;
+  
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  
+    gap: 15px;
+  }
+  
+  
+  .match-detail-row span {
+    color: #73798a;
+  
+    font-size: 11px;
+  }
+  
+  
+  .match-detail-row strong {
+    font-size: 11px;
+  
+    text-align: right;
+  }
+  
+  
+  /* ======================================================
+     SECONDARY ACTIONS
+     ====================================================== */
+  
+  .match-secondary-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  
+    gap: 8px;
+  }
+  
+  
+  .match-secondary-actions button {
+    height: 45px;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    gap: 6px;
+  
+    border: 1px solid #315b9e;
+    border-radius: 14px;
+  
+    background: white;
+  
+    color: #315b9e;
+  
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 700;
+  
+    cursor: pointer;
+  }
+  
+  
+  .match-secondary-actions
+  .cancel-match-button {
+    border-color: #ef6767;
+  
+    color: #e14848;
+  }
+  
+  
+  /* ======================================================
+     WARNINGS
+     ====================================================== */
+  
+  .match-warning {
+    display: flex;
+    align-items: flex-start;
+  
+    gap: 9px;
+  
+    padding: 13px;
+  
+    border: 1px solid #ffd29b;
+    border-radius: 12px;
+  
+    background: #fff7eb;
+  
+    color: #73798a;
+  }
+  
+  
+  .match-warning svg {
+    flex-shrink: 0;
+  
+    color: #eaae00;
+  }
+  
+  
+  .match-warning p {
+    margin: 0;
+  
+    font-size: 9px;
+  
+    line-height: 1.45;
+  }
+  
+  
+  /* ======================================================
+     FIXED BOTTOM ACTION
+     ====================================================== */
+  
+  .match-flow-bottom-action {
+    position: fixed;
+  
+    left: 50%;
+    bottom: 78px;
+  
+    transform: translateX(-50%);
+  
+    z-index: 100;
+  
+    width: 100%;
+    max-width: 480px;
+  
+    padding: 12px 16px;
+  
+    background: rgba(255, 255, 255, 0.98);
+  
+    border-top: 1px solid #e5e7eb;
+  }
+  
+  
+  .match-flow-primary {
+    width: 100%;
+    height: 50px;
+  
+    border: none;
+    border-radius: 14px;
+  
+    background: #315b9e;
+  
+    color: white;
+  
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 800;
+  
+    cursor: pointer;
+  }
+  
+  
+  /* ======================================================
+     RECORD RESULT
+     ====================================================== */
+  
+  .result-versus {
+    display: grid;
+    grid-template-columns: 1fr 50px 1fr;
+  
+    align-items: center;
+  
+    margin-bottom: 22px;
+  }
+  
+  
+  .result-player {
+    display: flex;
+    flex-direction: column;
+  
+    align-items: center;
+  
+    gap: 7px;
+  
+    text-align: center;
+  }
+  
+  
+  .large-match-avatar {
+    width: 58px;
+    height: 58px;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    border-radius: 50%;
+  
+    background: #315b9e;
+  
+    color: white;
+  
+    font-size: 16px;
+    font-weight: 800;
+  }
+  
+  
+  .large-match-avatar.dark {
+    background: #294b87;
+  }
+  
+  
+  .result-player strong {
+    font-size: 11px;
+  }
+  
+  
+  .result-player span {
+    color: #73798a;
+  
+    font-size: 9px;
+  }
+  
+  
+  .versus-text {
+    color: #e0e2e7;
+  
+    font-size: 23px;
+  
+    text-align: center;
+  }
+  
+  
+  .result-section-title {
+    margin: 18px 0 10px;
+  
+    color: #73798a;
+  
+    font-size: 10px;
+    font-weight: 800;
+  }
+  
+  
+  .result-section-title span {
+    font-weight: 600;
+  }
+  
+  
+  .winner-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  
+    gap: 8px;
+  }
+  
+  
+  .winner-buttons button {
+    height: 46px;
+  
+    border: 1px solid #dfe3e9;
+    border-radius: 12px;
+  
+    background: white;
+  
+    color: #202536;
+  
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+  
+    cursor: pointer;
+  }
+  
+  
+  .winner-buttons button.selected {
+    border-color: #315b9e;
+  
+    background: #edf3ff;
+  
+    color: #315b9e;
+  }
+  
+  
+  .score-list {
+    display: flex;
+    flex-direction: column;
+  
+    gap: 10px;
+  }
+  
+  
+  .score-row {
+    display: grid;
+  
+    grid-template-columns:
+      48px
+      64px
+      20px
+      64px;
+  
+    align-items: center;
+  
+    gap: 8px;
+  }
+  
+  
+  .score-row > span {
+    color: #73798a;
+  
+    font-size: 9px;
+    font-weight: 700;
+  }
+  
+  
+  .score-row > strong {
+    text-align: center;
+  
+    color: #73798a;
+  }
+  
+  
+  .score-row input {
+    width: 64px;
+    height: 42px;
+  
+    border: 1px solid #dfe3e9;
+    border-radius: 10px;
+  
+    text-align: center;
+  
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+  
+    outline: none;
+  }
+  
+  
+  .add-set-button {
+    height: 34px;
+  
+    display: flex;
+    align-items: center;
+  
+    gap: 5px;
+  
+    margin-top: 12px;
+  
+    padding: 0;
+  
+    border: none;
+  
+    background: transparent;
+  
+    color: #315b9e;
+  
+    font-family: inherit;
+    font-size: 9px;
+    font-weight: 700;
+  
+    cursor: pointer;
+  }
+  
+  
+  .result-info-message {
+    display: flex;
+    align-items: flex-start;
+  
+    gap: 9px;
+  
+    padding: 13px;
+  
+    border: 1px solid #cdddf8;
+    border-radius: 12px;
+  
+    background: #edf4ff;
+  
+    color: #315b9e;
+  }
+  
+  
+  .result-info-message svg {
+    flex-shrink: 0;
+  }
+  
+  
+  .result-info-message p {
+    margin: 0;
+  
+    color: #64738c;
+  
+    font-size: 9px;
+  
+    line-height: 1.45;
+  }
+  
+  
+  /* ======================================================
+     SUBMITTED
+     ====================================================== */
+  
+  .result-submitted-content {
+    display: flex;
+    flex-direction: column;
+  
+    align-items: center;
+  
+    padding: 28px 16px;
+  }
+  
+  
+  .waiting-icon {
+    width: 70px;
+    height: 70px;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    margin-bottom: 18px;
+  
+    border-radius: 50%;
+  
+    background: #eaf1fd;
+  
+    color: #315b9e;
+  }
+  
+  
+  .result-submitted-content > h2 {
+    margin: 0 0 10px;
+  
+    font-size: 21px;
+    font-weight: 800;
+  }
+  
+  
+  .waiting-description {
+    margin: 0 0 20px;
+  
+    color: #73798a;
+  
+    font-size: 12px;
+  
+    text-align: center;
+  }
+  
+  
+  .submitted-score-card {
+    width: 100%;
+  }
+  
+  
+  .submitted-score-card > h3 {
+    margin: 0 0 13px;
+  
+    color: #73798a;
+  
+    font-size: 10px;
+  }
+  
+  
+  .submitted-set {
+    min-height: 35px;
+  
+    display: grid;
+  
+    grid-template-columns:
+      1fr 40px 20px 40px;
+  
+    align-items: center;
+  }
+  
+  
+  .submitted-set span {
+    color: #73798a;
+  
+    font-size: 10px;
+  }
+  
+  
+  .submitted-score-winner {
+    color: #4b9b59;
+  }
+  
+  
+  .submitted-result-text {
+    display: block;
+  
+    color: #4b9b59;
+  
+    font-size: 11px;
+  
+    text-align: center;
+  }
+  
+  
+  .opponent-confirmation-preview {
+    width: 100%;
+  
+    margin-top: 16px;
+  
+    padding: 16px;
+  
+    border: 1px dashed #d5d9e0;
+    border-radius: 15px;
+  
+    background: #fafbfc;
+  }
+  
+  
+  .opponent-confirmation-preview h3 {
+    margin: 0 0 10px;
+  
+    color: #73798a;
+  
+    font-size: 9px;
+  }
+  
+  
+  .opponent-confirmation-preview p {
+    margin: 0 0 12px;
+  
+    color: #73798a;
+  
+    font-size: 10px;
+  
+    line-height: 1.45;
+  }
+  
+  
+  .opponent-confirmation-preview > div {
+    display: flex;
+  
+    gap: 8px;
+  }
+  
+  
+  .confirm-result-button,
+  .dispute-result-button {
+    height: 38px;
+  
+    padding: 0 16px;
+  
+    border-radius: 19px;
+  
+    font-family: inherit;
+    font-size: 9px;
+    font-weight: 700;
+  
+    cursor: pointer;
+  }
+  
+  
+  .confirm-result-button {
+    border: none;
+  
+    background: #315b9e;
+  
+    color: white;
+  }
+  
+  
+  .dispute-result-button {
+    border: 1px solid #ef6767;
+  
+    background: white;
+  
+    color: #df4a4a;
+  }
+  
+  
+  /* ======================================================
+     RESULT CONFIRMED
+     ====================================================== */
+  
+  .result-confirmed-page {
+    width: 100%;
+    max-width: 480px;
+  
+    min-height: 100dvh;
+  
+    margin: 0 auto;
+  
+    padding-top: 62px;
+    padding-bottom: 78px;
+  
+    background: #315b9e;
+  
+    color: white;
+  }
+  
+  
+  .result-confirmed-content {
+    display: flex;
+    flex-direction: column;
+  
+    align-items: center;
+  
+    padding: 42px 24px;
+  
+    text-align: center;
+  }
+  
+  
+  .result-medal {
+    width: 72px;
+    height: 72px;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    margin-bottom: 18px;
+  
+    border-radius: 50%;
+  
+    background: rgba(255, 255, 255, 0.12);
+  
+    color: #ffd54c;
+  }
+  
+  
+  .result-confirmed-label {
+    margin-bottom: 9px;
+  
+    color: rgba(255, 255, 255, 0.7);
+  
+    font-size: 10px;
+    font-weight: 800;
+  
+    letter-spacing: 1.2px;
+  }
+  
+  
+  .result-confirmed-content > h1 {
+    margin: 0 0 10px;
+  
+    font-size: 36px;
+    font-weight: 900;
+  }
+  
+  
+  .result-confirmed-content > p {
+    margin: 0 0 26px;
+  
+    color: rgba(255, 255, 255, 0.78);
+  
+    font-size: 13px;
+  }
+  
+  
+  .rating-update-card {
+    width: 100%;
+  
+    padding: 20px;
+  
+    border-radius: 18px;
+  
+    background: white;
+  
+    color: #202536;
+  }
+  
+  
+  .rating-update-card h2 {
+    margin: 0 0 18px;
+  
+    color: #73798a;
+  
+    font-size: 10px;
+  }
+  
+  
+  .rating-update-values {
+    display: grid;
+  
+    grid-template-columns:
+      1fr 70px 1fr;
+  
+    align-items: center;
+  }
+  
+  
+  .rating-update-values > div {
+    display: flex;
+    flex-direction: column;
+  
+    align-items: center;
+  
+    gap: 5px;
+  }
+  
+  
+  .rating-update-values strong {
+    font-size: 26px;
+  }
+  
+  
+  .old-rating {
+    color: #73798a;
+  }
+  
+  
+  .new-rating {
+    color: #315b9e;
+  }
+  
+  
+  .rating-update-values span {
+    color: #73798a;
+  
+    font-size: 9px;
+  }
+  
+  
+  .rating-arrow {
+    color: #f58220;
+  
+    font-size: 24px;
+    font-weight: 800;
+  }
+  
+  
+  .rating-arrow strong {
+    color: #f58220;
+  
+    font-size: 12px;
+  }
+  
+  
+  .rating-ranking-update {
+    display: grid;
+  
+    grid-template-columns:
+      1fr 1fr;
+  }
+  
+  
+  .rating-ranking-update > div {
+    display: flex;
+    flex-direction: column;
+  
+    align-items: center;
+  
+    gap: 4px;
+  
+    color: #315b9e;
+  }
+  
+  
+  .rating-ranking-update strong {
+    font-size: 11px;
+  }
+  
+  
+  .rating-ranking-update span {
+    color: #73798a;
+  
+    font-size: 9px;
+  }
+  
+  
+  .confirmed-ranking-button,
+  .confirmed-find-button {
+    width: 100%;
+    height: 50px;
+  
+    margin-top: 14px;
+  
+    border-radius: 14px;
+  
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 800;
+  
+    cursor: pointer;
+  }
+  
+  
+  .confirmed-ranking-button {
+    border: none;
+  
+    background: white;
+  
+    color: #315b9e;
+  }
+  
+  
+  .confirmed-find-button {
+    border: 1px solid white;
+  
+    background: transparent;
+  
+    color: white;
+  }
