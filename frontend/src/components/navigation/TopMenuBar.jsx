@@ -1,6 +1,10 @@
 import "./TopMenuBar.css";
+import { useNavigate } from "react-router-dom";
 
 function TopMenuBar() {
+
+  const navigate = useNavigate();
+
   return (
     <header className="top-menu-bar">
       <button
@@ -16,10 +20,13 @@ function TopMenuBar() {
       </button>
 
       <div className="top-menu-actions">
-        <button
+      <button
           className="notification-button"
           aria-label="Notifications"
           type="button"
+          onClick={() =>
+            navigate("/notifications")
+          }
         >
           <svg
             viewBox="0 0 24 24"
@@ -34,6 +41,7 @@ function TopMenuBar() {
               strokeLinecap="round"
               strokeLinejoin="round"
             />
+
             <path
               d="M10 21h4"
               fill="none"
@@ -43,13 +51,16 @@ function TopMenuBar() {
             />
           </svg>
 
-          <span className="notification-badge">1</span>
-        </button>
+          <span className="notification-badge">
+            1
+          </span>
+      </button>
 
         <button
           className="profile-avatar"
           aria-label="Open profile"
           type="button"
+          onClick={() => navigate("/profile")}
         >
           JD
         </button>

@@ -1,0 +1,3544 @@
+# Badminton Social Connect — API Specification (OpenAPI 3.0 / Swagger)
+# Generated to match the Technical Design Document's API Specification section.
+# Open in https://editor.swagger.io or any OpenAPI 3.0-compatible viewer.
+openapi: 3.0.3
+info:
+  title: Badminton Social Connect API
+  version: 0.1.0
+  description: 'Badminton Social Connect follows a two-tier approach to backend access. Most screens read
+    and write data directly against Supabase''s auto-generated PostgREST APIs (the `Data: *` operations
+    below), called through the Supabase client from Next.js Server Components, Server Actions and Route
+    Handlers, and from the browser client where realtime updates are needed. Row Level Security (RLS)
+    policies on each table are the actual authorisation boundary — a request is only ever as permissive
+    as the policies allow, whichever part of the app makes it.
+
+
+    Operations that need to touch multiple tables atomically, run with elevated privileges, or apply business
+    logic that can''t be expressed as a simple insert, update or delete are implemented as Postgres RPC
+    functions, called as `POST /rpc/{function}` (the operations grouped under Auth, Game Posts, Results
+    & Ranking, Mini Leagues, Trust & Safety and Admin below).
+
+
+    This mirrors, and should be kept in sync with, the Data Endpoints / Custom Functions / Conventions
+    tables in the Technical Design Document''s API Specification section.
+
+
+    **Implementation key** — every operation below carries an `x-implementation` value, and RPC summaries
+    are prefixed to match, so it''s clear at a glance what backs each endpoint:
+
+    - `supabase-postgrest` — a standard, auto-generated Supabase REST endpoint (the `Data: *` operations
+    below); no custom code, just a table plus RLS policies.
+
+    - `postgres-rpc` (prefixed `[Postgres RPC]`) — a Postgres function exposed by Supabase through the
+    standard `POST /rpc/{function}` REST endpoint; still a standard Supabase API, just business logic
+    instead of plain CRUD. This is every RPC below except the two called out next.
+
+    - `edge-function` (prefixed `[Edge Function]`) — a Supabase Edge Function rather than a plain Postgres
+    RPC, used only where the Technical Design Document calls for elevated (service_role) privilege across
+    tables the caller doesn''t own: `admin_suspend_account` and `admin_restore_account`.
+
+
+    **Conventions**
+
+    - Authentication and authorisation: every request carries the Supabase session JWT (`bearerAuth`)
+    and the project API key (`apiKeyAuth`); RLS policies, not frontend checks, are the actual authorisation
+    boundary.
+
+    - Error shape: errors follow the `{code, message}` shape defined in the `Error` schema, aligned with
+    the structured `log_type=error` format used for application logging.
+
+    - Idempotency: mutating RPCs that can be retried (result submission, join requests) are written to
+    be safe to call twice with the same input.
+
+    - Pagination: list endpoints use PostgREST''s `select` / `order` / `limit` / `offset` query parameters,
+    or a `Range` header for large lists, rather than returning full tables.
+
+    - Shared types: run `supabase gen types typescript` after every schema change so the frontend and
+    this spec never drift apart — this file is the reference for schema **shape**; the generated TypeScript
+    types are the reference for actual client code.
+
+    - Secrets: the Supabase `service_role` key (needed for a handful of admin RPCs) is used only inside
+    Edge Functions and server-only code, and is never exposed to the Next.js client bundle.
+
+
+    **Realtime channels** (not representable as REST paths — documented here for completeness; see `x-realtime-channels`):
+
+    - `notifications:{playerId}` — per player, own row only — live badge/list updates on new or read notifications.
+
+    - `game_post:{postId}` — per open post — live status updates (join requests, full, cancelled).
+
+    - `mini_league:{leagueId}:standings` — per league — leaderboard updates after a confirmed result.
+
+    - `admin:reports` / `admin:activity_log` — admin only — live report queue and activity log.
+
+    '
+  contact:
+    name: Badminton Social Connect delivery team
+servers:
+- url: https://<project-ref>.supabase.co/rest/v1
+  description: Supabase project REST API (replace <project-ref> with the actual project ref). All table
+    and /rpc paths below are relative to this base.
+tags:
+- name: 'Data: Player'
+  description: 'Standard Supabase/PostgREST CRUD for the Player table. POST is typically performed by
+    the register_player RPC (which also enforces the minimum-age check) rather than called directly by
+    the frontend. Admin status is not a column here — it is held in the Supabase Auth user''s app_metadata
+    (see Admin: Sign in and access control) and checked through the is_admin() RLS helper, so it can never
+    be changed by a client PATCH.'
+- name: 'Data: PlayerProfile'
+  description: Standard Supabase/PostgREST CRUD for the PlayerProfile table. Created automatically alongside
+    player by register_player (state is captured on the sign-up form and passed through); no direct POST/DELETE.
+- name: 'Data: Notification'
+  description: Standard Supabase/PostgREST CRUD for the Notification table. Rows are written only by the
+    dispatch_notification helper (called from other RPCs); PATCH is limited to isRead by the owning player.
+- name: 'Data: Report'
+  description: Standard Supabase/PostgREST CRUD for the Report table. A reporter can create and read their
+    own reports. Status changes are made by admin_review_report, not a raw PATCH.
+- name: 'Data: GamePost'
+  description: Standard Supabase/PostgREST CRUD for the GamePost table. organiserId is set from the authenticated
+    caller server-side (never client-supplied) on create. PATCH is limited to the organiser. When groupId
+    is set, the caller must be a member of that group (checked by RLS). Cancellation should go through
+    cancel_game_post so a CancellationRecord is written atomically, and is only allowed at least 4 hours
+    before proposedTime (see cancel_game_post below); within that window the post can only lapse via no-shows,
+    not organiser cancellation.
+- name: 'Data: CancellationRecord'
+  description: Standard Supabase/PostgREST CRUD for the CancellationRecord table. System-managed; written
+    only by cancel_game_post.
+- name: 'Data: Ranking'
+  description: Standard Supabase/PostgREST CRUD for the Ranking table. Public leaderboard, read-only;
+    updated only by confirm_result / record_league_match.
+- name: 'Data: MiniLeague'
+  description: Standard Supabase/PostgREST CRUD for the MiniLeague table. POST creates the league (caller
+    becomes organiser; organiserId is set server-side, never client-supplied). Admin suspend/resume goes
+    through admin_suspend_league / admin_resume_league.
+- name: 'Data: LeagueStanding'
+  description: Standard Supabase/PostgREST CRUD for the LeagueStanding table. Read-only; a row is inserted
+    by join_mini_league and recalculated by record_league_match.
+- name: 'Data: Group'
+  description: Standard Supabase/PostgREST CRUD for the Group table. POST registers the group (caller
+    becomes createdBy, set server-side). PATCH (name only) is limited to createdBy. A player posts a game
+    on behalf of a group by setting game_post.groupId; RLS requires the caller be a GroupMember of that
+    group.
+- name: 'Data: GroupMember'
+  description: Standard Supabase/PostgREST CRUD for the GroupMember table. A player joins a group by inserting
+    their own row (self-service, no approval step in this MVP) and leaves by deleting it. Read is limited
+    to a group's own members plus the group's createdBy.
+- name: 'Data: Venue'
+  description: Standard Supabase/PostgREST CRUD for the Venue table. «CouldHave» — read-only for players;
+    create/update restricted to admin or a verified organiser by RLS.
+- name: 'Data: Match'
+  description: Standard Supabase/PostgREST CRUD for the Match table. Created by accept_request; results
+    are written only through submit_result / confirm_result, never a raw PATCH.
+- name: 'Data: CheckIn'
+  description: Standard Supabase/PostgREST CRUD for the CheckIn table. «CouldHave» — a player checks themself
+    in directly.
+- name: 'Data: MatchParticipant'
+  description: Standard Supabase/PostgREST CRUD for the MatchParticipant table. System-managed join table,
+    written by request_to_join / accept_request / decline_request / withdraw_request / mark_no_show.
+- name: 'Data: MatchResult'
+  description: Standard Supabase/PostgREST CRUD for the MatchResult table. Read-only via REST; submission
+    and confirmation go through submit_result / confirm_result so ranking and league standing updates
+    stay atomic.
+- name: 'Data: MatchMessage'
+  description: Standard Supabase/PostgREST CRUD for the MatchMessage table. Create-and-read only, no update/delete.
+    Limited to the two match participants (senderId set from the caller server-side). Delivered live over
+    the match:{matchId}:messages Realtime channel.
+- name: 'Data: Dispute'
+  description: Standard Supabase/PostgREST CRUD for the Dispute table. A participant can raise and read
+    their own disputes. Resolution goes through resolve_dispute (admin only).
+- name: 'Data: Block'
+  description: Standard Supabase/PostgREST CRUD for the Block table. Owner-only. Find Games and league
+    membership queries exclude blocked pairs.
+- name: 'Data: ActivityLog'
+  description: Standard Supabase/PostgREST CRUD for the ActivityLog table. Written only by admin-action
+    RPCs; readable only by admin.
+- name: 'Data: AdminPost'
+  description: 'Standard Supabase/PostgREST CRUD for the AdminPost table. Admin-only create/update/delete,
+    gated by the same is_admin() RLS helper used everywhere else in the admin console (see Admin: Sign
+    in and access control); createdBy set server-side. GET is open to every signed-in player but RLS restricts
+    it to status=published rows; admins additionally see their own drafts. Shown on the player home page
+    and mirrored on an admin management page.'
+- name: Auth
+  description: Account creation and onboarding.
+- name: Game Posts
+  description: Creating, joining and cancelling one-off games.
+- name: Results & Ranking
+  description: Submitting and confirming match results, disputes, and the ranking recalculation they trigger.
+- name: Admin
+  description: 'Admin-only moderation actions: suspend/restore accounts, hide/restore posts, suspend/resume
+    leagues, review reports, resolve disputes.'
+- name: Trust & Safety
+  description: Reporting and blocking other players, posts or leagues.
+- name: Mini Leagues
+  description: Creating and joining Mini Leagues, and recording league matches.
+security:
+- bearerAuth: []
+  apiKeyAuth: []
+paths:
+  /activity_log:
+    get:
+      tags:
+      - 'Data: ActivityLog'
+      summary: List / query ActivityLog rows.
+      x-implementation: supabase-postgrest
+      description: Read access is governed by RLS (see the Access / RLS notes in the Technical Design
+        Document’s Data Endpoints table).
+      parameters:
+      - $ref: '#/components/parameters/activity_log_logIdFilter'
+      - $ref: '#/components/parameters/selectParam'
+      - $ref: '#/components/parameters/orderParam'
+      - $ref: '#/components/parameters/limitParam'
+      - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: Rows matching the query, subject to RLS.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ActivityLog'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /blocks:
+    get:
+      tags:
+      - 'Data: Block'
+      summary: List / query Block rows.
+      x-implementation: supabase-postgrest
+      description: Read access is governed by RLS (see the Access / RLS notes in the Technical Design
+        Document’s Data Endpoints table).
+      parameters:
+      - $ref: '#/components/parameters/blocks_blockerIdFilter'
+      - $ref: '#/components/parameters/blocks_blockedIdFilter'
+      - $ref: '#/components/parameters/selectParam'
+      - $ref: '#/components/parameters/orderParam'
+      - $ref: '#/components/parameters/limitParam'
+      - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: Rows matching the query, subject to RLS.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Block'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+      - 'Data: Block'
+      summary: Create a Block row.
+      x-implementation: supabase-postgrest
+      description: Owner-only. Find Games and league membership queries exclude blocked pairs.
+      parameters:
+      - $ref: '#/components/parameters/preferParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlockCreate'
+      responses:
+        '201':
+          description: Block created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Block'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags:
+      - 'Data: Block'
+      summary: Delete Block row(s).
+      x-implementation: supabase-postgrest
+      description: Filter by every primary-key column to target a single row. Owner-only. Find Games and
+        league membership queries exclude blocked pairs.
+      parameters:
+      - $ref: '#/components/parameters/blocks_blockerIdFilter'
+      - $ref: '#/components/parameters/blocks_blockedIdFilter'
+      responses:
+        '204':
+          description: Deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /cancellation_record:
+    get:
+      tags:
+      - 'Data: CancellationRecord'
+      summary: List / query CancellationRecord rows.
+      x-implementation: supabase-postgrest
+      description: Read access is governed by RLS (see the Access / RLS notes in the Technical Design
+        Document’s Data Endpoints table).
+      parameters:
+      - $ref: '#/components/parameters/cancellation_record_postIdFilter'
+      - $ref: '#/components/parameters/selectParam'
+      - $ref: '#/components/parameters/orderParam'
+      - $ref: '#/components/parameters/limitParam'
+      - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: Rows matching the query, subject to RLS.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CancellationRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /check_in:
+    get:
+      tags:
+      - 'Data: CheckIn'
+      summary: List / query CheckIn rows.
+      x-implementation: supabase-postgrest
+      description: Read access is governed by RLS (see the Access / RLS notes in the Technical Design
+        Document’s Data Endpoints table).
+      parameters:
+      - $ref: '#/components/parameters/check_in_matchIdFilter'
+      - $ref: '#/components/parameters/check_in_playerIdFilter'
+      - $ref: '#/components/parameters/selectParam'
+      - $ref: '#/components/parameters/orderParam'
+      - $ref: '#/components/parameters/limitParam'
+      - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: Rows matching the query, subject to RLS.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CheckIn'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+      - 'Data: CheckIn'
+      summary: Create a CheckIn row.
+      x-implementation: supabase-postgrest
+      description: «CouldHave» — a player checks themself in directly.
+      parameters:
+      - $ref: '#/components/parameters/preferParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckInCreate'
+      responses:
+        '201':
+          description: CheckIn created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckIn'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /dispute:
+    get:
+      tags:
+      - 'Data: Dispute'
+      summary: List / query Dispute rows.
+      x-implementation: supabase-postgrest
+      description: Read access is governed by RLS (see the Access / RLS notes in the Technical Design
+        Document’s Data Endpoints table).
+      parameters:
+      - $ref: '#/components/parameters/dispute_disputeIdFilter'
+      - $ref: '#/components/parameters/selectParam'
+      - $ref: '#/components/parameters/orderParam'
+      - $ref: '#/components/parameters/limitParam'
+      - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: Rows matching the query, subject to RLS.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Dispute'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+      - 'Data: Dispute'
+      summary: Create a Dispute row.
+      x-implementation: supabase-postgrest
+      description: A participant can raise and read their own disputes. Resolution goes through resolve_dispute
+        (admin only).
+      parameters:
+      - $ref: '#/components/parameters/preferParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisputeCreate'
+      responses:
+        '201':
+          description: Dispute created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dispute'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /game_post:
+    get:
+      tags:
+      - 'Data: GamePost'
+      summary: List / query GamePost rows.
+      x-implementation: supabase-postgrest
+      description: Read access is governed by RLS (see the Access / RLS notes in the Technical Design
+        Document’s Data Endpoints table).
+      parameters:
+      - $ref: '#/components/parameters/game_post_postIdFilter'
+      - $ref: '#/components/parameters/selectParam'
+      - $ref: '#/components/parameters/orderParam'
+      - $ref: '#/components/parameters/limitParam'
+      - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: Rows matching the query, subject to RLS.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GamePost'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+      - 'Data: GamePost'
+      summary: Create a GamePost row.
+      x-implementation: supabase-postgrest
+      description: organiserId is set from the authenticated caller server-side (never client-supplied)
+        on create. PATCH is limited to the organiser. When groupId is set, the caller must be a member
+        of that group (checked by RLS). Cancellation should go through cancel_game_post so a CancellationRecord
+        is written atomically, and is only allowed at least 4 hours before proposedTime (see cancel_game_post
+        below); within that window the post can only lapse via no-shows, not organiser cancellation.
+      parameters:
+      - $ref: '#/components/parameters/preferParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GamePostCreate'
+      responses:
+        '201':
+          description: GamePost created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GamePost'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    patch:
+      tags:
+      - 'Data: GamePost'
+      summary: Update GamePost row(s).
+      x-implementation: supabase-postgrest
+      description: Filter by every primary-key column to target a single row. organiserId is set from
+        the authenticated caller server-side (never client-supplied) on create. PATCH is limited to the
+        organiser. When groupId is set, the caller must be a member of that group (checked by RLS). Cancellation
+        should go through cancel_game_post so a CancellationRecord is written atomically, and is only
+        allowed at least 4 hours before proposedTime (see cancel_game_post below); within that window
+        the post can only lapse via no-shows, not organiser cancellation.
+      parameters:
+      - $ref: '#/components/parameters/game_post_postIdFilter'
+      - $ref: '#/components/parameters/preferParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GamePostUpdate'
+      responses:
+        '200':
+          description: GamePost updated.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GamePost'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /group:
+    get:
+      tags:
+      - 'Data: Group'
+      summary: List / query Group rows.
+      x-implementation: supabase-postgrest
+      description: Read access is governed by RLS (see the Access / RLS notes in the Technical Design
+        Document’s Data Endpoints table).
+      parameters:
+      - $ref: '#/components/parameters/group_groupIdFilter'
+      - $ref: '#/components/parameters/selectParam'
+      - $ref: '#/components/parameters/orderParam'
+      - $ref: '#/components/parameters/limitParam'
+      - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: Rows matching the query, subject to RLS.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Group'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+      - 'Data: Group'
+      summary: Create a Group row.
+      x-implementation: supabase-postgrest
+      description: POST registers the group (caller becomes createdBy, set server-side). PATCH (name only)
+        is limited to createdBy. A player posts a game on behalf of a group by setting game_post.groupId;
+        RLS requires the caller be a GroupMember of that group.
+      parameters:
+      - $ref: '#/components/parameters/preferParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupCreate'
+      responses:
+        '201':
+          description: Group created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    patch:
+      tags:
+      - 'Data: Group'
+      summary: Update Group row(s).
+      x-implementation: supabase-postgrest
+      description: Filter by every primary-key column to target a single row. POST registers the group
+        (caller becomes createdBy, set server-side). PATCH (name only) is limited to createdBy. A player
+        posts a game on behalf of a group by setting game_post.groupId; RLS requires the caller be a GroupMember
+        of that group.
+      parameters:
+      - $ref: '#/components/parameters/group_groupIdFilter'
+      - $ref: '#/components/parameters/preferParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupUpdate'
+      responses:
+        '200':
+          description: Group updated.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Group'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /group_member:
+    get:
+      tags:
+      - 'Data: GroupMember'
+      summary: List / query GroupMember rows.
+      x-implementation: supabase-postgrest
+      description: Read access is governed by RLS (see the Access / RLS notes in the Technical Design
+        Document’s Data Endpoints table).
+      parameters:
+      - $ref: '#/components/parameters/group_member_groupIdFilter'
+      - $ref: '#/components/parameters/group_member_playerIdFilter'
+      - $ref: '#/components/parameters/selectParam'
+      - $ref: '#/components/parameters/orderParam'
+      - $ref: '#/components/parameters/limitParam'
+      - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: Rows matching the query, subject to RLS.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GroupMember'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+      - 'Data: GroupMember'
+      summary: Create a GroupMember row.
+      x-implementation: supabase-postgrest
+      description: A player joins a group by inserting their own row (self-service, no approval step in
+        this MVP) and leaves by deleting it. Read is limited to a group's own members plus the group's
+        createdBy.
+      parameters:
+      - $ref: '#/components/parameters/preferParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupMemberCreate'
+      responses:
+        '201':
+          description: GroupMember created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupMember'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags:
+      - 'Data: GroupMember'
+      summary: Delete GroupMember row(s).
+      x-implementation: supabase-postgrest
+      description: Filter by every primary-key column to target a single row. A player joins a group by
+        inserting their own row (self-service, no approval step in this MVP) and leaves by deleting it.
+        Read is limited to a group's own members plus the group's createdBy.
+      parameters:
+      - $ref: '#/components/parameters/group_member_groupIdFilter'
+      - $ref: '#/components/parameters/group_member_playerIdFilter'
+      responses:
+        '204':
+          description: Deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin_post:
+    get:
+      tags:
+      - 'Data: AdminPost'
+      summary: List / query AdminPost rows.
+      x-implementation: supabase-postgrest
+      description: Read access is governed by RLS (see the Access / RLS notes in the Technical Design
+        Document’s Data Endpoints table).
+      parameters:
+      - $ref: '#/components/parameters/admin_post_adminPostIdFilter'
+      - $ref: '#/components/parameters/selectParam'
+      - $ref: '#/components/parameters/orderParam'
+      - $ref: '#/components/parameters/limitParam'
+      - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: Rows matching the query, subject to RLS.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdminPost'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+      - 'Data: AdminPost'
+      summary: Create an AdminPost row.
+      x-implementation: supabase-postgrest
+      description: 'Admin-only create/update/delete, gated by the same is_admin() RLS helper used everywhere
+        else in the admin console (see Admin: Sign in and access control); createdBy set server-side.
+        GET is open to every signed-in player but RLS restricts it to status=published rows; admins additionally
+        see their own drafts. Shown on the player home page and mirrored on an admin management page.'
+      parameters:
+      - $ref: '#/components/parameters/preferParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminPostCreate'
+      responses:
+        '201':
+          description: AdminPost created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminPost'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    patch:
+      tags:
+      - 'Data: AdminPost'
+      summary: Update AdminPost row(s).
+      x-implementation: supabase-postgrest
+      description: 'Filter by every primary-key column to target a single row. Admin-only create/update/delete,
+        gated by the same is_admin() RLS helper used everywhere else in the admin console (see Admin:
+        Sign in and access control); createdBy set server-side. GET is open to every signed-in player
+        but RLS restricts it to status=published rows; admins additionally see their own drafts. Shown
+        on the player home page and mirrored on an admin management page.'
+      parameters:
+      - $ref: '#/components/parameters/admin_post_adminPostIdFilter'
+      - $ref: '#/components/parameters/preferParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminPostUpdate'
+      responses:
+        '200':
+          description: AdminPost updated.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdminPost'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags:
+      - 'Data: AdminPost'
+      summary: Delete AdminPost row(s).
+      x-implementation: supabase-postgrest
+      description: 'Filter by every primary-key column to target a single row. Admin-only create/update/delete,
+        gated by the same is_admin() RLS helper used everywhere else in the admin console (see Admin:
+        Sign in and access control); createdBy set server-side. GET is open to every signed-in player
+        but RLS restricts it to status=published rows; admins additionally see their own drafts. Shown
+        on the player home page and mirrored on an admin management page.'
+      parameters:
+      - $ref: '#/components/parameters/admin_post_adminPostIdFilter'
+      responses:
+        '204':
+          description: Deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /league_standing:
+    get:
+      tags:
+      - 'Data: LeagueStanding'
+      summary: List / query LeagueStanding rows.
+      x-implementation: supabase-postgrest
+      description: Read access is governed by RLS (see the Access / RLS notes in the Technical Design
+        Document’s Data Endpoints table).
+      parameters:
+      - $ref: '#/components/parameters/league_standing_leagueIdFilter'
+      - $ref: '#/components/parameters/league_standing_playerIdFilter'
+      - $ref: '#/components/parameters/selectParam'
+      - $ref: '#/components/parameters/orderParam'
+      - $ref: '#/components/parameters/limitParam'
+      - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: Rows matching the query, subject to RLS.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LeagueStanding'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /match:
+    get:
+      tags:
+      - 'Data: Match'
+      summary: List / query Match rows.
+      x-implementation: supabase-postgrest
+      description: Read access is governed by RLS (see the Access / RLS notes in the Technical Design
+        Document’s Data Endpoints table).
+      parameters:
+      - $ref: '#/components/parameters/match_matchIdFilter'
+      - $ref: '#/components/parameters/selectParam'
+      - $ref: '#/components/parameters/orderParam'
+      - $ref: '#/components/parameters/limitParam'
+      - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: Rows matching the query, subject to RLS.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Match'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /match_message:
+    get:
+      tags:
+      - 'Data: MatchMessage'
+      summary: List / query MatchMessage rows.
+      x-implementation: supabase-postgrest
+      description: Read access is governed by RLS (see the Access / RLS notes in the Technical Design
+        Document’s Data Endpoints table).
+      parameters:
+      - $ref: '#/components/parameters/match_message_messageIdFilter'
+      - $ref: '#/components/parameters/selectParam'
+      - $ref: '#/components/parameters/orderParam'
+      - $ref: '#/components/parameters/limitParam'
+      - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: Rows matching the query, subject to RLS.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MatchMessage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+      - 'Data: MatchMessage'
+      summary: Create a MatchMessage row.
+      x-implementation: supabase-postgrest
+      description: Create-and-read only, no update/delete. Limited to the two match participants (senderId
+        set from the caller server-side). Delivered live over the match:{matchId}:messages Realtime channel.
+      parameters:
+      - $ref: '#/components/parameters/preferParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MatchMessageCreate'
+      responses:
+        '201':
+          description: MatchMessage created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchMessage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /match_participant:
+    get:
+      tags:
+      - 'Data: MatchParticipant'
+      summary: List / query MatchParticipant rows.
+      x-implementation: supabase-postgrest
+      description: Read access is governed by RLS (see the Access / RLS notes in the Technical Design
+        Document’s Data Endpoints table).
+      parameters:
+      - $ref: '#/components/parameters/match_participant_matchIdFilter'
+      - $ref: '#/components/parameters/match_participant_playerIdFilter'
+      - $ref: '#/components/parameters/selectParam'
+      - $ref: '#/components/parameters/orderParam'
+      - $ref: '#/components/parameters/limitParam'
+      - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: Rows matching the query, subject to RLS.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MatchParticipant'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /match_result:
+    get:
+      tags:
+      - 'Data: MatchResult'
+      summary: List / query MatchResult rows.
+      x-implementation: supabase-postgrest
+      description: Read access is governed by RLS (see the Access / RLS notes in the Technical Design
+        Document’s Data Endpoints table).
+      parameters:
+      - $ref: '#/components/parameters/match_result_resultIdFilter'
+      - $ref: '#/components/parameters/selectParam'
+      - $ref: '#/components/parameters/orderParam'
+      - $ref: '#/components/parameters/limitParam'
+      - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: Rows matching the query, subject to RLS.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MatchResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /mini_league:
+    get:
+      tags:
+      - 'Data: MiniLeague'
+      summary: List / query MiniLeague rows.
+      x-implementation: supabase-postgrest
+      description: Read access is governed by RLS (see the Access / RLS notes in the Technical Design
+        Document’s Data Endpoints table).
+      parameters:
+      - $ref: '#/components/parameters/mini_league_leagueIdFilter'
+      - $ref: '#/components/parameters/selectParam'
+      - $ref: '#/components/parameters/orderParam'
+      - $ref: '#/components/parameters/limitParam'
+      - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: Rows matching the query, subject to RLS.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MiniLeague'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+      - 'Data: MiniLeague'
+      summary: Create a MiniLeague row.
+      x-implementation: supabase-postgrest
+      description: POST creates the league (caller becomes organiser; organiserId is set server-side,
+        never client-supplied). Admin suspend/resume goes through admin_suspend_league / admin_resume_league.
+      parameters:
+      - $ref: '#/components/parameters/preferParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MiniLeagueCreate'
+      responses:
+        '201':
+          description: MiniLeague created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MiniLeague'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    patch:
+      tags:
+      - 'Data: MiniLeague'
+      summary: Update MiniLeague row(s).
+      x-implementation: supabase-postgrest
+      description: Filter by every primary-key column to target a single row. POST creates the league
+        (caller becomes organiser; organiserId is set server-side, never client-supplied). Admin suspend/resume
+        goes through admin_suspend_league / admin_resume_league.
+      parameters:
+      - $ref: '#/components/parameters/mini_league_leagueIdFilter'
+      - $ref: '#/components/parameters/preferParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MiniLeagueUpdate'
+      responses:
+        '200':
+          description: MiniLeague updated.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MiniLeague'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /notification:
+    get:
+      tags:
+      - 'Data: Notification'
+      summary: List / query Notification rows.
+      x-implementation: supabase-postgrest
+      description: Read access is governed by RLS (see the Access / RLS notes in the Technical Design
+        Document’s Data Endpoints table).
+      parameters:
+      - $ref: '#/components/parameters/notification_notificationIdFilter'
+      - $ref: '#/components/parameters/selectParam'
+      - $ref: '#/components/parameters/orderParam'
+      - $ref: '#/components/parameters/limitParam'
+      - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: Rows matching the query, subject to RLS.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    patch:
+      tags:
+      - 'Data: Notification'
+      summary: Update Notification row(s).
+      x-implementation: supabase-postgrest
+      description: Filter by every primary-key column to target a single row. Rows are written only by
+        the dispatch_notification helper (called from other RPCs); PATCH is limited to isRead by the owning
+        player.
+      parameters:
+      - $ref: '#/components/parameters/notification_notificationIdFilter'
+      - $ref: '#/components/parameters/preferParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationUpdate'
+      responses:
+        '200':
+          description: Notification updated.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /player:
+    get:
+      tags:
+      - 'Data: Player'
+      summary: List / query Player rows.
+      x-implementation: supabase-postgrest
+      description: Read access is governed by RLS (see the Access / RLS notes in the Technical Design
+        Document’s Data Endpoints table).
+      parameters:
+      - $ref: '#/components/parameters/player_playerIdFilter'
+      - $ref: '#/components/parameters/selectParam'
+      - $ref: '#/components/parameters/orderParam'
+      - $ref: '#/components/parameters/limitParam'
+      - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: Rows matching the query, subject to RLS.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Player'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+      - 'Data: Player'
+      summary: Create a Player row.
+      x-implementation: supabase-postgrest
+      description: 'POST is typically performed by the register_player RPC (which also enforces the minimum-age
+        check) rather than called directly by the frontend. Admin status is not a column here — it is
+        held in the Supabase Auth user''s app_metadata (see Admin: Sign in and access control) and checked
+        through the is_admin() RLS helper, so it can never be changed by a client PATCH.'
+      parameters:
+      - $ref: '#/components/parameters/preferParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlayerCreate'
+      responses:
+        '201':
+          description: Player created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Player'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    patch:
+      tags:
+      - 'Data: Player'
+      summary: Update Player row(s).
+      x-implementation: supabase-postgrest
+      description: 'Filter by every primary-key column to target a single row. POST is typically performed
+        by the register_player RPC (which also enforces the minimum-age check) rather than called directly
+        by the frontend. Admin status is not a column here — it is held in the Supabase Auth user''s app_metadata
+        (see Admin: Sign in and access control) and checked through the is_admin() RLS helper, so it can
+        never be changed by a client PATCH.'
+      parameters:
+      - $ref: '#/components/parameters/player_playerIdFilter'
+      - $ref: '#/components/parameters/preferParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlayerUpdate'
+      responses:
+        '200':
+          description: Player updated.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Player'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /player_profile:
+    get:
+      tags:
+      - 'Data: PlayerProfile'
+      summary: List / query PlayerProfile rows.
+      x-implementation: supabase-postgrest
+      description: Read access is governed by RLS (see the Access / RLS notes in the Technical Design
+        Document’s Data Endpoints table).
+      parameters:
+      - $ref: '#/components/parameters/player_profile_playerIdFilter'
+      - $ref: '#/components/parameters/selectParam'
+      - $ref: '#/components/parameters/orderParam'
+      - $ref: '#/components/parameters/limitParam'
+      - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: Rows matching the query, subject to RLS.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PlayerProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    patch:
+      tags:
+      - 'Data: PlayerProfile'
+      summary: Update PlayerProfile row(s).
+      x-implementation: supabase-postgrest
+      description: Filter by every primary-key column to target a single row. Created automatically alongside
+        player by register_player (state is captured on the sign-up form and passed through); no direct
+        POST/DELETE.
+      parameters:
+      - $ref: '#/components/parameters/player_profile_playerIdFilter'
+      - $ref: '#/components/parameters/preferParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlayerProfileUpdate'
+      responses:
+        '200':
+          description: PlayerProfile updated.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PlayerProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /ranking:
+    get:
+      tags:
+      - 'Data: Ranking'
+      summary: List / query Ranking rows.
+      x-implementation: supabase-postgrest
+      description: Read access is governed by RLS (see the Access / RLS notes in the Technical Design
+        Document’s Data Endpoints table).
+      parameters:
+      - $ref: '#/components/parameters/ranking_playerIdFilter'
+      - $ref: '#/components/parameters/ranking_formatFilter'
+      - $ref: '#/components/parameters/selectParam'
+      - $ref: '#/components/parameters/orderParam'
+      - $ref: '#/components/parameters/limitParam'
+      - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: Rows matching the query, subject to RLS.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Ranking'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /report:
+    get:
+      tags:
+      - 'Data: Report'
+      summary: List / query Report rows.
+      x-implementation: supabase-postgrest
+      description: Read access is governed by RLS (see the Access / RLS notes in the Technical Design
+        Document’s Data Endpoints table).
+      parameters:
+      - $ref: '#/components/parameters/report_reportIdFilter'
+      - $ref: '#/components/parameters/selectParam'
+      - $ref: '#/components/parameters/orderParam'
+      - $ref: '#/components/parameters/limitParam'
+      - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: Rows matching the query, subject to RLS.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Report'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+      - 'Data: Report'
+      summary: Create a Report row.
+      x-implementation: supabase-postgrest
+      description: A reporter can create and read their own reports. Status changes are made by admin_review_report,
+        not a raw PATCH.
+      parameters:
+      - $ref: '#/components/parameters/preferParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportCreate'
+      responses:
+        '201':
+          description: Report created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/accept_request:
+    post:
+      tags:
+      - Game Posts
+      summary: '[Postgres RPC] Organiser accepts a player''s join request.'
+      x-implementation: postgres-rpc
+      description: Updates the participant status; on the first acceptance, creates the Match and notifies
+        the requesting player.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                postId:
+                  type: string
+                  format: uuid
+                playerId:
+                  type: string
+                  format: uuid
+              required:
+              - postId
+              - playerId
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Match'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/admin_hide_post:
+    post:
+      tags:
+      - Admin
+      summary: '[Postgres RPC] Admin hides a game post.'
+      x-implementation: postgres-rpc
+      description: Updates GamePost status and writes ActivityLog.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                postId:
+                  type: string
+                  format: uuid
+                reason:
+                  type: string
+              required:
+              - postId
+              - reason
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GamePost'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/admin_restore_account:
+    post:
+      tags:
+      - Admin
+      summary: '[Edge Function] Admin restores a suspended player''s account.'
+      x-implementation: edge-function
+      description: Reverses admin_suspend_account and writes ActivityLog. Implemented as a Supabase Edge
+        Function (not a plain Postgres RPC) because it needs the service_role key to update rows the caller
+        does not own across multiple tables — see the Secrets convention above.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                playerId:
+                  type: string
+                  format: uuid
+              required:
+              - playerId
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/admin_restore_post:
+    post:
+      tags:
+      - Admin
+      summary: '[Postgres RPC] Admin restores a hidden game post.'
+      x-implementation: postgres-rpc
+      description: Reverses admin_hide_post and writes ActivityLog.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                postId:
+                  type: string
+                  format: uuid
+              required:
+              - postId
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GamePost'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/admin_resume_league:
+    post:
+      tags:
+      - Admin
+      summary: '[Postgres RPC] Admin resumes a suspended mini league.'
+      x-implementation: postgres-rpc
+      description: Reverses admin_suspend_league and writes ActivityLog.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                leagueId:
+                  type: string
+                  format: uuid
+              required:
+              - leagueId
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MiniLeague'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/admin_review_report:
+    post:
+      tags:
+      - Admin
+      summary: '[Postgres RPC] Admin reviews a report and records an outcome.'
+      x-implementation: postgres-rpc
+      description: Updates Report status (resolved or dismissed) and writes ActivityLog. Does not itself
+        change any account or content — suspending a player, hiding a post or suspending a league is always
+        a separate admin action (admin_suspend_account, admin_hide_post, admin_suspend_league).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reportId:
+                  type: string
+                  format: uuid
+                outcome:
+                  type: string
+                  enum:
+                  - resolved
+                  - dismissed
+              required:
+              - reportId
+              - outcome
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/admin_suspend_account:
+    post:
+      tags:
+      - Admin
+      summary: '[Edge Function] Admin suspends a player''s account.'
+      x-implementation: edge-function
+      description: Elevated-privilege update across Player, GamePost and MiniLeague so a suspended player's
+        active content is hidden; writes ActivityLog. Implemented as a Supabase Edge Function (not a plain
+        Postgres RPC) because it needs the service_role key to update rows the caller does not own across
+        multiple tables — see the Secrets convention above.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                playerId:
+                  type: string
+                  format: uuid
+                reason:
+                  type: string
+              required:
+              - playerId
+              - reason
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/admin_suspend_league:
+    post:
+      tags:
+      - Admin
+      summary: '[Postgres RPC] Admin suspends a mini league.'
+      x-implementation: postgres-rpc
+      description: Updates MiniLeague status and writes ActivityLog.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                leagueId:
+                  type: string
+                  format: uuid
+                reason:
+                  type: string
+              required:
+              - leagueId
+              - reason
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MiniLeague'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/block_player:
+    post:
+      tags:
+      - Trust & Safety
+      summary: '[Postgres RPC] Block another player.'
+      x-implementation: postgres-rpc
+      description: Inserts a Blocks row; Find Games and league membership queries exclude blocked pairs.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                blockedId:
+                  type: string
+                  format: uuid
+              required:
+              - blockedId
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/cancel_game_post:
+    post:
+      tags:
+      - Game Posts
+      summary: '[Postgres RPC] Organiser cancels a game post.'
+      x-implementation: postgres-rpc
+      description: Updates GamePost status, writes a CancellationRecord, and notifies affected participants.
+        Rejects with a validation error if proposedTime is less than 4 hours away — last-minute organiser
+        cancellation is not allowed; a genuine last-minute drop-out is handled through mark_no_show instead.
+        This 4-hour rule applies only to the organiser cancelling the whole post, not to a participant
+        withdrawing via withdraw_request.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                postId:
+                  type: string
+                  format: uuid
+                reason:
+                  type: string
+              required:
+              - postId
+              - reason
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GamePost'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/confirm_result:
+    post:
+      tags:
+      - Results & Ranking
+      summary: '[Postgres RPC] Another participant confirms a submitted result.'
+      x-implementation: postgres-rpc
+      description: 'Atomic: finalises the MatchResult, recalculates Ranking (and LeagueStanding if the
+        match belongs to a league), and writes an ActivityLog entry.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                matchId:
+                  type: string
+                  format: uuid
+              required:
+              - matchId
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/create_mini_league:
+    post:
+      tags:
+      - Mini Leagues
+      summary: '[Postgres RPC] Create a new mini league.'
+      x-implementation: postgres-rpc
+      description: Creates the MiniLeague row; the caller becomes its organiser.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                startDate:
+                  type: string
+                  format: date-time
+                endDate:
+                  type: string
+                  format: date-time
+              required:
+              - name
+              - startDate
+              - endDate
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MiniLeague'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/decline_request:
+    post:
+      tags:
+      - Game Posts
+      summary: '[Postgres RPC] Organiser declines a player''s join request.'
+      x-implementation: postgres-rpc
+      description: Updates the participant status to declined and notifies the requesting player.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                postId:
+                  type: string
+                  format: uuid
+                playerId:
+                  type: string
+                  format: uuid
+              required:
+              - postId
+              - playerId
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/join_mini_league:
+    post:
+      tags:
+      - Mini Leagues
+      summary: '[Postgres RPC] Join an existing mini league.'
+      x-implementation: postgres-rpc
+      description: Creates a LeagueStanding row for the joining player.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                leagueId:
+                  type: string
+                  format: uuid
+              required:
+              - leagueId
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeagueStanding'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/mark_no_show:
+    post:
+      tags:
+      - Game Posts
+      summary: '[Postgres RPC] Host marks a participant as a no-show.'
+      x-implementation: postgres-rpc
+      description: Updates the player’s MatchParticipant status to no_show, increments their PlayerProfile
+        noShowCount, and updates their reliability score.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                matchId:
+                  type: string
+                  format: uuid
+                playerId:
+                  type: string
+                  format: uuid
+              required:
+              - matchId
+              - playerId
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchParticipant'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/raise_dispute:
+    post:
+      tags:
+      - Results & Ranking
+      summary: '[Postgres RPC] A participant disputes a result.'
+      x-implementation: postgres-rpc
+      description: Creates a Dispute row, holds the affected Ranking / LeagueStanding update, and notifies
+        admin.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                matchId:
+                  type: string
+                  format: uuid
+                reason:
+                  type: string
+              required:
+              - matchId
+              - reason
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dispute'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/record_league_match:
+    post:
+      tags:
+      - Mini Leagues
+      summary: '[Postgres RPC] Record a completed league match result.'
+      x-implementation: postgres-rpc
+      description: Same atomic result pattern as submit_result / confirm_result, scoped to a league, and
+        updates LeagueStanding.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                matchId:
+                  type: string
+                  format: uuid
+              required:
+              - matchId
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeagueStanding'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/register_player:
+    post:
+      tags:
+      - Auth
+      summary: '[Postgres RPC] Create the Player and PlayerProfile rows after Supabase Auth sign-up.'
+      x-implementation: postgres-rpc
+      description: Enforces the minimum-age check before the account is usable. Called once, immediately
+        after Supabase Auth sign-up completes. state is captured on the sign-up form and written straight
+        to PlayerProfile.state.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                displayName:
+                  type: string
+                selfRatingBand:
+                  type: string
+                dateOfBirth:
+                  type: string
+                  format: date
+                state:
+                  type: string
+              required:
+              - displayName
+              - selfRatingBand
+              - dateOfBirth
+              - state
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Player'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/report_league:
+    post:
+      tags:
+      - Trust & Safety
+      summary: '[Postgres RPC] Report a mini league.'
+      x-implementation: postgres-rpc
+      description: Creates a Report row against a mini league and notifies the admin queue.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                leagueId:
+                  type: string
+                  format: uuid
+                reason:
+                  type: string
+              required:
+              - leagueId
+              - reason
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/report_player:
+    post:
+      tags:
+      - Trust & Safety
+      summary: '[Postgres RPC] Report another player.'
+      x-implementation: postgres-rpc
+      description: Creates a Report row and notifies the admin queue.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reportedPlayerId:
+                  type: string
+                  format: uuid
+                reason:
+                  type: string
+              required:
+              - reportedPlayerId
+              - reason
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/report_post:
+    post:
+      tags:
+      - Trust & Safety
+      summary: '[Postgres RPC] Report a game post.'
+      x-implementation: postgres-rpc
+      description: Creates a Report row against a game post and notifies the admin queue.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                postId:
+                  type: string
+                  format: uuid
+                reason:
+                  type: string
+              required:
+              - postId
+              - reason
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/request_to_join:
+    post:
+      tags:
+      - Game Posts
+      summary: '[Postgres RPC] Request to join an open game post.'
+      x-implementation: postgres-rpc
+      description: Validates the post is open and not full, then creates a pending MatchParticipant and
+        a notification to the organiser.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                postId:
+                  type: string
+                  format: uuid
+              required:
+              - postId
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchParticipant'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/resolve_dispute:
+    post:
+      tags:
+      - Admin
+      summary: '[Postgres RPC] Admin resolves a dispute.'
+      x-implementation: postgres-rpc
+      description: Updates Dispute status and, if upheld, corrects the MatchResult and downstream Ranking;
+        notifies participants.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                disputeId:
+                  type: string
+                  format: uuid
+                outcome:
+                  type: string
+                  enum:
+                  - upheld
+                  - dismissed
+              required:
+              - disputeId
+              - outcome
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dispute'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/submit_result:
+    post:
+      tags:
+      - Results & Ranking
+      summary: '[Postgres RPC] A participant submits a match result.'
+      x-implementation: postgres-rpc
+      description: Writes a MatchResult row pending confirmation from the other participant(s).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                matchId:
+                  type: string
+                  format: uuid
+                score:
+                  type: string
+              required:
+              - matchId
+              - score
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/unblock_player:
+    post:
+      tags:
+      - Trust & Safety
+      summary: '[Postgres RPC] Remove a block on another player.'
+      x-implementation: postgres-rpc
+      description: Deletes the corresponding Blocks row.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                blockedId:
+                  type: string
+                  format: uuid
+              required:
+              - blockedId
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /rpc/withdraw_request:
+    post:
+      tags:
+      - Game Posts
+      summary: '[Postgres RPC] Player withdraws from a match they joined.'
+      x-implementation: postgres-rpc
+      description: Updates the player’s MatchParticipant status to withdrawn (blocked outside the allowed
+        cancellation window), notifies the organiser, and updates their reliability counters.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                matchId:
+                  type: string
+                  format: uuid
+              required:
+              - matchId
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchParticipant'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /venue:
+    get:
+      tags:
+      - 'Data: Venue'
+      summary: List / query Venue rows.
+      x-implementation: supabase-postgrest
+      description: Read access is governed by RLS (see the Access / RLS notes in the Technical Design
+        Document’s Data Endpoints table).
+      parameters:
+      - $ref: '#/components/parameters/venue_venueIdFilter'
+      - $ref: '#/components/parameters/selectParam'
+      - $ref: '#/components/parameters/orderParam'
+      - $ref: '#/components/parameters/limitParam'
+      - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: Rows matching the query, subject to RLS.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Venue'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+      - 'Data: Venue'
+      summary: Create a Venue row.
+      x-implementation: supabase-postgrest
+      description: «CouldHave» — read-only for players; create/update restricted to admin or a verified
+        organiser by RLS.
+      parameters:
+      - $ref: '#/components/parameters/preferParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VenueCreate'
+      responses:
+        '201':
+          description: Venue created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Venue'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    patch:
+      tags:
+      - 'Data: Venue'
+      summary: Update Venue row(s).
+      x-implementation: supabase-postgrest
+      description: Filter by every primary-key column to target a single row. «CouldHave» — read-only
+        for players; create/update restricted to admin or a verified organiser by RLS.
+      parameters:
+      - $ref: '#/components/parameters/venue_venueIdFilter'
+      - $ref: '#/components/parameters/preferParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VenueUpdate'
+      responses:
+        '200':
+          description: Venue updated.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Venue'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Supabase session JWT for the signed-in player (or service-role JWT for server-only
+        calls). Row Level Security policies are the actual authorisation boundary — a request is only
+        ever as permissive as the policies allow.
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: apikey
+      description: Supabase project anon (or service_role, server-only) API key, sent alongside the bearer
+        token on every request.
+  parameters:
+    selectParam:
+      name: select
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST column projection, e.g. select=playerId,displayName. Defaults to all columns.
+    orderParam:
+      name: order
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST ordering, e.g. order=joinedAt.desc.
+    limitParam:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+      description: Maximum rows to return (pagination).
+    offsetParam:
+      name: offset
+      in: query
+      required: false
+      schema:
+        type: integer
+      description: Rows to skip (pagination); prefer Range header for large lists per PostgREST convention.
+    preferParam:
+      name: Prefer
+      in: header
+      required: false
+      schema:
+        type: string
+        default: return=representation
+      description: Set to return=representation to get the affected row(s) back in the response body.
+    player_playerIdFilter:
+      name: playerId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on playerId, e.g. playerId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    player_profile_playerIdFilter:
+      name: playerId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on playerId, e.g. playerId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    notification_notificationIdFilter:
+      name: notificationId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on notificationId, e.g. notificationId=eq.<value>. Required (for every
+        primary-key column) on PATCH/DELETE to target specific row(s).
+    report_reportIdFilter:
+      name: reportId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on reportId, e.g. reportId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    game_post_postIdFilter:
+      name: postId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on postId, e.g. postId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    cancellation_record_postIdFilter:
+      name: postId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on postId, e.g. postId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    ranking_playerIdFilter:
+      name: playerId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on playerId, e.g. playerId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    ranking_formatFilter:
+      name: format
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on format, e.g. format=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    mini_league_leagueIdFilter:
+      name: leagueId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on leagueId, e.g. leagueId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    league_standing_leagueIdFilter:
+      name: leagueId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on leagueId, e.g. leagueId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    league_standing_playerIdFilter:
+      name: playerId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on playerId, e.g. playerId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    group_groupIdFilter:
+      name: groupId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on groupId, e.g. groupId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    group_member_groupIdFilter:
+      name: groupId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on groupId, e.g. groupId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    group_member_playerIdFilter:
+      name: playerId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on playerId, e.g. playerId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    venue_venueIdFilter:
+      name: venueId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on venueId, e.g. venueId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    match_matchIdFilter:
+      name: matchId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on matchId, e.g. matchId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    check_in_matchIdFilter:
+      name: matchId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on matchId, e.g. matchId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    check_in_playerIdFilter:
+      name: playerId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on playerId, e.g. playerId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    match_participant_matchIdFilter:
+      name: matchId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on matchId, e.g. matchId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    match_participant_playerIdFilter:
+      name: playerId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on playerId, e.g. playerId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    match_result_resultIdFilter:
+      name: resultId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on resultId, e.g. resultId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    match_message_messageIdFilter:
+      name: messageId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on messageId, e.g. messageId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    dispute_disputeIdFilter:
+      name: disputeId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on disputeId, e.g. disputeId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    blocks_blockerIdFilter:
+      name: blockerId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on blockerId, e.g. blockerId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    blocks_blockedIdFilter:
+      name: blockedId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on blockedId, e.g. blockedId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+    activity_log_logIdFilter:
+      name: logId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on logId, e.g. logId=eq.<value>. Required (for every primary-key column)
+        on PATCH/DELETE to target specific row(s).
+    admin_post_adminPostIdFilter:
+      name: adminPostId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on adminPostId, e.g. adminPostId=eq.<value>. Required (for every primary-key
+        column) on PATCH/DELETE to target specific row(s).
+  schemas:
+    Player:
+      type: object
+      properties:
+        playerId:
+          type: string
+          format: uuid
+          description: Unique player id (matches the Supabase Auth user id).
+        displayName:
+          type: string
+          description: Public display name.
+        selfRatingBand:
+          type: string
+          description: Self-declared skill band at sign-up (e.g. Beginner, Intermediate, Advanced).
+        isVerified:
+          type: boolean
+          description: Whether the player has completed identity/age verification.
+        joinedAt:
+          type: string
+          format: date-time
+          description: When the player account was created.
+      required:
+      - playerId
+    PlayerCreate:
+      type: object
+      properties:
+        playerId:
+          type: string
+          format: uuid
+          description: Unique player id (matches the Supabase Auth user id).
+        displayName:
+          type: string
+          description: Public display name.
+        selfRatingBand:
+          type: string
+          description: Self-declared skill band at sign-up (e.g. Beginner, Intermediate, Advanced).
+        isVerified:
+          type: boolean
+          description: Whether the player has completed identity/age verification.
+        joinedAt:
+          type: string
+          format: date-time
+          description: When the player account was created.
+    PlayerUpdate:
+      type: object
+      properties:
+        displayName:
+          type: string
+          description: Public display name.
+        selfRatingBand:
+          type: string
+          description: Self-declared skill band at sign-up (e.g. Beginner, Intermediate, Advanced).
+        isVerified:
+          type: boolean
+          description: Whether the player has completed identity/age verification.
+        joinedAt:
+          type: string
+          format: date-time
+          description: When the player account was created.
+    PlayerProfile:
+      type: object
+      properties:
+        playerId:
+          type: string
+          format: uuid
+          description: Player this profile belongs to (PK, FK to player.playerId).
+        bio:
+          type: string
+          description: Free-text profile bio.
+        suburb:
+          type: string
+          description: Home suburb, used for Find Games matching.
+        state:
+          type: string
+          description: Australian state/territory the player plays in (e.g. VIC, NSW), captured at sign-up.
+        reliabilityScore:
+          type: number
+          format: float
+          description: Computed reliability score, 0-1.
+        gamesPlayed:
+          type: integer
+          description: Total verified games played.
+        noShowCount:
+          type: integer
+          description: Total recorded no-shows.
+        isDiscoverable:
+          type: boolean
+          description: Whether other players can find this profile.
+      required:
+      - playerId
+    PlayerProfileUpdate:
+      type: object
+      properties:
+        bio:
+          type: string
+          description: Free-text profile bio.
+        suburb:
+          type: string
+          description: Home suburb, used for Find Games matching.
+        state:
+          type: string
+          description: Australian state/territory the player plays in (e.g. VIC, NSW), captured at sign-up.
+        reliabilityScore:
+          type: number
+          format: float
+          description: Computed reliability score, 0-1.
+        gamesPlayed:
+          type: integer
+          description: Total verified games played.
+        noShowCount:
+          type: integer
+          description: Total recorded no-shows.
+        isDiscoverable:
+          type: boolean
+          description: Whether other players can find this profile.
+    Notification:
+      type: object
+      properties:
+        notificationId:
+          type: string
+          format: uuid
+          description: Unique notification id.
+        playerId:
+          type: string
+          format: uuid
+          description: Recipient player (FK to player.playerId).
+        type:
+          type: string
+          description: Notification type, e.g. join_request, result_pending, dispute_raised.
+        message:
+          type: string
+          description: Rendered notification text.
+        isRead:
+          type: boolean
+          description: Whether the recipient has read this notification.
+      required:
+      - notificationId
+    NotificationUpdate:
+      type: object
+      properties:
+        playerId:
+          type: string
+          format: uuid
+          description: Recipient player (FK to player.playerId).
+        type:
+          type: string
+          description: Notification type, e.g. join_request, result_pending, dispute_raised.
+        message:
+          type: string
+          description: Rendered notification text.
+        isRead:
+          type: boolean
+          description: Whether the recipient has read this notification.
+    Report:
+      type: object
+      properties:
+        reportId:
+          type: string
+          format: uuid
+          description: Unique report id.
+        reportedByPlayerId:
+          type: string
+          format: uuid
+          description: Player who filed the report (FK).
+        targetType:
+          type: string
+          description: 'What is being reported: player | game_post | mini_league.'
+        targetId:
+          type: string
+          format: uuid
+          description: Id of the reported player, game post or mini league. Polymorphic — no single FK
+            can reference three different tables, so this is enforced in RLS/RPC logic, not a drawn constraint.
+        reason:
+          type: string
+          description: Reporter-supplied reason.
+        status:
+          type: string
+          description: open | reviewing | resolved | dismissed.
+      required:
+      - reportId
+    ReportCreate:
+      type: object
+      properties:
+        reportId:
+          type: string
+          format: uuid
+          description: Unique report id.
+        reportedByPlayerId:
+          type: string
+          format: uuid
+          description: Player who filed the report (FK).
+        targetType:
+          type: string
+          description: 'What is being reported: player | game_post | mini_league.'
+        targetId:
+          type: string
+          format: uuid
+          description: Id of the reported player, game post or mini league. Polymorphic — no single FK
+            can reference three different tables, so this is enforced in RLS/RPC logic, not a drawn constraint.
+        reason:
+          type: string
+          description: Reporter-supplied reason.
+        status:
+          type: string
+          description: open | reviewing | resolved | dismissed.
+    GamePost:
+      type: object
+      properties:
+        postId:
+          type: string
+          format: uuid
+          description: Unique game post id.
+        organiserId:
+          type: string
+          format: uuid
+          description: Player who created this post (FK to player.playerId). Set from the caller on create;
+            drives the "only the organiser can update or cancel" RLS rule.
+        groupId:
+          type: string
+          format: uuid
+          description: Group this post was made on behalf of, if any (FK to group.groupId, nullable).
+            Absent/null means the organiser posted it personally rather than as a group.
+        format:
+          type: string
+          description: Game format, e.g. singles, doubles.
+        suburb:
+          type: string
+          description: Suburb where the game is proposed.
+        proposedTime:
+          type: string
+          format: date-time
+          description: Proposed start time.
+        status:
+          type: string
+          description: open | full | cancelled | closed.
+      required:
+      - postId
+    GamePostCreate:
+      type: object
+      properties:
+        postId:
+          type: string
+          format: uuid
+          description: Unique game post id.
+        groupId:
+          type: string
+          format: uuid
+          description: Group this post was made on behalf of, if any (FK to group.groupId, nullable).
+            Absent/null means the organiser posted it personally rather than as a group.
+        format:
+          type: string
+          description: Game format, e.g. singles, doubles.
+        suburb:
+          type: string
+          description: Suburb where the game is proposed.
+        proposedTime:
+          type: string
+          format: date-time
+          description: Proposed start time.
+        status:
+          type: string
+          description: open | full | cancelled | closed.
+    GamePostUpdate:
+      type: object
+      properties:
+        groupId:
+          type: string
+          format: uuid
+          description: Group this post was made on behalf of, if any (FK to group.groupId, nullable).
+            Absent/null means the organiser posted it personally rather than as a group.
+        format:
+          type: string
+          description: Game format, e.g. singles, doubles.
+        suburb:
+          type: string
+          description: Suburb where the game is proposed.
+        proposedTime:
+          type: string
+          format: date-time
+          description: Proposed start time.
+        status:
+          type: string
+          description: open | full | cancelled | closed.
+    CancellationRecord:
+      type: object
+      properties:
+        postId:
+          type: string
+          format: uuid
+          description: Game post that was cancelled (PK, FK to game_post.postId).
+        cancelledAt:
+          type: string
+          format: date-time
+          description: When the post was cancelled.
+        reason:
+          type: string
+          description: Cancellation reason.
+        isNoShow:
+          type: boolean
+          description: Whether the cancellation followed a no-show.
+      required:
+      - postId
+    Ranking:
+      type: object
+      properties:
+        playerId:
+          type: string
+          format: uuid
+          description: Player (PK, FK to player.playerId).
+        format:
+          type: string
+          description: Game format this ranking applies to (PK).
+        rankingPoints:
+          type: integer
+          description: Current ranking points.
+        band:
+          type: string
+          description: Current ranking band.
+        verifiedGamesCount:
+          type: integer
+          description: Verified games counted towards this ranking.
+      required:
+      - playerId
+      - format
+    MiniLeague:
+      type: object
+      properties:
+        leagueId:
+          type: string
+          format: uuid
+          description: Unique league id.
+        organiserId:
+          type: string
+          format: uuid
+          description: Player who created this league (FK to player.playerId). Set from the caller on
+            create; drives the "organiser can update/suspend it" RLS rule.
+        name:
+          type: string
+          description: League name.
+        startDate:
+          type: string
+          format: date-time
+          description: League start date.
+        endDate:
+          type: string
+          format: date-time
+          description: League end date.
+        status:
+          type: string
+          description: active | suspended | completed.
+      required:
+      - leagueId
+    MiniLeagueCreate:
+      type: object
+      properties:
+        leagueId:
+          type: string
+          format: uuid
+          description: Unique league id.
+        name:
+          type: string
+          description: League name.
+        startDate:
+          type: string
+          format: date-time
+          description: League start date.
+        endDate:
+          type: string
+          format: date-time
+          description: League end date.
+        status:
+          type: string
+          description: active | suspended | completed.
+    MiniLeagueUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          description: League name.
+        startDate:
+          type: string
+          format: date-time
+          description: League start date.
+        endDate:
+          type: string
+          format: date-time
+          description: League end date.
+        status:
+          type: string
+          description: active | suspended | completed.
+    LeagueStanding:
+      type: object
+      properties:
+        leagueId:
+          type: string
+          format: uuid
+          description: League (PK, FK to mini_league.leagueId).
+        playerId:
+          type: string
+          format: uuid
+          description: Player (PK, FK to player.playerId).
+        wins:
+          type: integer
+          description: Wins so far in this league.
+        losses:
+          type: integer
+          description: Losses so far in this league.
+        points:
+          type: integer
+          description: League points.
+        position:
+          type: integer
+          description: Current leaderboard position.
+      required:
+      - leagueId
+      - playerId
+    Group:
+      type: object
+      properties:
+        groupId:
+          type: string
+          format: uuid
+          description: Unique group id.
+        name:
+          type: string
+          description: Group name.
+        createdBy:
+          type: string
+          format: uuid
+          description: Player who registered the group (FK to player.playerId).
+        createdAt:
+          type: string
+          format: date-time
+          description: When the group was registered.
+      required:
+      - groupId
+    GroupCreate:
+      type: object
+      properties:
+        groupId:
+          type: string
+          format: uuid
+          description: Unique group id.
+        name:
+          type: string
+          description: Group name.
+        createdAt:
+          type: string
+          format: date-time
+          description: When the group was registered.
+    GroupUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Group name.
+        createdAt:
+          type: string
+          format: date-time
+          description: When the group was registered.
+    GroupMember:
+      type: object
+      properties:
+        groupId:
+          type: string
+          format: uuid
+          description: Group (PK, FK to group.groupId).
+        playerId:
+          type: string
+          format: uuid
+          description: Member (PK, FK to player.playerId).
+        joinedAt:
+          type: string
+          format: date-time
+          description: When the player joined the group.
+      required:
+      - groupId
+      - playerId
+    GroupMemberCreate:
+      type: object
+      properties:
+        groupId:
+          type: string
+          format: uuid
+          description: Group (PK, FK to group.groupId).
+        playerId:
+          type: string
+          format: uuid
+          description: Member (PK, FK to player.playerId).
+        joinedAt:
+          type: string
+          format: date-time
+          description: When the player joined the group.
+    Venue:
+      type: object
+      properties:
+        venueId:
+          type: string
+          format: uuid
+          description: Unique venue id.
+        name:
+          type: string
+          description: Venue name.
+        address:
+          type: string
+          description: Venue address.
+      required:
+      - venueId
+    VenueCreate:
+      type: object
+      properties:
+        venueId:
+          type: string
+          format: uuid
+          description: Unique venue id.
+        name:
+          type: string
+          description: Venue name.
+        address:
+          type: string
+          description: Venue address.
+    VenueUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Venue name.
+        address:
+          type: string
+          description: Venue address.
+    Match:
+      type: object
+      properties:
+        matchId:
+          type: string
+          format: uuid
+          description: Unique match id.
+        leagueId:
+          type: string
+          format: uuid
+          description: League this match belongs to, if any (FK, nullable).
+        venueId:
+          type: string
+          format: uuid
+          description: Venue the match was played at, if recorded (FK, nullable).
+        format:
+          type: string
+          description: Match format.
+        playedAt:
+          type: string
+          format: date-time
+          description: When the match was played.
+        suburb:
+          type: string
+          description: Suburb the match took place in.
+        status:
+          type: string
+          description: scheduled | awaiting_result | completed | disputed.
+      required:
+      - matchId
+    CheckIn:
+      type: object
+      properties:
+        matchId:
+          type: string
+          format: uuid
+          description: Match (PK, FK to match.matchId).
+        playerId:
+          type: string
+          format: uuid
+          description: Player checking in (PK, FK to player.playerId).
+        timestamp:
+          type: string
+          format: date-time
+          description: Check-in time.
+        method:
+          type: string
+          description: Check-in method, e.g. gps, manual.
+        verified:
+          type: boolean
+          description: Whether the check-in location was verified.
+      required:
+      - matchId
+      - playerId
+    CheckInCreate:
+      type: object
+      properties:
+        matchId:
+          type: string
+          format: uuid
+          description: Match (PK, FK to match.matchId).
+        playerId:
+          type: string
+          format: uuid
+          description: Player checking in (PK, FK to player.playerId).
+        timestamp:
+          type: string
+          format: date-time
+          description: Check-in time.
+        method:
+          type: string
+          description: Check-in method, e.g. gps, manual.
+        verified:
+          type: boolean
+          description: Whether the check-in location was verified.
+    MatchParticipant:
+      type: object
+      properties:
+        matchId:
+          type: string
+          format: uuid
+          description: Match (PK, FK to match.matchId).
+        playerId:
+          type: string
+          format: uuid
+          description: Participant (PK, FK to player.playerId).
+        status:
+          type: string
+          description: pending | accepted | declined | withdrawn | no_show.
+      required:
+      - matchId
+      - playerId
+    MatchResult:
+      type: object
+      properties:
+        resultId:
+          type: string
+          format: uuid
+          description: Unique result id.
+        matchId:
+          type: string
+          format: uuid
+          description: Match this result belongs to (FK).
+        score:
+          type: string
+          description: Recorded score.
+        winnerId:
+          type: string
+          format: uuid
+          description: Winning player (FK, nullable until confirmed).
+        status:
+          type: string
+          description: pending | confirmed | disputed.
+      required:
+      - resultId
+    MatchMessage:
+      type: object
+      properties:
+        messageId:
+          type: string
+          format: uuid
+          description: Unique message id.
+        matchId:
+          type: string
+          format: uuid
+          description: Match this message belongs to (FK to match.matchId).
+        senderId:
+          type: string
+          format: uuid
+          description: Player who sent it (FK to player.playerId).
+        templateCode:
+          type: string
+          description: One of a fixed set of preset messages, e.g. on_my_way | running_late_5 | running_late_15
+            | cant_make_it | arrived | at_court | waiting_front_desk | thanks_for_game | rematch. No free
+            text — this is the light preset-message feature, not open chat.
+        sentAt:
+          type: string
+          format: date-time
+          description: When the message was sent.
+      required:
+      - messageId
+    MatchMessageCreate:
+      type: object
+      properties:
+        messageId:
+          type: string
+          format: uuid
+          description: Unique message id.
+        matchId:
+          type: string
+          format: uuid
+          description: Match this message belongs to (FK to match.matchId).
+        templateCode:
+          type: string
+          description: One of a fixed set of preset messages, e.g. on_my_way | running_late_5 | running_late_15
+            | cant_make_it | arrived | at_court | waiting_front_desk | thanks_for_game | rematch. No free
+            text — this is the light preset-message feature, not open chat.
+        sentAt:
+          type: string
+          format: date-time
+          description: When the message was sent.
+    Dispute:
+      type: object
+      properties:
+        disputeId:
+          type: string
+          format: uuid
+          description: Unique dispute id.
+        matchId:
+          type: string
+          format: uuid
+          description: Disputed match (FK).
+        reason:
+          type: string
+          description: Reason for the dispute.
+        status:
+          type: string
+          description: open | upheld | dismissed.
+      required:
+      - disputeId
+    DisputeCreate:
+      type: object
+      properties:
+        disputeId:
+          type: string
+          format: uuid
+          description: Unique dispute id.
+        matchId:
+          type: string
+          format: uuid
+          description: Disputed match (FK).
+        reason:
+          type: string
+          description: Reason for the dispute.
+        status:
+          type: string
+          description: open | upheld | dismissed.
+    Block:
+      type: object
+      properties:
+        blockerId:
+          type: string
+          format: uuid
+          description: Player who created the block (PK, FK).
+        blockedId:
+          type: string
+          format: uuid
+          description: Player being blocked (PK, FK).
+        createdAt:
+          type: string
+          format: date-time
+          description: When the block was created.
+      required:
+      - blockerId
+      - blockedId
+    BlockCreate:
+      type: object
+      properties:
+        blockerId:
+          type: string
+          format: uuid
+          description: Player who created the block (PK, FK).
+        blockedId:
+          type: string
+          format: uuid
+          description: Player being blocked (PK, FK).
+        createdAt:
+          type: string
+          format: date-time
+          description: When the block was created.
+    ActivityLog:
+      type: object
+      properties:
+        logId:
+          type: string
+          format: uuid
+          description: Unique log entry id.
+        actorId:
+          type: string
+          format: uuid
+          description: Admin (or system) that performed the action.
+        action:
+          type: string
+          description: Action performed, e.g. suspend_account, hide_post.
+        targetType:
+          type: string
+          description: Type of the affected record, e.g. player, game_post, mini_league.
+        targetId:
+          type: string
+          description: Id of the affected record.
+        details:
+          type: string
+          description: Free-text or JSON-encoded detail of the action.
+        createdAt:
+          type: string
+          format: date-time
+          description: When the action was logged.
+      required:
+      - logId
+    AdminPost:
+      type: object
+      properties:
+        adminPostId:
+          type: string
+          format: uuid
+          description: Unique admin post id.
+        title:
+          type: string
+          description: Headline shown on the home page.
+        body:
+          type: string
+          description: Body text (announcement, promo, notice).
+        imageUrl:
+          type: string
+          format: uri
+          description: 'Image shown on this carousel card, alongside title/body (Supabase Storage
+            public URL). Required to publish (v1.2: the home page carousel is text-and-image, not
+            text-only).'
+        displayOrder:
+          type: integer
+          description: Position of this card in the home page carousel (ascending; lower shows first).
+            Admin-set; only applied among published items.
+        status:
+          type: string
+          description: draft | published.
+        createdBy:
+          type: string
+          format: uuid
+          description: Admin who authored this item (FK to player.playerId).
+        publishedAt:
+          type: string
+          format: date-time
+          description: When status last changed to published (null while draft).
+      required:
+      - adminPostId
+    AdminPostCreate:
+      type: object
+      properties:
+        adminPostId:
+          type: string
+          format: uuid
+          description: Unique admin post id.
+        title:
+          type: string
+          description: Headline shown on the home page.
+        body:
+          type: string
+          description: Body text (announcement, promo, notice).
+        imageUrl:
+          type: string
+          format: uri
+          description: 'Image shown on this carousel card, alongside title/body (Supabase Storage
+            public URL). Required to publish (v1.2: the home page carousel is text-and-image, not
+            text-only).'
+        displayOrder:
+          type: integer
+          description: Position of this card in the home page carousel (ascending; lower shows first).
+            Admin-set; only applied among published items.
+        status:
+          type: string
+          description: draft | published.
+        publishedAt:
+          type: string
+          format: date-time
+          description: When status last changed to published (null while draft).
+    AdminPostUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Headline shown on the home page.
+        body:
+          type: string
+          description: Body text (announcement, promo, notice).
+        imageUrl:
+          type: string
+          format: uri
+          description: 'Image shown on this carousel card, alongside title/body (Supabase Storage
+            public URL). Required to publish (v1.2: the home page carousel is text-and-image, not
+            text-only).'
+        displayOrder:
+          type: integer
+          description: Position of this card in the home page carousel (ascending; lower shows first).
+            Admin-set; only applied among published items.
+        status:
+          type: string
+          description: draft | published.
+        publishedAt:
+          type: string
+          format: date-time
+          description: When status last changed to published (null while draft).
+    Error:
+      type: object
+      description: Standard error shape returned to the frontend (see API Specification → Conventions
+        in the Technical Design Document).
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code, e.g. 'forbidden', 'validation_failed', 'not_found'.
+        message:
+          type: string
+          description: Human-readable error message.
+      required:
+      - code
+      - message
+  responses:
+    Unauthorized:
+      description: Missing or invalid session JWT.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: The signed-in player is not permitted to perform this action (blocked by Row Level
+        Security).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ValidationError:
+      description: The request body failed validation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+x-realtime-channels:
+- channel: notifications:{playerId}
+  scope: Per player, own row only
+  usedFor: Live badge and list updates when a Notification is created or marked read.
+- channel: game_post:{postId}
+  scope: Per open post
+  usedFor: Live status updates (join requests, full, cancelled) for anyone viewing that post.
+- channel: mini_league:{leagueId}:standings
+  scope: Per league
+  usedFor: Leaderboard updates as LeagueStanding rows change after a confirmed result.
+- channel: admin:reports
+  scope: Admin only
+  usedFor: Live report queue for the moderation dashboard.
+- channel: admin:activity_log
+  scope: Admin only
+  usedFor: Live activity log for the moderation dashboard.

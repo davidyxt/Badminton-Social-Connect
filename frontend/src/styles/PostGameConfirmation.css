@@ -1,0 +1,223 @@
+.confirmation-page {
+  width: 100%;
+  max-width: 480px;
+
+  min-height: 100dvh;
+
+  margin: 0 auto;
+
+  padding-top: 62px;
+  padding-bottom: 78px;
+
+  display: flex;
+
+  background: #f5f6f8;
+
+  color: #202536;
+
+  box-sizing: border-box;
+}
+
+
+/* ======================================================
+   MAIN CONTENT
+   ====================================================== */
+
+.confirmation-content {
+  width: 100%;
+
+  flex: 1;
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  padding: 32px 34px 44px;
+
+  text-align: center;
+}
+
+
+/* ======================================================
+   ICON
+   ====================================================== */
+
+.confirmation-icon {
+  width: 82px;
+  height: 82px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 24px;
+
+  border-radius: 50%;
+
+  background: #e8f0fd;
+
+  color: #315b9e;
+}
+
+
+/* ======================================================
+   TITLE
+   ====================================================== */
+
+.confirmation-content h1 {
+  margin: 0 0 14px;
+
+  color: #202536;
+
+  font-size: 31px;
+  font-weight: 800;
+
+  line-height: 1.15;
+}
+
+
+/* ======================================================
+   DESCRIPTION
+   ====================================================== */
+
+.confirmation-description {
+  width: 100%;
+  max-width: 360px;
+
+  margin: 0 auto;
+
+  color: #73798a;
+
+  font-size: 15px;
+
+  line-height: 1.55;
+}
+
+
+/* ======================================================
+   OPTIONAL DETAIL CARD
+   ====================================================== */
+
+.confirmation-details {
+  width: 100%;
+
+  margin-top: 26px;
+}
+
+
+/* ======================================================
+   BUTTONS
+   ====================================================== */
+
+.confirmation-actions {
+  width: 100%;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 12px;
+
+  margin-top: 30px;
+}
+
+.confirmation-primary-button,
+.confirmation-secondary-button {
+  width: 100%;
+  height: 54px;
+
+  border-radius: 17px;
+
+  font-family: inherit;
+
+  font-size: 15px;
+  font-weight: 800;
+
+  cursor: pointer;
+
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+
+
+/* Primary */
+
+.confirmation-primary-button {
+  border: none;
+
+  background: #315b9e;
+
+  color: white;
+}
+
+.confirmation-primary-button:hover {
+  background: #294b87;
+}
+
+
+/* Secondary */
+
+.confirmation-secondary-button {
+  border: 1.5px solid #315b9e;
+
+  background: white;
+
+  color: #315b9e;
+}
+
+.confirmation-secondary-button:hover {
+  background: #f5f8fd;
+}
+
+
+/* Button press */
+
+.confirmation-primary-button:active,
+.confirmation-secondary-button:active {
+  transform: scale(0.99);
+}
+
+
+/* ======================================================
+   SMALL PHONES
+   ====================================================== */
+
+@media (max-width: 430px) {
+
+  .confirmation-content {
+    padding:
+      28px
+      24px
+      38px;
+  }
+
+  .confirmation-icon {
+    width: 76px;
+    height: 76px;
+
+    margin-bottom: 22px;
+  }
+
+  .confirmation-content h1 {
+    font-size: 28px;
+  }
+
+  .confirmation-description {
+    max-width: 320px;
+
+    font-size: 14px;
+  }
+
+  .confirmation-actions {
+    margin-top: 27px;
+  }
+
+  .confirmation-primary-button,
+  .confirmation-secondary-button {
+    height: 52px;
+  }
+}

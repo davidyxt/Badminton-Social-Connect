@@ -1,17 +1,34 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import LandingPage from "./pages/LandingPage";
+import LandingPage from "./pages/landingPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
-
+import PostGamePage from "./pages/PostGamePage";
+import PostGameConfirmationPage from "./pages/PostGameConfirmationPage";
 import DashboardPage from "./pages/DashboardPage";
+import FindGamesPage from "./pages/FindGamesPage";
+import GameDetailsPage from "./pages/GameDetailsPage";
+import GameRequestConfirmationPage from "./pages/GameRequestConfirmationPage";
+import RankingsPage from "./pages/RankingsPage";
+import MiniLeaguesPage from "./pages/MiniLeaguesPage";
+import CreateLeaguePage from "./pages/CreateLeaguePage";
+import LeagueCreatedConfirmationPage from "./pages/LeagueCreatedConfirmationPage";
+import LeagueDetailsPage from "./pages/LeagueDetailsPage";
+import ProfilePage from "./pages/ProfilePage";
+import PlayerProfilePage from "./pages/PlayerProfilePage";
+import NotificationsPage from "./pages/NotificationsPage";
+import PlayRequestPage from "./pages/PlayRequestPage";
+import MatchDetailsPage from "./pages/MatchDetailsPage";
+import RecordResultPage from "./pages/RecordResultPage";
+import ResultSubmittedPage from "./pages/ResultSubmittedPage";
+import ResultConfirmedPage from "./pages/ResultConfirmedPage";
 
 import AuthenticatedLayout from "./layouts/AuthenticatedLayout";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 function App() {
   return (
     <BrowserRouter>
-
       <Routes>
 
         {/* Pages WITHOUT top/bottom navigation */}
@@ -32,20 +49,115 @@ function App() {
         />
 
 
-        {/* Pages WITH top/bottom navigation */}
+        {/* Focused pages without bottom navigation */}
 
-        <Route element={<AuthenticatedLayout />}>
+        <Route
+          path="/post-game"
+          element={<PostGamePage />}
+        />
 
-          <Route
-            path="/dashboard"
-            element={<DashboardPage />}
+
+        {/* Protected pages */}
+
+          {/* Pages WITH top/bottom navigation */}
+
+          <Route element={<AuthenticatedLayout />}>
+
+            <Route
+              path="/dashboard"
+              element={<DashboardPage />}
+            />
+
+            <Route
+              path="/find"
+              element={<FindGamesPage />}
+            />
+
+            <Route
+              path="/games/:gameId"
+              element={<GameDetailsPage />}
+            />
+            
+            <Route
+              path="/rankings"
+              element={<RankingsPage />}
+            />
+
+            <Route
+              path="/post-game/confirmation/:gameId"
+              element={<PostGameConfirmationPage />}
+            />
+            
+            <Route
+            path="/games/:gameId/request-confirmation"
+            element={<GameRequestConfirmationPage />}
           />
 
+          <Route
+            path="/leagues"
+            element={<MiniLeaguesPage />}
+          />
+
+          <Route
+            path="/leagues/create"
+            element={<CreateLeaguePage />}
+          />
+
+          <Route
+            path="/leagues/:leagueId/created"
+            element={<LeagueCreatedConfirmationPage />}
+          />
+
+          <Route
+            path="/leagues/:leagueId"
+            element={<LeagueDetailsPage />}
+          />
+
+          <Route
+            path="/profile"
+            element={<ProfilePage />}
+          />
+
+          <Route
+            path="/players/:playerId"
+            element={<PlayerProfilePage />}
+          />
+
+          <Route
+            path="/notifications"
+            element={<NotificationsPage />}
+          />
           
-        </Route>
+          <Route
+            path="/play-requests/:requestId"
+            element={<PlayRequestPage />}
+          />
+          
+          <Route
+            path="/matches/:matchId"
+            element={<MatchDetailsPage />}
+          />
+
+          <Route
+            path="/matches/:matchId/record-result"
+            element={<RecordResultPage />}
+          />
+
+          <Route
+            path="/matches/:matchId/result-submitted"
+            element={<ResultSubmittedPage />}
+          />
+
+          <Route
+            path="/matches/:matchId/result-confirmed"
+            element={<ResultConfirmedPage />}
+          />
+
+          </Route>
+
+      {/* Remember to replace protected route after */}
 
       </Routes>
-
     </BrowserRouter>
   );
 }
