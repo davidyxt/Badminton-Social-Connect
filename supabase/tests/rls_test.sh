@@ -163,7 +163,14 @@ BODY="{\"organiser_id\":\"$IDU\",\"format\":\"singles\",\"suburb\":\"Carlton\",\
 R=$(as "$TU" POST "game_post" "$BODY")
 check "or post a game" "ERR:42501" "$(count "$R")"
 
-MINOR=$(python3 -c 'import datetime;d=datetime.date.today();print(d.replace(year=d.year-17).isoformat())')
+# Ages are judged by the date in the player's state. These players register in
+# VIC, so "today" is Melbourne's date, whatever the machine's time zone is.
+melb_today() { python3 -c 'import datetime,zoneinfo;print(datetime.datetime.now(zoneinfo.ZoneInfo("Australia/Melbourne")).date().isoformat())'; }
+years_ago() { python3 -c 'import sys,datetime
+d=datetime.date.fromisoformat(sys.argv[1]); n=int(sys.argv[2])
+try: print(d.replace(year=d.year-n).isoformat())
+except ValueError: print(d.replace(year=d.year-n, day=28).isoformat())' "$(melb_today)" "$1"; }
+MINOR=$(years_ago 17)
 R=$(register "$TU" "$MINOR")
 check "an under-18 date of birth is rejected" "23514" \
   "$(echo "$R" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("code"))')"
@@ -178,9 +185,13 @@ R=$(as "$TU" POST "rpc/register_player" '{"p_date_of_birth":"1990-01-01","p_age_
 check "registration needs the terms accepted" "23514" \
   "$(echo "$R" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("code"))')"
 
-ADULT18=$(python3 -c 'import datetime;d=datetime.date.today()
+ADULT18=$(years_ago 18)
+TOMORROW18=$(python3 -c 'import sys,datetime
+d=datetime.date.fromisoformat(sys.argv[1])+datetime.timedelta(days=1)
 try: print(d.replace(year=d.year-18).isoformat())
-except ValueError: print(d.replace(year=d.year-18, day=28).isoformat())')
+except ValueError: print(d.replace(year=d.year-18, day=28).isoformat())' "$(melb_today)")
+check "turning 18 tomorrow in Melbourne is not old enough" "23514" \
+  "$(register "$TU" "$TOMORROW18" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("code"))')"
 check "turning 18 today is old enough" "" "$(register "$TU" "$ADULT18")"
 check "registration records consent with server timestamps" '["2026-10","2026-10",true]' \
   "$(as "$TU" GET "player_private?player_id=eq.$IDU&select=terms_version,privacy_version,terms_accepted_at,privacy_accepted_at,age_declared_at,registered_at" | python3 -c 'import sys,json

@@ -1,6 +1,6 @@
 # Database Schema
 
-Implemented across thirteen migrations in `supabase/migrations/`:
+Implemented across fourteen migrations in `supabase/migrations/`:
 
 | Migration | What it adds |
 |---|---|
@@ -17,6 +17,7 @@ Implemented across thirteen migrations in `supabase/migrations/`:
 | `..._bl017_join_requests.sql` | Join request RPCs, request messages, status history, match created on first acceptance (BL-017) |
 | `..._bl019_player_profiles.sql` | `get_player_profile` and the stats behind it (BL-019) |
 | `..._bl015_find_games.sql` | `game_post.title`, `search_games`, `search_players`, `get_game_details`, `get_join_requests` (BL-015) |
+| `..._bl007_age_gate_local_date.sql` | Fix: age judged by the date in the player's state, not UTC |
 
 Access rules are documented separately in [rls-policies.md](./rls-policies.md),
 which also lists the open questions this schema left unresolved.
@@ -643,7 +644,7 @@ It is text because NT and ACT postcodes start with 0.
 supabase start                  # bring up the local stack (needs Docker running)
 supabase db reset --local       # drop and rebuild from migrations + seeds/
 supabase db advisors --local    # security and performance lint
-./supabase/tests/rls_test.sh    # 224 access-control and integrity checks
+./supabase/tests/rls_test.sh    # 225 access-control and integrity checks
 
 supabase migration new <name>   # start a new change
 supabase db push                # apply pending migrations to the linked project
