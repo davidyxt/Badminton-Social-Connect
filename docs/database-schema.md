@@ -1,6 +1,6 @@
 # Database Schema
 
-Implemented across four migrations in `supabase/migrations/`:
+Implemented across five migrations in `supabase/migrations/`:
 
 | Migration | What it adds |
 |---|---|
@@ -8,6 +8,7 @@ Implemented across four migrations in `supabase/migrations/`:
 | `..._clubs_as_organisers.sql` | `club`, `club_representative`, and clubs as game post organisers |
 | `..._game_participants_and_match_sides.sql` | The join flow, the game-to-match link, and sides |
 | `..._audit_columns.sql` | `updated_at` / `updated_by` on every table that can change |
+| `..._bl080_club_admins_and_join_requests.sql` | Club admins, members and join requests (M6, using clubs instead of groups); clubs deactivated instead of deleted |
 
 Access rules are documented separately in [rls-policies.md](./rls-policies.md),
 which also lists the open questions this schema left unresolved.
@@ -29,8 +30,7 @@ which also lists the open questions this schema left unresolved.
 
 ## Entity relationships
 
-Every entity carries `updated_at` and `updated_by` except `CLUB_REPRESENTATIVE`,
-which has nothing to update. Both are stamped by a trigger and ignore anything
+Every entity carries `updated_at` and `updated_by`. Both are stamped by a trigger and ignore anything
 a client sends; `updated_by` is shown without an `FK` marker because it
 deliberately is not one. See [Audit columns](#audit-columns) for why.
 
@@ -117,6 +117,7 @@ erDiagram
         text contact_email
         text logo_url
         boolean is_verified "service_role only"
+        boolean is_active "false = deactivated"
         uuid created_by FK
         timestamptz created_at
         timestamptz updated_at
@@ -126,7 +127,11 @@ erDiagram
     CLUB_REPRESENTATIVE {
         uuid club_id PK,FK
         uuid player_id PK,FK
+        text role "admin | member"
+        text status "pending | approved"
         timestamptz added_at
+        timestamptz updated_at
+        uuid updated_by
     }
 
     ADMIN_POST {
@@ -263,9 +268,9 @@ erDiagram
     PLAYER ||--o{ MATCH_PARTICIPANT : plays_in
     PLAYER ||--o{ MATCH : creates
     PLAYER ||--o{ CLUB : registers
-    PLAYER ||--o{ CLUB_REPRESENTATIVE : represents_as
+    PLAYER ||--o{ CLUB_REPRESENTATIVE : belongs_to
     PLAYER ||--o{ GAME_PARTICIPANT : requests_to_join
-    CLUB ||--o{ CLUB_REPRESENTATIVE : is_represented_by
+    CLUB ||--o{ CLUB_REPRESENTATIVE : has_members
     CLUB ||--o{ GAME_POST : organises
     GAME_POST ||--o{ GAME_PARTICIPANT : receives
     GAME_POST ||--o{ MATCH : contains
@@ -340,9 +345,6 @@ worthless if the person changing it picks the value.
 The trigger skips rows where nothing but the audit columns changed, so a `PATCH`
 that writes a column the value it already held does not make the row look
 freshly edited.
-
-`club_representative` is the one table without them: it has no updatable column,
-only inserts and deletes.
 
 **`updated_by` is not a foreign key**, which is a deliberate trade against the
 grain. Two reasons:
@@ -427,12 +429,19 @@ That nested syntax works only because a foreign key exists. The unused side
 comes back `null`. With a polymorphic column, every listing would need a second
 and third round trip to resolve organiser names.
 
-**`club` is not an account.** A club cannot log in. Real people post on its
-behalf, and `club_representative` lists which player accounts may do so. That
-table is deliberately *not* a membership roster: being a representative says
-nothing about playing for the club. Whoever registers a club becomes its first
-representative automatically, via the `on_club_created` trigger, so a club can
-never exist with nobody able to speak for it.
+**`club` is not an account.** A club cannot log in. Real people act on its
+behalf. The app uses clubs where the v1.2 documents say "groups" (M6), and
+`club_representative` is the membership list: `role` is `admin` or `member`,
+`status` is `pending` (a join request) or `approved`. Only approved admins can
+rename the club, post games for it and manage members. Whoever registers a club
+becomes its first admin automatically, via the `on_club_created` trigger, and
+the `keep_one_club_admin` trigger stops the last admin leaving, so a club can
+never exist with nobody able to run it.
+
+**Clubs are deactivated, never deleted.** A club admin sets `is_active = false`.
+Its game posts, matches and results stay; it cannot post games or take members
+until reactivated. `game_post.organiser_club_id` is `on delete restrict`, so a
+club with posts cannot be deleted even by `service_role`.
 
 **`match_result` allows several rows per match**, read from the diagram as "each
 side submits a score and one gets confirmed". A partial unique index enforces at
@@ -465,7 +474,7 @@ results. Nothing computes them yet.
 | 8 | `reliability_score` is `numeric(5,2)`, not float | Exact decimals keep leaderboard ordering deterministic |
 | 9 | `check_in.timestamp` renamed `checked_in_at` | `timestamp` is a SQL type name and reads ambiguously |
 | 10 | Added `created_at` to most tables | Conventional, and needed for any "recent activity" view |
-| 11 | Added `updated_at` / `updated_by` to all 18 changeable tables | Anything with a `status` needs to record who moved it and when |
+| 11 | Added `updated_at` / `updated_by` to all 19 changeable tables | Anything with a `status` needs to record who moved it and when |
 
 The first three want a decision from the team. See the open questions in
 [rls-policies.md](./rls-policies.md).

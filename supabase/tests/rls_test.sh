@@ -4,11 +4,20 @@
 set -uo pipefail
 
 API=http://127.0.0.1:54321
-ANON=$(supabase status -o json 2>/dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin)["ANON_KEY"])')
+STATUS=$(supabase status -o json 2>/dev/null)
+ANON=$(echo "$STATUS" | python3 -c 'import sys,json;print(json.load(sys.stdin)["ANON_KEY"])')
+SERVICE=$(echo "$STATUS" | python3 -c 'import sys,json;print(json.load(sys.stdin)["SERVICE_ROLE_KEY"])')
 
+# Email confirmation is on (auth.email.enable_confirmations), so a plain
+# /signup returns no session. Create the user already confirmed through the
+# admin API, then sign in for a real token. user_metadata still reaches the
+# sign-up trigger exactly as it would from the app.
 signup() {
-  curl -s "$API/auth/v1/signup" -H "apikey: $ANON" -H 'Content-Type: application/json' \
-    -d "{\"email\":\"$1\",\"password\":\"$2\",\"data\":{\"display_name\":\"$3\"}}"
+  curl -s "$API/auth/v1/admin/users" -H "apikey: $SERVICE" \
+    -H "Authorization: Bearer $SERVICE" -H 'Content-Type: application/json' \
+    -d "{\"email\":\"$1\",\"password\":\"$2\",\"email_confirm\":true,\"user_metadata\":{\"display_name\":\"$3\"}}" > /dev/null
+  curl -s "$API/auth/v1/token?grant_type=password" -H "apikey: $ANON" \
+    -H 'Content-Type: application/json' -d "{\"email\":\"$1\",\"password\":\"$2\"}"
 }
 
 pass=0; fail=0
@@ -71,7 +80,6 @@ check "alice cannot edit bob's profile" 0 \
   "$(count "$(as "$TA" PATCH "player_profile?player_id=eq.$IDB" '{"bio":"hacked"}')")"
 check "alice can edit her own profile"  1 \
   "$(count "$(as "$TA" PATCH "player_profile?player_id=eq.$IDA" '{"bio":"hi"}')")"
-
 echo
 echo "== 4. privilege escalation is blocked =="
 check "alice cannot verify herself" "ERR:42501" \
@@ -124,14 +132,14 @@ CLUB=$(echo "$R" | python3 -c 'import sys,json
 d=json.load(sys.stdin)
 print(d[0]["club_id"] if isinstance(d,list) and d else "")')
 
-check "the trigger made her a representative" 1 \
-  "$(count "$(as "$TA" GET "club_representative?club_id=eq.$CLUB&player_id=eq.$IDA")")"
-check "bob is not a representative" 0 \
+check "the trigger made her an approved club admin" 1 \
+  "$(count "$(as "$TA" GET "club_representative?club_id=eq.$CLUB&player_id=eq.$IDA&role=eq.admin&status=eq.approved")")"
+check "bob is not a member" 0 \
   "$(count "$(as "$TB" GET "club_representative?club_id=eq.$CLUB&player_id=eq.$IDB")")"
 
 BODY="{\"organiser_club_id\":\"$CLUB\",\"format\":\"doubles\",\"proposed_time\":\"2026-10-05T18:00:00Z\"}"
 R=$(as "$TA" POST "game_post" "$BODY")
-check "a rep can post on the club's behalf" 1 "$(count "$R")"
+check "a club admin can post on the club's behalf" 1 "$(count "$R")"
 CPOST=$(echo "$R" | python3 -c 'import sys,json
 d=json.load(sys.stdin)
 print(d[0]["post_id"] if isinstance(d,list) and d else "")')
@@ -165,15 +173,57 @@ check "nobody can verify their own club" "ERR:42501" \
 check "bob cannot edit alice's club" 0 \
   "$(count "$(as "$TB" PATCH "club?club_id=eq.$CLUB" '{"name":"Hijacked"}')")"
 
+BREP="club_representative?club_id=eq.$CLUB&player_id=eq.$IDB"
+AREP="club_representative?club_id=eq.$CLUB&player_id=eq.$IDA"
+
+BODY="{\"club_id\":\"$CLUB\",\"player_id\":\"$IDB\",\"status\":\"approved\"}"
+R=$(as "$TB" POST "club_representative" "$BODY")
+check "bob cannot let himself straight into the club" "ERR:42501" "$(count "$R")"
+BODY="{\"club_id\":\"$CLUB\",\"player_id\":\"$IDB\",\"role\":\"admin\",\"status\":\"approved\"}"
+R=$(as "$TB" POST "club_representative" "$BODY")
+check "bob cannot make himself a club admin" "ERR:42501" "$(count "$R")"
+BODY="{\"club_id\":\"$CLUB\",\"player_id\":\"$IDA\"}"
+R=$(as "$TB" POST "club_representative" "$BODY")
+check "bob cannot file a join request for someone else" "ERR:42501" "$(count "$R")"
+
 BODY="{\"club_id\":\"$CLUB\",\"player_id\":\"$IDB\"}"
 R=$(as "$TB" POST "club_representative" "$BODY")
-check "bob cannot make himself a representative" "ERR:42501" "$(count "$R")"
-R=$(as "$TA" POST "club_representative" "$BODY")
-check "a rep can add another rep" 1 "$(count "$R")"
-check "a rep cannot remove another rep" 0 \
-  "$(count "$(as "$TB" DELETE "club_representative?club_id=eq.$CLUB&player_id=eq.$IDA")")"
-check "a rep can step down" 1 \
-  "$(count "$(as "$TB" DELETE "club_representative?club_id=eq.$CLUB&player_id=eq.$IDB")")"
+check "bob can request to join (pending by default)" '["pending","member"]' \
+  "$(echo "$R" | python3 -c 'import sys,json
+d=json.load(sys.stdin)
+r=d[0] if isinstance(d,list) and d else {}
+print(json.dumps([r.get("status"), r.get("role")], separators=(",",":")))')"
+check "bob cannot approve his own request" 0 \
+  "$(count "$(as "$TB" PATCH "$BREP" '{"status":"approved"}')")"
+
+BODY="{\"organiser_club_id\":\"$CLUB\",\"format\":\"doubles\",\"proposed_time\":\"2026-10-07T18:00:00Z\"}"
+R=$(as "$TB" POST "game_post" "$BODY")
+check "a pending member cannot post for the club" "ERR:42501" "$(count "$R")"
+
+check "the club admin approves bob" 1 \
+  "$(count "$(as "$TA" PATCH "$BREP" '{"status":"approved"}')")"
+R=$(as "$TB" POST "game_post" "$BODY")
+check "an approved member still cannot post for the club" "ERR:42501" "$(count "$R")"
+check "an approved member cannot rename the club" 0 \
+  "$(count "$(as "$TB" PATCH "club?club_id=eq.$CLUB" '{"name":"Hijacked"}')")"
+
+check "the club admin promotes bob to admin" 1 \
+  "$(count "$(as "$TA" PATCH "$BREP" '{"role":"admin"}')")"
+check "a second admin can edit the club" 1 \
+  "$(count "$(as "$TB" PATCH "club?club_id=eq.$CLUB" '{"description":"Tuesday nights"}')")"
+R=$(as "$TB" POST "game_post" "$BODY")
+check "a second admin can post for the club" 1 "$(count "$R")"
+
+check "an admin cannot demote another admin" 0 \
+  "$(count "$(as "$TB" PATCH "$AREP" '{"role":"member"}')")"
+check "an admin cannot remove another admin" 0 \
+  "$(count "$(as "$TB" DELETE "$AREP")")"
+check "not even a club admin can delete the club" "ERR:42501" \
+  "$(count "$(as "$TB" DELETE "club?club_id=eq.$CLUB")")"
+check "an admin can step down while another remains" 1 \
+  "$(count "$(as "$TB" DELETE "$BREP")")"
+check "the last admin cannot step down" "ERR:23514" \
+  "$(count "$(as "$TA" DELETE "$AREP")")"
 
 echo
 echo "== 11. the organiser embeds in one request =="
@@ -347,17 +397,66 @@ check "updated_by records who made the change, not whose row it is" "$IDA" \
 # columns fails with 42703 if either is missing.
 MISSING=""
 for tbl in player player_profile venue mini_league league_standing game_post \
-           game_participant cancellation_record club match match_participant \
-           check_in match_result dispute ranking notification report admin_post
+           game_participant cancellation_record club club_representative \
+           match match_participant check_in match_result dispute ranking \
+           notification report admin_post
 do
   RES=$(as "$TA" GET "$tbl?select=updated_at,updated_by&limit=1")
   echo "$RES" | grep -q '"code"' && MISSING="$MISSING $tbl"
 done
-check "all 18 changeable tables expose the pair" "" "$MISSING"
+check "all 19 changeable tables expose the pair" "" "$MISSING"
 
-# club_representative has no updatable column, so it deliberately has neither.
-check "club_representative is deliberately excluded" "ERR:42703" \
-  "$(count "$(as "$TA" GET "club_representative?select=updated_at&limit=1")")"
+echo
+echo "== 16. club join requests are private, membership is public =="
+BODY="{\"club_id\":\"$CLUB\",\"player_id\":\"$IDC\"}"
+R=$(as "$TC" POST "club_representative" "$BODY")
+check "carol can request to join" 1 "$(count "$R")"
+CREP="club_representative?club_id=eq.$CLUB&player_id=eq.$IDC"
+check "bob cannot see carol's pending request" 0 "$(count "$(as "$TB" GET "$CREP")")"
+check "the club admin can see it" 1 "$(count "$(as "$TA" GET "$CREP")")"
+check "the club admin can decline it" 1 "$(count "$(as "$TA" DELETE "$CREP")")"
+
+BODY="{\"club_id\":\"$CLUB\",\"player_id\":\"$IDC\",\"status\":\"approved\"}"
+R=$(as "$TA" POST "club_representative" "$BODY")
+check "a club admin can add a member directly" 1 "$(count "$R")"
+check "approved membership is visible to other players" 1 "$(count "$(as "$TB" GET "$CREP")")"
+check "approval is stamped with the admin, not the member" "$IDA" \
+  "$(as "$TA" GET "$CREP&select=updated_by" | field updated_by)"
+check "a member can leave" 1 "$(count "$(as "$TC" DELETE "$CREP")")"
+
+echo
+echo "== 17. clubs are deactivated, not deleted =="
+# Bob is an approved member again, not an admin.
+BODY="{\"club_id\":\"$CLUB\",\"player_id\":\"$IDB\",\"status\":\"approved\"}"
+as "$TA" POST "club_representative" "$BODY" > /dev/null
+check "a plain member cannot deactivate the club" 0 \
+  "$(count "$(as "$TB" PATCH "club?club_id=eq.$CLUB" '{"is_active":false}')")"
+check "a club admin can deactivate it" 1 \
+  "$(count "$(as "$TA" PATCH "club?club_id=eq.$CLUB" '{"is_active":false}')")"
+
+check "its game posts are still there" 1 \
+  "$(count "$(as "$TB" GET "game_post?post_id=eq.$CPOST")")"
+check "the post can show the club as inactive" '[false]' \
+  "$(as "$TB" GET "game_post?post_id=eq.$CPOST&select=club(is_active)" | python3 -c 'import sys,json
+d=json.load(sys.stdin)
+print(json.dumps([(d[0].get("club") or {}).get("is_active")] if d else []))')"
+
+BODY="{\"organiser_club_id\":\"$CLUB\",\"format\":\"doubles\",\"proposed_time\":\"2026-12-02T18:00:00Z\"}"
+R=$(as "$TA" POST "game_post" "$BODY")
+check "an inactive club cannot post a game" "ERR:23514" "$(count "$R")"
+BODY="{\"club_id\":\"$CLUB\",\"player_id\":\"$IDC\"}"
+R=$(as "$TC" POST "club_representative" "$BODY")
+check "an inactive club cannot take join requests" "ERR:23514" "$(count "$R")"
+check "a member can still leave an inactive club" 1 \
+  "$(count "$(as "$TB" DELETE "$BREP")")"
+check "an admin can still edit the club's existing posts" 1 \
+  "$(count "$(as "$TA" PATCH "game_post?post_id=eq.$CPOST" '{"suburb":"Richmond"}')")"
+
+check "a club admin can reactivate it" 1 \
+  "$(count "$(as "$TA" PATCH "club?club_id=eq.$CLUB" '{"is_active":true}')")"
+BODY="{\"organiser_club_id\":\"$CLUB\",\"format\":\"doubles\",\"proposed_time\":\"2026-12-02T18:00:00Z\"}"
+R=$(as "$TA" POST "game_post" "$BODY")
+check "once reactivated it can post again" 1 "$(count "$R")"
 echo
 echo "-------------------------------------"
 echo "  $pass passed, $fail failed"

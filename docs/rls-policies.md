@@ -71,7 +71,7 @@ may need to sign out and back in.
 | `game_participant` | **Accepted** rows: any signed-in player, so the board can show places taken. **Pending or rejected** rows: only the player who asked, and the organiser |
 | `cancellation_record` | Any signed-in player |
 | `club` | Any signed-in player |
-| `club_representative` | Any signed-in player |
+| `club_representative` | **Approved** members: any signed-in player. **Pending** join requests: only the player who asked, and the club's admins |
 | `match` | Any signed-in player |
 | `match_participant` | Players in that match, plus whoever manages it |
 | `check_in` | Players in that match, plus whoever manages it |
@@ -93,11 +93,11 @@ Admins can read everything in every table.
 | `venue` | Admin | Admin | Admin |
 | `mini_league` | Any player, as organiser | Organiser or admin | Organiser or admin |
 | `league_standing` | League organiser or admin | Same | Same |
-| `game_post` | As yourself, or as a club you represent | Organiser, club rep or admin | Organiser, club rep or admin |
+| `game_post` | As yourself, or as a club you are an admin of | Organiser, club admin or admin | Organiser, club admin or admin |
 | `game_participant` | Request to join as yourself, `status` forced to `requested`. The organiser may add people directly | The organiser decides accept/reject; you may only move your own row to `withdrawn` | Yourself, or the organiser |
-| `cancellation_record` | Organiser of the post (player or club rep), or admin | Admin | Admin |
-| `club` | Any player, as themselves | Representatives or admin, and not `is_verified` | Representatives or admin |
-| `club_representative` | An existing representative, or admin | n/a | Yourself only, or admin |
+| `cancellation_record` | Organiser of the post (player or club admin), or admin | Admin | Admin |
+| `club` | Any player, as themselves (they become its first club admin) | Club admins or platform admin (including `is_active`), and not `is_verified` | Nobody. Clubs are deactivated, not deleted |
+| `club_representative` | Request to join as yourself, forced to `pending` / `member`. Club admins may add anyone directly | Club admins approve requests and promote members; only `role` and `status`; never another admin's row | Yourself (leave or withdraw), club admins removing a non-admin, or platform admin. The last club admin cannot leave |
 | `match` | Anyone on the game's roster, or the league organiser for a fixture | Creator, game organiser, league organiser or admin | Same |
 | `match_participant` | Yourself, or the match manager adding you. Must be on the game's roster | Your own attendance, or the manager's | Yourself, or the manager |
 | `check_in` | Yourself, only if you are a participant, only unverified | Admin | Admin |
@@ -172,8 +172,8 @@ cannot be called as an RPC).
 | `private.is_match_participant(match_id)` | Are you in this match? |
 | `private.can_manage_match(match_id)` | Did you create it, or do you organise its league? |
 | `private.is_league_organiser(league_id)` | Do you organise this league? |
-| `private.can_post_for_club(club_id)` | Are you a listed representative of this club? |
-| `private.can_manage_post(post_id)` | Did you post this game, or represent the club that did? |
+| `private.can_post_for_club(club_id)` | Are you an approved admin of this club? |
+| `private.can_manage_post(post_id)` | Did you post this game, or are you an admin of the club that did? |
 | `private.is_game_participant(post_id)` | Are you on this game's accepted roster? |
 
 All but the first are `security definer`, which means they run with elevated
@@ -190,8 +190,9 @@ the caller's own token and needs no extra privilege.
 
 ## Verifying it
 
-`supabase/tests/rls_test.sh` runs 68 checks against the local stack. It signs up
-two real players through the Auth API and drives PostgREST exactly as the
+`supabase/tests/rls_test.sh` runs 98 checks against the local stack. It creates
+three real, already-confirmed players through the Auth admin API (email
+confirmation is on, so a plain sign-up returns no session), signs them in, and drives PostgREST exactly as the
 browser would, so it tests the policies as deployed rather than the SQL as
 written.
 
@@ -201,10 +202,10 @@ supabase db reset --local
 ./supabase/tests/rls_test.sh
 ```
 
-All 68 pass as of this migration. It covers: the sign-up trigger, the
+All 98 pass as of the BL-080 migration. It covers: the sign-up trigger, the
 discoverability rule, cross-user writes, the escalation paths above, anonymous
 access, game post ownership, the private schema not being exposed, club
-representation, the exactly-one-organiser constraint, and organiser embedding.
+admins, members, join requests and deactivation, the exactly-one-organiser constraint, and organiser embedding.
 
 Add a case here whenever you add a policy. A policy that is subtly too
 permissive is worse than no policy, because it looks like it is protecting you.
@@ -268,16 +269,31 @@ schema working, marked `DEVIATION` in the migration.
    player verification already works, but this is an impersonation risk and
    worth a deliberate decision.
 
-8. **Club representatives can add other representatives.** Whoever registers the
-   club becomes the first one, and any representative can add more. A
-   representative can only remove *themselves*, never another, so two people who
-   fall out cannot remove each other in a race. Admins settle those disputes.
-   If clubs should instead have a single owner who controls the list, say so.
+8. **Resolved (BL-080): clubs have admins, members and join requests.**
+   `club_representative` is the membership list, with `role` (`admin` /
+   `member`) and `status` (`pending` / `approved`). The creator is the first
+   admin; a club can have several. Players request to join and a club admin
+   approves. Only club admins can rename the club or post games for it. A club
+   admin can never demote or remove another admin, so two admins who fall out
+   cannot lock each other out; platform admins settle those. The
+   `keep_one_club_admin` trigger stops the last admin leaving. Club admins can
+   still add a player directly without a request, which means someone can be
+   listed in a club without having agreed to it. Say so if that should become
+   an invitation the player accepts.
 
-9. **Deleting a club deletes its game posts.** `game_post.organiser_club_id`
-   cascades. Representatives can delete the club, so one representative can
-   destroy the club's whole posting history. Should deletion be admin-only, or
-   should we soft-delete instead?
+9. **Resolved (BL-080): clubs are deactivated, never deleted.** Deleting a
+   club used to cascade through its game posts to every match, result and
+   dispute played in them. Now nobody can delete a club through the API (no
+   policy and no privilege), and `game_post.organiser_club_id` is `on delete
+   restrict`, so even a `service_role` delete fails while the club has posts.
+   A club admin sets `club.is_active = false` instead: posts and results stay,
+   the club page shows it as inactive, and the `club_must_be_active` trigger
+   stops new game posts and join requests until it is reactivated. Members can
+   still leave and admins can still edit or cancel existing posts.
+
+   The same cascade still exists from `game_post` to `match` (an organiser
+   deleting their own post wipes its results) and from `player` to `game_post`
+   (deleting an account). Those are for BL-013 and account deletion.
 
 10. **`match` had no owner, so I added `created_by`.** A casual match created
    from a game post belongs to no league, so there was no way to say in a policy
