@@ -1,6 +1,6 @@
 # Database Schema
 
-Implemented across five migrations in `supabase/migrations/`:
+Implemented across seven migrations in `supabase/migrations/`:
 
 | Migration | What it adds |
 |---|---|
@@ -10,6 +10,7 @@ Implemented across five migrations in `supabase/migrations/`:
 | `..._audit_columns.sql` | `updated_at` / `updated_by` on every table that can change |
 | `..._m4_username_and_private_names.sql` | `display_name` renamed `username` (unique, player-chosen); first and last names in owner-only `player_private` |
 | `..._bl007_age_gate_and_consent.sql` | 18+ age gate, consent records, `register_player`; unregistered accounts locked out (BL-007) |
+| `..._bl007_age_gate_local_date.sql` | Fix: age judged by the date in the player's state, not UTC |
 
 Access rules are documented separately in [rls-policies.md](./rls-policies.md),
 which also lists the open questions this schema left unresolved.
@@ -518,7 +519,7 @@ The first three want a decision from the team. See the open questions in
 supabase start                  # bring up the local stack (needs Docker running)
 supabase db reset --local       # drop and rebuild from migrations + seed.sql
 supabase db advisors --local    # security and performance lint
-./supabase/tests/rls_test.sh    # 104 access-control and integrity checks
+./supabase/tests/rls_test.sh    # 105 access-control and integrity checks
 
 supabase migration new <name>   # start a new change
 supabase db push                # apply pending migrations to the linked project

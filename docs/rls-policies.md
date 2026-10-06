@@ -137,7 +137,9 @@ ways:
 | `supabase.rpc('register_player', { p_date_of_birth, p_age_declared, p_terms_version, p_privacy_version, p_state })` | Google sign-in, or any account that skipped the fields | Error `23514`; nothing is stored |
 
 A minor's date of birth is never stored. Registration runs once; the date of
-birth cannot be edited afterwards.
+birth cannot be edited afterwards. Age is judged by the date in the player's
+own state (Melbourne time for VIC, Perth time for WA, …), not the database's
+UTC date, so someone turning 18 today is accepted from local midnight.
 
 ## Things deliberately out of reach
 
@@ -223,7 +225,7 @@ the caller's own token and needs no extra privilege.
 
 ## Verifying it
 
-`supabase/tests/rls_test.sh` runs 104 checks against the local stack. It signs up
+`supabase/tests/rls_test.sh` runs 105 checks against the local stack. It signs up
 two real players through the Auth API and drives PostgREST exactly as the
 browser would, so it tests the policies as deployed rather than the SQL as
 written.
@@ -234,7 +236,7 @@ supabase db reset --local
 ./supabase/tests/rls_test.sh
 ```
 
-All 104 pass as of the BL-007 migration. It covers: the sign-up trigger, the
+All 105 pass as of the BL-007 migrations. It covers: the sign-up trigger, the
 discoverability rule, cross-user writes, the escalation paths above, anonymous
 access, game post ownership, the private schema not being exposed, club
 representation, the exactly-one-organiser constraint, and organiser embedding.
