@@ -30,17 +30,26 @@ Each `report_*` call returns the new report's id.
 
 ## What blocking does
 
-Blocking works both ways and is enforced in the database:
+A block works differently for each side. Say **Pat blocks Quinn**:
 
-- The two players disappear from each other's search results, profiles, game rosters and (once built) leaderboards.
-- Neither sees games the other organises, and neither can ask to join the other's games.
-- At the moment of blocking, requests and places between them in **upcoming** games are closed: the blocked player's place in the blocker's game, and the blocker's place in the blocked player's game.
-- The blocked player is not told. To them, the blocker looks like any private profile ("This profile is private").
+| | Pat (the blocker) | Quinn (blocked) |
+|---|---|---|
+| Find the other in Players search | Yes, with `isBlocked: true` | No |
+| See the other on a game's "Players going" list | Yes, with `isBlocked: true` | No |
+| See games the other organises | Yes (`organiser.isBlocked: true`), but can't join | No, and can't join |
+| See games the other has joined | Yes | No, unless Quinn is already in that game |
+| Open the other's profile | No (`get_player_profile` returns null) | No |
+| See the other in the rankings | Yes, Blocked badge, no picture, not clickable | Yes, no picture, not clickable |
+
+What this means for the screens:
+
+- Show a **Blocked** badge wherever `isBlocked` is true: player search results, the Game Details host and players list, and the organiser on Find Games cards.
+- Don't link a badged player to their profile: it won't load.
+- Because Pat sees Quinn on a roster before joining, and Quinn loses sight of any game Pat joins, the two can only end up in the same game if Pat chooses it knowingly.
+- At the moment of blocking, requests and places between them in **upcoming** games either of them organises are closed.
+- Quinn is not told about the block. To Quinn, Pat simply can't be found.
 - A blocked player can still be reported: block first, then report, is a normal flow.
-- Unblocking makes them visible to each other again. Requests closed by the block stay closed.
-
-After a successful `block_player`, navigate away from the blocked player's
-profile: it will no longer load.
+- Unblocking restores everything. Requests closed by the block stay closed.
 
 ## Reporting
 
@@ -81,5 +90,5 @@ Every error carries a `message` that is safe to show.
 
 - The report categories and limits need team sign-off (team item 12).
 - Admins are not alerted in real time; the queue is the `report` table, read by the admin console (BL-038 / BL-039).
-- Leaderboards (BL-025, Player BE-2) must leave out blocked players. The `ranking` table already does for direct reads; any leaderboard function must check `private.blocked_ids()` too.
-- If a blocked player is already on the roster of a third person's game, both can still join it. Only games either of them organises are closed.
+- **Leaderboards (BL-025, Player BE-2)** show every entry, both ways. For each entry, `private.block_relation(player_id)` returns `blocked_by_me`, `blocked_me` or null: when not null, hide the profile picture and make the entry unclickable; for `blocked_by_me`, add the Blocked badge.
+- If Quinn joined a third player's game *before* Pat did, Quinn keeps seeing that game (without Pat on its roster). Pat saw Quinn there, badged, before joining.

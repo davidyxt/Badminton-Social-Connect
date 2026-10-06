@@ -1,6 +1,6 @@
 # Database Schema
 
-Implemented across sixteen migrations in `supabase/migrations/`:
+Implemented across seventeen migrations in `supabase/migrations/`:
 
 | Migration | What it adds |
 |---|---|
@@ -20,6 +20,7 @@ Implemented across sixteen migrations in `supabase/migrations/`:
 | `..._bl007_age_gate_local_date.sql` | Fix: age judged by the date in the player's state, not UTC |
 | `..._bl027_blocking.sql` | `blocks`; blocked players hidden from each other everywhere (BL-027) |
 | `..._bl028_reports.sql` | Report categories, server-captured evidence, rate limits, `report_*` functions (BL-028) |
+| `..._bl027_one_sided_blocking.sql` | Blocking revised to be one-sided: the blocker still sees the blocked player, badged (BL-027) |
 
 Access rules are documented separately in [rls-policies.md](./rls-policies.md),
 which also lists the open questions this schema left unresolved.
@@ -537,14 +538,16 @@ fast as the tables grow. Postgres ignores them while tables are small. Tested on
 60,000 players: 1.4 ms with the index against about 30 ms without. See
 [features/M1-find-games.md](./features/M1-find-games.md).
 
-**Blocks hide two players from each other everywhere** (BL-027), in both
-directions: player and profile rows, game rosters, rankings, games either
-organises, `search_games`, `search_players`, profiles and game details. Neither
-can ask to join the other's games. Blocking also closes requests and places
-between them in upcoming games. Direct table reads are narrowed by restrictive
-`hidden between blocked players` policies; the screen functions check
-`private.blocked_ids()` themselves. **Any new function that lists players or
-games must do the same** (for example the leaderboard, BL-025).
+**Blocking is one-sided** (BL-027). The blocker still sees the blocked player
+in search, rosters, games and rankings, with `isBlocked: true` for a badge. The
+blocked player loses sight of the blocker: their name, profile, rosters, and
+any game the blocker organises or has joined (unless already in it). Profiles
+stay closed both ways; rankings stay visible both ways. Neither can join a game
+the other organises, and the blocked player cannot join a game the blocker is
+playing in. Helpers: `private.blocked_by_me_ids()`, `private.blocked_me_ids()`,
+`private.block_relation(other)`, `private.game_hidden_from_me(post)`. **Any new
+function that lists players or games must apply the same rules** (for example
+the leaderboard, BL-025).
 
 **Reports are filed only through functions** (BL-028): `report_player`,
 `report_post`, `report_league`, `report_club`. The server copies an evidence
@@ -668,7 +671,7 @@ It is text because NT and ACT postcodes start with 0.
 supabase start                  # bring up the local stack (needs Docker running)
 supabase db reset --local       # drop and rebuild from migrations + seeds/
 supabase db advisors --local    # security and performance lint
-./supabase/tests/rls_test.sh    # 264 access-control and integrity checks
+./supabase/tests/rls_test.sh    # 273 access-control and integrity checks
 
 supabase migration new <name>   # start a new change
 supabase db push                # apply pending migrations to the linked project

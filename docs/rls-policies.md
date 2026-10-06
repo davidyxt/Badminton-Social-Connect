@@ -85,6 +85,7 @@ may need to sign out and back in.
 | `notification` | Yours only |
 | `report` | Only the person who filed it, plus admins |
 | `blocks` | Only the blocker, plus admins. The blocked player cannot tell |
+| (blocking) | `player` and `game_participant` rows of a blocker are hidden from the player they blocked; `player_profile` rows are hidden both ways; `game_post` rows are hidden from a blocked player when the blocker organises or plays in the game. Rankings are not filtered |
 | `admin_post` | Published announcements only; admins also see drafts |
 
 Admins can read everything in every table.
@@ -236,7 +237,7 @@ the caller's own token and needs no extra privilege.
 
 ## Verifying it
 
-`supabase/tests/rls_test.sh` runs 264 checks against the local stack. It creates
+`supabase/tests/rls_test.sh` runs 273 checks against the local stack. It creates
 three real, already-confirmed players through the Auth admin API (email
 confirmation is on, so a plain sign-up returns no session), signs them in, and drives PostgREST exactly as the
 browser would, so it tests the policies as deployed rather than the SQL as
@@ -248,7 +249,7 @@ supabase db reset --local
 ./supabase/tests/rls_test.sh
 ```
 
-All 264 pass with every migration up to BL-028. It covers: the sign-up trigger, the
+All 273 pass with every migration up to BL-028 and the one-sided blocking revision. It covers: the sign-up trigger, the
 discoverability rule, cross-user writes, the escalation paths above, anonymous
 access, game post ownership, the private schema not being exposed, club
 admins, members, join requests and deactivation, the exactly-one-organiser constraint, and organiser embedding.

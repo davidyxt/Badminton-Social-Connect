@@ -912,10 +912,32 @@ check "nobody can block themselves" "23514" "$(rpc "$TP" block_player "$BODY")"
 BODY="{\"blocker_id\":\"$IDQ\",\"blocked_id\":\"$IDP\"}"
 check "blocks cannot be written directly" "ERR:42501" "$(count "$(as "$TQ" POST "blocks" "$BODY")")"
 
-check "pat no longer sees quinn" 0 "$(count "$(as "$TP" GET "player?player_id=eq.$IDQ&select=player_id")")"
-check "and quinn no longer sees pat" 0 "$(count "$(as "$TQ" GET "player?player_id=eq.$IDP&select=player_id")")"
-check "nor each other's profiles" 0 "$(count "$(as "$TQ" GET "player_profile?player_id=eq.$IDP&select=player_id")")"
-check "nor each other's games" 0 "$(count "$(as "$TQ" GET "game_post?post_id=eq.$GP&select=post_id")")"
+echo "-- blocker's side: pat still sees quinn, with a Blocked badge"
+has_id() { echo "$1" | python3 -c 'import sys,json;print("yes" if sys.argv[1] in [g["id"] for g in json.load(sys.stdin)] else "no")' "$2"; }
+check "pat still sees quinn's name" 1 "$(count "$(as "$TP" GET "player?player_id=eq.$IDQ&select=player_id")")"
+flag() { python3 -c 'import sys,json
+d=json.load(sys.stdin)
+r=[x for x in (d if isinstance(d,list) else []) if x.get("id")==sys.argv[1]]
+print(r[0].get("isBlocked") if r else "absent")' "$1"; }
+BODY="{\"p_query\":\"$(as "$TQ" GET "player?player_id=eq.$IDQ&select=username" | field username)\"}"
+check "pat finds quinn in player search, badged" "True" "$(as "$TP" POST "rpc/search_players" "$BODY" | flag "$IDQ")"
+check "pat still sees quinn's game, organiser badged" "True" \
+  "$(as "$TP" POST "rpc/search_games" '{"p_limit":50}' | python3 -c 'import sys,json
+g=[x for x in json.load(sys.stdin) if x["id"]=="'$GQ'"]; print(g[0]["organiser"]["isBlocked"] if g else "absent")')"
+BODY="{\"p_post_id\":\"$GQ\"}"
+check "and its details, host badged" "True" \
+  "$(as "$TP" POST "rpc/get_game_details" "$BODY" | python3 -c 'import sys,json;d=json.load(sys.stdin);print(d["host"]["isBlocked"] if d else "null")')"
+check "but cannot join it" "42501" "$(rpc "$TP" request_to_join "$BODY")"
+BODY="{\"p_player_id\":\"$IDQ\"}"
+check "profiles stay closed for the blocker too" "null" "$(as "$TP" POST "rpc/get_player_profile" "$BODY")"
+
+echo "-- blocked side: quinn loses sight of pat"
+check "quinn cannot see pat's name" 0 "$(count "$(as "$TQ" GET "player?player_id=eq.$IDP&select=player_id")")"
+check "nor pat's profile row" 0 "$(count "$(as "$TQ" GET "player_profile?player_id=eq.$IDP&select=player_id")")"
+BODY="{\"p_player_id\":\"$IDP\"}"
+check "nor pat's profile" "null" "$(as "$TQ" POST "rpc/get_player_profile" "$BODY")"
+check "nor find pat in player search" "absent" "$(as "$TQ" POST "rpc/search_players" '{"p_limit":50}' | flag "$IDP")"
+check "nor pat's games" 0 "$(count "$(as "$TQ" GET "game_post?post_id=eq.$GP&select=post_id")")"
 check "other players still see both" 2 \
   "$(count "$(as "$TA" GET "player?player_id=in.($IDP,$IDQ)&select=player_id")")"
 check "pat's request to quinn's game was withdrawn" "withdrawn" \
@@ -923,15 +945,30 @@ check "pat's request to quinn's game was withdrawn" "withdrawn" \
 check "quinn's place in pat's game was closed" "rejected" \
   "$(as "$TQ" GET "game_participant?post_id=eq.$GP&player_id=eq.$IDQ&select=status" | field status)"
 
-has_id() { echo "$1" | python3 -c 'import sys,json;print("yes" if sys.argv[1] in [g["id"] for g in json.load(sys.stdin)] else "no")' "$2"; }
-check "search_games hides quinn's games from pat" "no" "$(has_id "$(as "$TP" POST "rpc/search_games" '{}')" "$GQ")"
-check "search_players hides pat from quinn" "no" "$(has_id "$(as "$TQ" POST "rpc/search_players" '{"p_limit":50}')" "$IDP")"
-BODY="{\"p_player_id\":\"$IDQ\"}"
-check "pat sees quinn's profile as private" "null" "$(as "$TP" POST "rpc/get_player_profile" "$BODY")"
-BODY="{\"p_player_id\":\"$IDP\"}"
-check "and so does quinn" "null" "$(as "$TQ" POST "rpc/get_player_profile" "$BODY")"
-BODY="{\"p_post_id\":\"$GQ\"}"
-check "game details are hidden too" "null" "$(as "$TP" POST "rpc/get_game_details" "$BODY")"
+echo "-- a third player's game"
+BODY="{\"organiser_id\":\"$IDA\",\"format\":\"doubles\",\"player_limit\":4,\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 31)\"}"
+GA=$(as "$TA" POST "game_post" "$BODY" | field post_id)
+BODY="{\"p_post_id\":\"$GA\"}"; rpc "$TP" request_to_join "$BODY" > /dev/null
+BODY="{\"p_post_id\":\"$GA\",\"p_player_id\":\"$IDP\"}"; rpc "$TA" accept_request "$BODY" > /dev/null
+check "once pat joins alice's game, quinn cannot see it" "no" "$(has_id "$(as "$TQ" POST "rpc/search_games" '{"p_limit":50}')" "$GA")"
+BODY="{\"p_post_id\":\"$GA\"}"
+check "nor its details" "null" "$(as "$TQ" POST "rpc/get_game_details" "$BODY")"
+check "nor join it" "42501" "$(rpc "$TQ" request_to_join "$BODY")"
+BODY="{\"organiser_id\":\"$IDA\",\"format\":\"doubles\",\"player_limit\":4,\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 32)\"}"
+GA2=$(as "$TA" POST "game_post" "$BODY" | field post_id)
+BODY="{\"p_post_id\":\"$GA2\"}"; rpc "$TQ" request_to_join "$BODY" > /dev/null
+BODY="{\"p_post_id\":\"$GA2\",\"p_player_id\":\"$IDQ\"}"; rpc "$TA" accept_request "$BODY" > /dev/null
+BODY="{\"p_post_id\":\"$GA2\"}"
+check "where quinn is playing, pat sees quinn on the roster, badged" "True" \
+  "$(as "$TP" POST "rpc/get_game_details" "$BODY" | python3 -c 'import sys,json
+p=[x for x in json.load(sys.stdin)["players"] if x["id"]=="'$IDQ'"]; print(p[0]["isBlocked"] if p else "absent")')"
+check "and pat may still choose to join" "EMPTY" "$(rpc "$TP" request_to_join "$BODY")"
+check "quinn, already in it, keeps seeing it" "yes" \
+  "$([[ "$(as "$TQ" POST "rpc/get_game_details" "$BODY")" != "null" ]] && echo yes || echo no)"
+check "but without pat on the roster" "absent" \
+  "$(as "$TQ" POST "rpc/get_game_details" "$BODY" | python3 -c 'import sys,json
+print("present" if "'$IDP'" in [x["id"] for x in json.load(sys.stdin)["players"]] else "absent")')"
+
 BODY="{\"organiser_id\":\"$IDP\",\"format\":\"singles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 29)\"}"
 GP2=$(as "$TP" POST "game_post" "$BODY" | field post_id)
 BODY="{\"p_post_id\":\"$GP2\"}"
