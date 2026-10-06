@@ -1,6 +1,6 @@
 # Database Schema
 
-Implemented across five migrations in `supabase/migrations/`:
+Implemented across six migrations in `supabase/migrations/`:
 
 | Migration | What it adds |
 |---|---|
@@ -9,6 +9,7 @@ Implemented across five migrations in `supabase/migrations/`:
 | `..._game_participants_and_match_sides.sql` | The join flow, the game-to-match link, and sides |
 | `..._audit_columns.sql` | `updated_at` / `updated_by` on every table that can change |
 | `..._bl080_club_admins_and_join_requests.sql` | Club admins, members and join requests (M6, using clubs instead of groups); clubs deactivated instead of deleted |
+| `..._bl011_preferred_format.sql` | `player_profile.preferred_format` (BL-011) |
 
 Access rules are documented separately in [rls-policies.md](./rls-policies.md),
 which also lists the open questions this schema left unresolved.
@@ -51,6 +52,7 @@ erDiagram
         text bio
         text suburb
         text state
+        text preferred_format "singles | doubles | mixed_doubles | any"
         numeric reliability_score "service_role only"
         int games_played "service_role only"
         int no_show_count "service_role only"

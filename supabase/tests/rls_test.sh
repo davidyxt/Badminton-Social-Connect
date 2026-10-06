@@ -80,6 +80,15 @@ check "alice cannot edit bob's profile" 0 \
   "$(count "$(as "$TA" PATCH "player_profile?player_id=eq.$IDB" '{"bio":"hacked"}')")"
 check "alice can edit her own profile"  1 \
   "$(count "$(as "$TA" PATCH "player_profile?player_id=eq.$IDA" '{"bio":"hi"}')")"
+check "a new profile's preferred format is any" '"any"' \
+  "$(as "$TA" GET "player_profile?player_id=eq.$IDA&select=preferred_format" | python3 -c 'import sys,json;print(json.dumps(json.load(sys.stdin)[0]["preferred_format"]))')"
+check "alice can set her preferred format" 1 \
+  "$(count "$(as "$TA" PATCH "player_profile?player_id=eq.$IDA" '{"preferred_format":"singles"}')")"
+check "alice cannot set bob's preferred format" 0 \
+  "$(count "$(as "$TA" PATCH "player_profile?player_id=eq.$IDB" '{"preferred_format":"doubles"}')")"
+check "an unknown format is rejected" "ERR:23514" \
+  "$(count "$(as "$TA" PATCH "player_profile?player_id=eq.$IDA" '{"preferred_format":"triples"}')")"
+
 echo
 echo "== 4. privilege escalation is blocked =="
 check "alice cannot verify herself" "ERR:42501" \
