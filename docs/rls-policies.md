@@ -65,6 +65,7 @@ may need to sign out and back in.
 | `player` | Any signed-in player (the roster: names, bands, verified flag) |
 | `player_profile` | Your own row; other players' rows only while `is_discoverable` is true |
 | `venue` | Any signed-in player |
+| `state`, `suburb` | Everyone, including signed-out visitors (the sign-up form needs them) |
 | `mini_league` | Any signed-in player |
 | `league_standing` | Any signed-in player |
 | `game_post` | Any signed-in player |
@@ -91,6 +92,7 @@ Admins can read everything in every table.
 | `player` | Trigger only, on sign-up | Own row, and only `display_name` / `self_rating_band` | Cascades from `auth.users` |
 | `player_profile` | Trigger only, on sign-up | Own row, and only `bio` / `suburb` / `state` / `is_discoverable` / `preferred_format` | Cascades |
 | `venue` | Admin | Admin | Admin |
+| `state`, `suburb` | Nobody (production seed files only) | Nobody | Nobody |
 | `mini_league` | Any player, as organiser | Organiser or admin | Organiser or admin |
 | `league_standing` | League organiser or admin | Same | Same |
 | `game_post` | As yourself, or as a club you are an admin of | Organiser, club admin or admin | Organiser, club admin or admin |
@@ -190,7 +192,7 @@ the caller's own token and needs no extra privilege.
 
 ## Verifying it
 
-`supabase/tests/rls_test.sh` runs 102 checks against the local stack. It creates
+`supabase/tests/rls_test.sh` runs 111 checks against the local stack. It creates
 three real, already-confirmed players through the Auth admin API (email
 confirmation is on, so a plain sign-up returns no session), signs them in, and drives PostgREST exactly as the
 browser would, so it tests the policies as deployed rather than the SQL as
@@ -202,7 +204,7 @@ supabase db reset --local
 ./supabase/tests/rls_test.sh
 ```
 
-All 102 pass as of the BL-011 migration. It covers: the sign-up trigger, the
+All 111 pass as of the BL-001 and BL-011 migrations. It covers: the sign-up trigger, the
 discoverability rule, cross-user writes, the escalation paths above, anonymous
 access, game post ownership, the private schema not being exposed, club
 admins, members, join requests and deactivation, the exactly-one-organiser constraint, and organiser embedding.

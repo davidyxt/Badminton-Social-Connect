@@ -114,6 +114,33 @@ check "anon cannot read game posts"        0 \
   "$(count "$(curl -s "$API/rest/v1/game_post?select=*" -H "apikey: $ANON")")"
 
 echo
+echo "== 5b. reference data: states, suburbs and venues =="
+check "anon can read the states (sign-up form)" 8 \
+  "$(count "$(curl -s "$API/rest/v1/state?select=state_code" -H "apikey: $ANON")")"
+check "anon can look up a suburb by postcode" 1 \
+  "$(count "$(curl -s "$API/rest/v1/suburb?postcode=eq.3053&name=eq.Carlton&select=name" -H "apikey: $ANON")")"
+check "NT postcodes keep their leading zero" 1 \
+  "$(count "$(as "$TA" GET "suburb?name=eq.Darwin&postcode=eq.0800&select=name")")"
+check "mail-only postcodes are excluded" 0 \
+  "$(count "$(as "$TA" GET "suburb?state_code=eq.VIC&postcode=gte.8000&select=name")")"
+check "anon cannot read venues" 0 \
+  "$(count "$(curl -s "$API/rest/v1/venue?select=name" -H "apikey: $ANON")")"
+check "players see the seeded venues with their suburb" '["Albert Park","3206"]' \
+  "$(as "$TA" GET "venue?name=eq.Melbourne%20Sports%20and%20Aquatic%20Centre&select=suburb(name,postcode)" | python3 -c 'import sys,json
+d=json.load(sys.stdin)
+s=(d[0].get("suburb") or {}) if isinstance(d,list) and d else {}
+print(json.dumps([s.get("name"), s.get("postcode")], separators=(",",":")))')"
+BODY='{"name":"Fake","postcode":"3000","state_code":"VIC"}'
+R=$(as "$TA" POST "suburb" "$BODY")
+check "players cannot add suburbs" "ERR:42501" "$(count "$R")"
+check "players cannot rename a state" "ERR:42501" \
+  "$(count "$(as "$TA" PATCH "state?state_code=eq.VIC" '{"name":"Hacked"}')")"
+SUB=$(as "$TA" GET "suburb?name=eq.Carlton&postcode=eq.3053&select=suburb_id" | python3 -c 'import sys,json;d=json.load(sys.stdin);print(d[0]["suburb_id"] if d else "")')
+BODY="{\"name\":\"My Garage\",\"suburb_id\":\"$SUB\"}"
+R=$(as "$TA" POST "venue" "$BODY")
+check "players cannot add venues" "ERR:42501" "$(count "$R")"
+
+echo
 echo "== 6. ownership rules on game posts =="
 POST=$(as "$TA" POST "game_post" "{\"organiser_id\":\"$IDA\",\"format\":\"doubles\",\"proposed_time\":\"2026-10-01T18:00:00Z\",\"suburb\":\"Carlton\"}")
 check "alice can create her own post" 1 "$(count "$POST")"

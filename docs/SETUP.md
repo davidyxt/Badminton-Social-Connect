@@ -54,6 +54,34 @@ Useful commands (from the repo root):
 | `npx supabase status` | Show local URLs and keys |
 | `npx supabase stop` | Stop the local stack (your data is kept) |
 | `npx supabase stop && npx supabase start` | Restart. Needed after editing `supabase/config.toml`, `supabase/.env` or an email template. |
+| `npx supabase db reset` | Wipe the local database, re-run every migration and load both seed folders (below) |
+
+### Seed data
+
+`db reset` loads two folders, in this order:
+
+| Folder | What | Reaches the hosted project? |
+|---|---|---|
+| `supabase/seeds/production/` | Real reference data: states, all Australian suburbs and postcodes, badminton venues | Yes, through the CI deploy job. Files must be safe to run again (upserts) |
+| `supabase/seeds/dev/` | Dummy accounts, a club and upcoming games | **Never** |
+
+Dev accounts, all with the password `Passw0rd!`:
+
+| Email | Notes |
+|---|---|
+| `admin@example.com` | Platform admin |
+| `alice@example.com` | Created Smash Club, organises games |
+| `bob@example.com`, `carol@example.com` | Ordinary players |
+| `dan@example.com` | Profile hidden from other players |
+
+Suburbs come from [GeoNames](https://www.geonames.org) under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), which requires
+crediting GeoNames wherever the data is shown (for example an About or credits
+page). To refresh them, run `python3 supabase/seeds/scripts/generate_suburbs.py`
+and commit the regenerated `02_suburbs.sql`.
+
+The venue list in `03_venues.sql` is a starting list from public listings and
+must be confirmed with Badminton Victoria before launch.
 
 ## 4. Supabase env (`supabase/.env`)
 
