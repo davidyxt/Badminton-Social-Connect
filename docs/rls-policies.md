@@ -69,7 +69,7 @@ may need to sign out and back in.
 | `state`, `suburb` | Everyone, including signed-out visitors (the sign-up form needs them) |
 | `mini_league` | Any signed-in player |
 | `league_standing` | Any signed-in player |
-| `game_post` | Any signed-in player |
+| `game_post` | Any signed-in player, except deleted posts (admins see those too) |
 | `game_participant` | **Accepted** rows: any signed-in player, so the board can show places taken. **Pending or rejected** rows: only the player who asked, and the organiser |
 | `cancellation_record` | Any signed-in player |
 | `club` | Any signed-in player |
@@ -97,7 +97,7 @@ Admins can read everything in every table.
 | `state`, `suburb` | Nobody (production seed files only) | Nobody | Nobody |
 | `mini_league` | Any player, as organiser | Organiser or admin | Organiser or admin |
 | `league_standing` | League organiser or admin | Same | Same |
-| `game_post` | As yourself, or as a club you are an admin of | Organiser, club admin or admin | Organiser, club admin or admin |
+| `game_post` | As yourself, or as a club you are an admin of | Organiser, club admin or admin. Cancelling and deleting only through the BL-013 functions | Nobody. Deleting hides the post (`delete_game_post`) |
 | `game_participant` | Request to join as yourself, `status` forced to `requested`. The organiser may add people directly | The organiser decides accept/reject; you may only move your own row to `withdrawn` | Yourself, or the organiser |
 | `cancellation_record` | Organiser of the post (player or club admin), or admin | Admin | Admin |
 | `club` | Any player, as themselves (they become its first club admin) | Club admins or platform admin (including `is_active`), and not `is_verified` | Nobody. Clubs are deactivated, not deleted |
@@ -186,6 +186,8 @@ the API as well.
 | Trigger | Rule |
 |---|---|
 | `game_participant_capacity` | A game cannot accept more players than `player_limit` |
+| `game_post_validate` | Suburb required (copied from the venue); start time in the future; `status = cancelled` and `deleted_*` can only be set by `cancel_game_post`, `delete_game_post` and `admin_delete_game_post` |
+| `club_has_no_upcoming_games` | A club cannot be deactivated while it has upcoming games |
 | `match_participant_validate` | Players must be on the game's accepted roster; one per side for singles, two for doubles |
 | `match_completion_validate` | A match cannot become `completed` with sides that are not full |
 | `<table>_set_updated_metadata` | Stamps `updated_at` and `updated_by` on all 18 changeable tables, ignoring anything the client sent |
@@ -225,7 +227,7 @@ the caller's own token and needs no extra privilege.
 
 ## Verifying it
 
-`supabase/tests/rls_test.sh` runs 147 checks against the local stack. It creates
+`supabase/tests/rls_test.sh` runs 176 checks against the local stack. It creates
 three real, already-confirmed players through the Auth admin API (email
 confirmation is on, so a plain sign-up returns no session), signs them in, and drives PostgREST exactly as the
 browser would, so it tests the policies as deployed rather than the SQL as
@@ -237,7 +239,7 @@ supabase db reset --local
 ./supabase/tests/rls_test.sh
 ```
 
-All 147 pass with every migration up to BL-007. It covers: the sign-up trigger, the
+All 176 pass with every migration up to BL-013. It covers: the sign-up trigger, the
 discoverability rule, cross-user writes, the escalation paths above, anonymous
 access, game post ownership, the private schema not being exposed, club
 admins, members, join requests and deactivation, the exactly-one-organiser constraint, and organiser embedding.

@@ -1,6 +1,6 @@
 # Database Schema
 
-Implemented across nine migrations in `supabase/migrations/`:
+Implemented across ten migrations in `supabase/migrations/`:
 
 | Migration | What it adds |
 |---|---|
@@ -13,6 +13,7 @@ Implemented across nine migrations in `supabase/migrations/`:
 | `..._bl001_states_suburbs_venues.sql` | `state` and `suburb` reference tables; venues get a suburb (BL-001) |
 | `..._m4_username_and_private_names.sql` | `display_name` renamed `username` (unique, player-chosen); first and last names in owner-only `player_private` |
 | `..._bl007_age_gate_and_consent.sql` | 18+ age gate, consent records, `register_player`; unregistered accounts locked out (BL-007) |
+| `..._bl013_game_posts.sql` | Post a Game fields, cancel with the 4-hour rule, delete hides, admin-only delete of games that happened, inactive clubs have no upcoming games (BL-013) |
 
 Access rules are documented separately in [rls-policies.md](./rls-policies.md),
 which also lists the open questions this schema left unresolved.
@@ -109,10 +110,18 @@ erDiagram
         uuid organiser_id FK "set when a player posts"
         uuid organiser_club_id FK "set when a club posts"
         text format
-        text suburb
+        text suburb "copied from the venue when one is chosen"
+        uuid venue_id FK "seeded venue, null = other venue"
+        text style "social | competitive"
+        int duration_minutes
+        text ability_level "any or a rating band"
+        text notes
         int player_limit "places, organiser included"
         timestamptz proposed_time
         text status
+        timestamptz deleted_at "hidden from players when set"
+        uuid deleted_by
+        text deletion_reason
         timestamptz created_at
         timestamptz updated_at
         uuid updated_by
@@ -266,6 +275,7 @@ erDiagram
         text winning_side "a or b, not a player"
         uuid submitted_by FK "added, see note 3"
         text status
+        boolean excluded_from_ranking "game deleted by an admin"
         timestamptz created_at
         timestamptz updated_at
         uuid updated_by
@@ -361,6 +371,8 @@ check constraint cannot do:
 | Trigger | Rule |
 |---|---|
 | `game_participant_capacity` | A game cannot accept more players than `player_limit` |
+| `game_post_validate` | Suburb copied from the venue and required; start time in the future; `cancelled` and `deleted_*` only through the game functions |
+| `club_has_no_upcoming_games` | A club cannot be deactivated while it has upcoming games |
 | `match_participant_validate` | Players must be on the roster; one per side for singles, two for doubles |
 | `match_completion_validate` | A match cannot be marked `completed` with sides that are not full |
 
@@ -457,6 +469,22 @@ metadata (`options.data`):
 With no username (the current sign-up form), one is generated from the first
 name, e.g. `jane_4821`, or `player_4821` with no name. The email address is
 never used.
+
+**Game posts are cancelled or deleted through functions, never edited into
+those states** (BL-013):
+
+| Function | Who | Rule |
+|---|---|---|
+| `cancel_game_post(p_post_id, p_reason)` | Organiser, club admin, admin | Refused within 4 hours of the start (admins excepted) and once the game has started. The post stays visible as `cancelled`; a `cancellation_record` keeps the reason; players are notified |
+| `delete_game_post(p_post_id)` | Organiser, club admin | Only games that have not happened, and not within 4 hours unless already cancelled. The post is hidden (`deleted_at`), not removed |
+| `admin_game_post_deletion_impact(p_post_id)` | Admin | Warning data: matches, confirmed results that would stop counting, affected players. Rating changes come with BL-024 |
+| `admin_delete_game_post(p_post_id, p_reason)` | Admin | Any game, reason required. Hides it and marks its results `excluded_from_ranking` |
+
+A game **has happened** once its start time has passed or any match has been
+recorded against it. Nobody can hard-delete a post through the API, and
+`match.post_id` is `on delete restrict`, so matches and results always survive.
+`venue_id` is currently readable by every signed-in player; hiding the exact
+venue until a player is accepted is BL-017 (PHY-02).
 
 **Accounts must pass the 18+ age gate before they can use the app** (BL-007).
 `player_private` records the date of birth, the 18+ declaration and the accepted
@@ -575,7 +603,7 @@ It is text because NT and ACT postcodes start with 0.
 supabase start                  # bring up the local stack (needs Docker running)
 supabase db reset --local       # drop and rebuild from migrations + seeds/
 supabase db advisors --local    # security and performance lint
-./supabase/tests/rls_test.sh    # 147 access-control and integrity checks
+./supabase/tests/rls_test.sh    # 176 access-control and integrity checks
 
 supabase migration new <name>   # start a new change
 supabase db push                # apply pending migrations to the linked project
