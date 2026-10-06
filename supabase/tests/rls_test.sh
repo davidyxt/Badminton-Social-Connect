@@ -4,11 +4,20 @@
 set -uo pipefail
 
 API=http://127.0.0.1:54321
-ANON=$(supabase status -o json 2>/dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin)["ANON_KEY"])')
+STATUS=$(supabase status -o json 2>/dev/null)
+ANON=$(echo "$STATUS" | python3 -c 'import sys,json;print(json.load(sys.stdin)["ANON_KEY"])')
+SERVICE=$(echo "$STATUS" | python3 -c 'import sys,json;print(json.load(sys.stdin)["SERVICE_ROLE_KEY"])')
 
+# Email confirmation is on (auth.email.enable_confirmations), so a plain
+# /signup returns no session. Create the user already confirmed through the
+# admin API, then sign in for a real token. user_metadata still reaches the
+# sign-up trigger exactly as it would from the app.
 signup() {
-  curl -s "$API/auth/v1/signup" -H "apikey: $ANON" -H 'Content-Type: application/json' \
-    -d "{\"email\":\"$1\",\"password\":\"$2\",\"data\":{\"display_name\":\"$3\"}}"
+  curl -s "$API/auth/v1/admin/users" -H "apikey: $SERVICE" \
+    -H "Authorization: Bearer $SERVICE" -H 'Content-Type: application/json' \
+    -d "{\"email\":\"$1\",\"password\":\"$2\",\"email_confirm\":true,\"user_metadata\":{\"display_name\":\"$3\"}}" > /dev/null
+  curl -s "$API/auth/v1/token?grant_type=password" -H "apikey: $ANON" \
+    -H 'Content-Type: application/json' -d "{\"email\":\"$1\",\"password\":\"$2\"}"
 }
 
 pass=0; fail=0
@@ -48,12 +57,150 @@ try:
   d=json.load(sys.stdin); print(len(d) if isinstance(d,list) else "ERR:"+str(d.get("code","?")))
 except Exception: print("PARSE_ERR")'; }
 
+# BL-007: an account is unusable until it passes the age gate. Register the
+# test players as adults so the sections below test what they always did.
+register() { # register <token> [date_of_birth]
+  as "$1" POST "rpc/register_player" \
+    "{\"p_date_of_birth\":\"${2:-1995-05-20}\",\"p_age_declared\":true,\"p_terms_version\":\"2026-10\",\"p_privacy_version\":\"2026-10\",\"p_state\":\"VIC\"}"
+}
+register "$TA" > /dev/null
+register "$TB" > /dev/null
+
 echo
 echo "== 1. sign-up trigger created player + profile rows =="
 check "alice has a player row"  1 "$(count "$(as "$TA" GET "player?player_id=eq.$IDA")")"
 check "alice has a profile row" 1 "$(count "$(as "$TA" GET "player_profile?player_id=eq.$IDA")")"
-check "display_name came from user_metadata" '"Alice"' \
-  "$(as "$TA" GET "player?player_id=eq.$IDA&select=display_name" | python3 -c 'import sys,json;print(json.dumps(json.load(sys.stdin)[0]["display_name"]))')"
+UNA=$(as "$TA" GET "player?player_id=eq.$IDA&select=username" | python3 -c 'import sys,json;print(json.load(sys.stdin)[0]["username"])')
+check "username came from the legacy display_name key" "yes" \
+  "$([[ "$(echo "$UNA" | tr A-Z a-z)" == alice* ]] && echo yes || echo "no ($UNA)")"
+
+echo
+echo "== 1b. usernames and private names =="
+# Sign up through the admin API with arbitrary metadata, as the app or Google
+# would send it. Prints the access token, or the error body if sign-up failed.
+signup_meta() { # signup_meta <email> <user_metadata json>
+  curl -s "$API/auth/v1/admin/users" -H "apikey: $SERVICE" \
+    -H "Authorization: Bearer $SERVICE" -H 'Content-Type: application/json' \
+    -d "{\"email\":\"$1\",\"password\":\"Passw0rd!x\",\"email_confirm\":true,\"user_metadata\":$2}" > /dev/null
+  curl -s "$API/auth/v1/token?grant_type=password" -H "apikey: $ANON" \
+    -H 'Content-Type: application/json' -d "{\"email\":\"$1\",\"password\":\"Passw0rd!x\"}" |
+    python3 -c 'import sys,json;d=json.load(sys.stdin);print(d.get("access_token") or "NO_SESSION")'
+}
+field() { python3 -c 'import sys,json
+d=json.load(sys.stdin)
+r=d[0] if isinstance(d,list) and d else {}
+v=r.get(sys.argv[1])
+print("" if v is None else v)' "$1"; }
+me() { as "$1" GET "player?player_id=eq.$(echo "$1" | python3 -c 'import sys,json,base64;t=sys.stdin.read().split(".")[1];print(json.loads(base64.urlsafe_b64decode(t+"=="))["sub"])')&select=$2" | field "$2"; }
+
+UN="jane_$RANDOM"
+TJ=$(signup_meta "jane-$RANDOM@example.com" "{\"username\":\"$UN\",\"first_name\":\"Jane\",\"last_name\":\"Smith\"}")
+check "a chosen username is used as given" "$UN" "$(me "$TJ" username)"
+IDJ=$(echo "$TJ" | python3 -c 'import sys,json,base64;t=sys.stdin.read().split(".")[1];print(json.loads(base64.urlsafe_b64decode(t+"=="))["sub"])')
+PRIV="player_private?player_id=eq.$IDJ&select=first_name,last_name"
+check "the owner can read their names" '["Jane","Smith"]' \
+  "$(as "$TJ" GET "$PRIV" | python3 -c 'import sys,json
+d=json.load(sys.stdin); r=d[0] if isinstance(d,list) and d else {}
+print(json.dumps([r.get("first_name"), r.get("last_name")], separators=(",",":")))')"
+check "other players cannot read them" 0 "$(count "$(as "$TA" GET "$PRIV")")"
+check "anon cannot read them" 0 "$(count "$(curl -s "$API/rest/v1/$PRIV" -H "apikey: $ANON")")"
+check "the owner can correct their last name" 1 \
+  "$(count "$(as "$TJ" PATCH "player_private?player_id=eq.$IDJ" '{"last_name":"Smyth"}')")"
+check "other players cannot change them" 0 \
+  "$(count "$(as "$TA" PATCH "player_private?player_id=eq.$IDJ" '{"last_name":"Hacked"}')")"
+check "player_private carries the audit columns" "$IDJ" \
+  "$(as "$TJ" GET "player_private?player_id=eq.$IDJ&select=updated_by" | field updated_by)"
+
+UPPER=$(echo "$UN" | tr a-z A-Z)
+check "a username taken in another case fails the sign-up" "NO_SESSION" \
+  "$(signup_meta "jane2-$RANDOM@example.com" "{\"username\":\"$UPPER\"}")"
+check "a username with a space fails the sign-up" "NO_SESSION" \
+  "$(signup_meta "jane3-$RANDOM@example.com" '{"username":"jane smith"}')"
+check "a username shaped like an email fails the sign-up" "NO_SESSION" \
+  "$(signup_meta "jane4-$RANDOM@example.com" '{"username":"jane@example"}')"
+
+TK=$(signup_meta "kim-$RANDOM@example.com" '{"first_name":"Kim","last_name":"Lee"}')
+check "no username: one is generated from the first name" "yes" \
+  "$([[ "$(me "$TK" username)" =~ ^kim_[0-9]{4}$ ]] && echo yes || echo "no ($(me "$TK" username))")"
+EMAIL="secret.person.$RANDOM@example.com"
+TS=$(signup_meta "$EMAIL" '{}')
+check "no name at all: player_NNNN, never the email" "yes" \
+  "$([[ "$(me "$TS" username)" =~ ^player_[0-9]{4}$ ]] && echo yes || echo "no ($(me "$TS" username))")"
+TG=$(signup_meta "gee-$RANDOM@example.com" '{"full_name":"Grace Van Der Berg"}')
+IDG=$(echo "$TG" | python3 -c 'import sys,json,base64;t=sys.stdin.read().split(".")[1];print(json.loads(base64.urlsafe_b64decode(t+"=="))["sub"])')
+check "a Google full name is split into first and last" '["Grace","Van Der Berg"]' \
+  "$(as "$TG" GET "player_private?player_id=eq.$IDG&select=first_name,last_name" | python3 -c 'import sys,json
+d=json.load(sys.stdin); r=d[0] if isinstance(d,list) and d else {}
+print(json.dumps([r.get("first_name"), r.get("last_name")], separators=(",",":")))')"
+
+avail() { curl -s "$API/rest/v1/rpc/is_username_available" -H "apikey: $ANON" \
+  -H 'Content-Type: application/json' -d "{\"p_username\":\"$1\"}"; }
+check "availability: a taken name, any case, is unavailable" "false" "$(avail "$UPPER")"
+check "availability: a free name is available" "true" "$(avail "free_$RANDOM")"
+check "availability: a malformed name is unavailable" "false" "$(avail "a b")"
+
+check "a player can change their username" 1 \
+  "$(count "$(as "$TJ" PATCH "player?player_id=eq.$IDJ" "{\"username\":\"${UN}_x\"}")")"
+check "but not to one that is taken" "ERR:23505" \
+  "$(count "$(as "$TJ" PATCH "player?player_id=eq.$IDJ" "{\"username\":\"$UNA\"}")")"
+
+echo
+echo "== 1c. 18+ age gate and consent (BL-007) =="
+TU=$(signup_meta "unreg-$RANDOM@example.com" '{"first_name":"Uma"}')
+IDU=$(echo "$TU" | python3 -c 'import sys,json,base64;t=sys.stdin.read().split(".")[1];print(json.loads(base64.urlsafe_b64decode(t+"=="))["sub"])')
+check "an unregistered account can read its own player row" 1 \
+  "$(count "$(as "$TU" GET "player?player_id=eq.$IDU")")"
+check "but cannot see other players" 0 \
+  "$(count "$(as "$TU" GET "player?player_id=eq.$IDA")")"
+check "or any game posts" 0 "$(count "$(as "$TU" GET "game_post?select=post_id")")"
+BODY="{\"organiser_id\":\"$IDU\",\"format\":\"singles\",\"proposed_time\":\"2027-01-01T18:00:00Z\"}"
+R=$(as "$TU" POST "game_post" "$BODY")
+check "or post a game" "ERR:42501" "$(count "$R")"
+
+MINOR=$(python3 -c 'import datetime;d=datetime.date.today();print(d.replace(year=d.year-17).isoformat())')
+R=$(register "$TU" "$MINOR")
+check "an under-18 date of birth is rejected" "23514" \
+  "$(echo "$R" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("code"))')"
+check "and nothing about the minor is stored" '[null,null]' \
+  "$(as "$TU" GET "player_private?player_id=eq.$IDU&select=date_of_birth,registered_at" | python3 -c 'import sys,json
+r=json.load(sys.stdin)[0]; print(json.dumps([r["date_of_birth"], r["registered_at"]], separators=(",",":")))')"
+
+R=$(as "$TU" POST "rpc/register_player" '{"p_date_of_birth":"1990-01-01","p_age_declared":false,"p_terms_version":"2026-10","p_privacy_version":"2026-10","p_state":"VIC"}')
+check "registration needs the 18+ declaration" "23514" \
+  "$(echo "$R" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("code"))')"
+R=$(as "$TU" POST "rpc/register_player" '{"p_date_of_birth":"1990-01-01","p_age_declared":true,"p_terms_version":"","p_privacy_version":"2026-10","p_state":"VIC"}')
+check "registration needs the terms accepted" "23514" \
+  "$(echo "$R" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("code"))')"
+
+ADULT18=$(python3 -c 'import datetime;d=datetime.date.today()
+try: print(d.replace(year=d.year-18).isoformat())
+except ValueError: print(d.replace(year=d.year-18, day=28).isoformat())')
+check "turning 18 today is old enough" "" "$(register "$TU" "$ADULT18")"
+check "registration records consent with server timestamps" '["2026-10","2026-10",true]' \
+  "$(as "$TU" GET "player_private?player_id=eq.$IDU&select=terms_version,privacy_version,terms_accepted_at,privacy_accepted_at,age_declared_at,registered_at" | python3 -c 'import sys,json
+r=json.load(sys.stdin)[0]
+stamped=all(r[k] for k in ("terms_accepted_at","privacy_accepted_at","age_declared_at","registered_at"))
+print(json.dumps([r["terms_version"], r["privacy_version"], stamped], separators=(",",":")))')"
+check "and the state lands on the profile" "VIC" \
+  "$(as "$TU" GET "player_profile?player_id=eq.$IDU&select=state" | field state)"
+check "once registered, other players become visible" 1 \
+  "$(count "$(as "$TU" GET "player?player_id=eq.$IDA")")"
+check "registration cannot be repeated" "23505" \
+  "$(register "$TU" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("code"))')"
+check "the player cannot rewrite their date of birth" "ERR:42501" \
+  "$(count "$(as "$TU" PATCH "player_private?player_id=eq.$IDU" '{"date_of_birth":"1980-01-01"}')")"
+check "other players cannot read a date of birth" 0 \
+  "$(count "$(as "$TA" GET "player_private?player_id=eq.$IDU&select=date_of_birth")")"
+
+META="{\"first_name\":\"Teen\",\"date_of_birth\":\"$MINOR\",\"age_declared\":true,\"terms_version\":\"2026-10\",\"privacy_version\":\"2026-10\",\"state\":\"VIC\"}"
+check "an under-18 sign-up with a date of birth creates no account" "NO_SESSION" \
+  "$(signup_meta "teen-$RANDOM@example.com" "$META")"
+META='{"first_name":"Ada","date_of_birth":"1988-03-14","age_declared":true,"terms_version":"2026-10","privacy_version":"2026-10","state":"NSW"}'
+TD=$(signup_meta "ada-$RANDOM@example.com" "$META")
+check "an adult sign-up with the fields is registered at once" 1 \
+  "$(count "$(as "$TD" GET "player?player_id=eq.$IDA")")"
+check "anon cannot call register_player" "ERR:42501" \
+  "$(count "$(curl -s "$API/rest/v1/rpc/register_player" -H "apikey: $ANON" -H 'Content-Type: application/json' -d '{"p_date_of_birth":"1990-01-01","p_age_declared":true,"p_terms_version":"x","p_privacy_version":"x","p_state":"VIC"}')")"
 
 echo
 echo "== 2. discoverability is enforced by the database =="
@@ -181,7 +328,7 @@ echo "== 11. the organiser embeds in one request =="
 # bare player(...) embed is ambiguous and PostgREST refuses it with PGRST201.
 # The hint after ! can be the column name or the constraint name; the column
 # name is shorter and survives a constraint being renamed.
-ORG='organiser:player!organiser_id(display_name)'
+ORG='organiser:player!organiser_id(username)'
 EMB=$(as "$TA" GET "game_post?post_id=eq.$CPOST&select=post_id,club(name,slug),$ORG")
 check "club post embeds the club and a null organiser" '["Test Smashers",null]' \
   "$(echo "$EMB" | python3 -c 'import sys,json
@@ -190,17 +337,18 @@ r=d[0] if isinstance(d,list) and d else {}
 c=r.get("club") or {}
 print(json.dumps([c.get("name"), r.get("organiser")], separators=(",",":")))')"
 EMB=$(as "$TA" GET "game_post?post_id=eq.$PID&select=post_id,club(name),$ORG")
-check "player post embeds the organiser and a null club" '["Alice",null]' \
+check "player post embeds the organiser and a null club" "[\"$UNA\",null]" \
   "$(echo "$EMB" | python3 -c 'import sys,json
 d=json.load(sys.stdin)
 r=d[0] if isinstance(d,list) and d else {}
 p=r.get("organiser") or {}
-print(json.dumps([p.get("display_name"), r.get("club")], separators=(",",":")))')"
+print(json.dumps([p.get("username"), r.get("club")], separators=(",",":")))')"
 echo
 echo "== 12. requesting to join a game =="
 C=$(signup "carol-$RANDOM@example.com" 'Passw0rd!x' 'Carol')
 TC=$(echo "$C" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("access_token",""))')
 IDC=$(echo "$C" | python3 -c 'import sys,json;d=json.load(sys.stdin);print((d.get("user") or d).get("id",""))')
+register "$TC" > /dev/null
 
 # A singles game with two places. Alice organises, so she takes one of them.
 BODY="{\"organiser_id\":\"$IDA\",\"format\":\"singles\",\"player_limit\":2,\"proposed_time\":\"2026-11-01T18:00:00Z\"}"
@@ -296,20 +444,20 @@ check "several matches can belong to one game" 3 \
 # game_participant is what makes a bare player(...) embed on game_post
 # ambiguous: before this migration there was only one route to player.
 check "a bare player embed is refused as ambiguous" "ERR:PGRST201" \
-  "$(count "$(as "$TA" GET "game_post?post_id=eq.$PID&select=post_id,player(display_name)")")"
+  "$(count "$(as "$TA" GET "game_post?post_id=eq.$PID&select=post_id,player(username)")")"
 
 # The query the game screen needs: a post, its organiser, and its
 # accepted roster, in one round trip.
-SEL="post_id,player_limit,organiser:player!organiser_id(display_name)"
-SEL="$SEL,game_participant(status,player(display_name))"
+SEL="post_id,player_limit,organiser:player!organiser_id(username)"
+SEL="$SEL,game_participant(status,player(username))"
 EMB=$(as "$TA" GET "game_post?post_id=eq.$GAME&select=$SEL")
-check "post, organiser and roster embed together" '["Alice",2]' \
+check "post, organiser and roster embed together" "[\"$UNA\",2]" \
   "$(echo "$EMB" | python3 -c 'import sys,json
 d=json.load(sys.stdin)
 r=d[0] if isinstance(d,list) and d else {}
 o=r.get("organiser") or {}
 roster=[p for p in (r.get("game_participant") or []) if p.get("status")=="accepted"]
-print(json.dumps([o.get("display_name"), len(roster)], separators=(",",":")))')"
+print(json.dumps([o.get("username"), len(roster)], separators=(",",":")))')"
 echo
 echo "== 15. updated_at / updated_by =="
 field() { python3 -c 'import sys,json

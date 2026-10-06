@@ -87,7 +87,17 @@ Supabase stores accounts in its built-in `auth` schema (`auth.users`, `auth.iden
 
 To view users: Studio (http://127.0.0.1:54323) → **Authentication → Users**, or **Table Editor** with the schema set to `auth`. The browser can only read the logged-in user (`useAuth().user`), not the full list.
 
-Player profile data (display name, rating band, date of birth, state) is **not** stored yet; see [Not done yet](#not-done-yet).
+When an account is created, a database trigger also creates the player's rows in the app's own tables:
+
+| Table | What | Who can see it |
+|---|---|---|
+| `player` | `username` (the public name), rating band | Every signed-in player |
+| `player_private` | `first_name`, `last_name` | The player and admins only |
+| `player_profile` | Suburb, state, bio, reliability | Other players, unless the profile is hidden |
+
+The username is chosen by the player and unique (ignoring case). The sign-up form doesn't ask for one yet, so the trigger generates one from the first name, e.g. `jane_4821`. Once the form has a username field, send it as `username` in `options.data` and check it first with `supabase.rpc('is_username_available', { p_username })`. See [database-schema.md](../database-schema.md#notes-on-the-tables) for every metadata key the trigger reads.
+
+`player_private` also holds the date of birth and the terms and privacy acceptances from the 18+ age gate (BL-007). An account cannot see or do anything involving other players until it has passed the gate; the screens for it are in [Not done yet](#not-done-yet).
 
 ## Security settings
 
@@ -171,6 +181,11 @@ One team member does this in the [Supabase dashboard](https://supabase.com/dashb
 
 - **Sign-out button:** `/signout` works but nothing links to it. Planned: a menu on the profile avatar in the top bar.
 - **Redirect logged-in users** away from `/login` and `/signup` to `/dashboard`.
-- **Player profile:** nothing creates a `public.player` row yet. After first sign-in (email or Google), collect date of birth, rating band and state, then call `register_player`. Google users need this as an onboarding step since they skip the signup form.
+- **Age gate screens (BL-009):** the backend is done (BL-007), the form is not. Until a player registers, the database hides every other player and game from them. Either:
+  - add date of birth, an 18+ checkbox, terms and privacy acceptance and state to the sign-up form, and send them in `options.data` as `date_of_birth` (`YYYY-MM-DD`), `age_declared` (`true`), `terms_version`, `privacy_version`, `state` (e.g. `VIC`). An under-18 sign-up then fails outright; or
+  - after first sign-in, show an onboarding step that calls `supabase.rpc('register_player', { p_date_of_birth, p_age_declared, p_terms_version, p_privacy_version, p_state })`. **Google sign-in always needs this step**, since Google cannot send a date of birth.
+
+  Errors come back with a message safe to show ("You must be 18 or over…"). The team still has to choose the terms and privacy version labels, e.g. `2026-10`.
+- **Username field:** see [Where user data lives](#where-user-data-lives).
 - **CAPTCHA:** off until the app is public (see [Turning CAPTCHA on](#turning-captcha-on)).
 - **Hosted configuration:** the dashboard steps above, custom SMTP, and production URLs once deployed.

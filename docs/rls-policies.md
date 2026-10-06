@@ -64,6 +64,7 @@ may need to sign out and back in.
 |---|---|
 | `player` | Any signed-in player (the roster: names, bands, verified flag) |
 | `player_profile` | Your own row; other players' rows only while `is_discoverable` is true |
+| `player_private` | Your own row only (first and last name). Other players see `player.username` |
 | `venue` | Any signed-in player |
 | `mini_league` | Any signed-in player |
 | `league_standing` | Any signed-in player |
@@ -88,7 +89,8 @@ Admins can read everything in every table.
 
 | Table | Insert | Update | Delete |
 |---|---|---|---|
-| `player` | Trigger only, on sign-up | Own row, and only `display_name` / `self_rating_band` | Cascades from `auth.users` |
+| `player` | Trigger only, on sign-up | Own row, and only `username` / `self_rating_band` | Cascades from `auth.users` |
+| `player_private` | Trigger only, on sign-up | Own row, and only `first_name` / `last_name` | Cascades |
 | `player_profile` | Trigger only, on sign-up | Own row, and only `bio` / `suburb` / `state` / `is_discoverable` | Cascades |
 | `venue` | Admin | Admin | Admin |
 | `mini_league` | Any player, as organiser | Organiser or admin | Organiser or admin |
@@ -108,6 +110,35 @@ Admins can read everything in every table.
 | `report` | Yourself, `status` forced to `open` | Admin | Admin |
 | `admin_post` | Admin, as themselves | Admin | Admin |
 
+## The age gate (BL-007)
+
+An account is **unusable until it is registered**: a date of birth showing 18
+or over, the 18+ declaration, and accepted versions of the terms of use and the
+privacy notice (`player_private.registered_at` set). Until then:
+
+- it can read and edit its own `player`, `player_profile` and `player_private` rows, and read states, suburbs, venues, announcements and its own notifications;
+- every other player, game, club, match, league, ranking and report is invisible, and it cannot create any.
+
+This is enforced by **restrictive** policies (`<table>: registered players
+only`), which Postgres ANDs with the normal permissive ones. They narrow access
+without changing any existing policy. The helper is `private.is_registered()`;
+admins always pass.
+
+The gate has to work this way because sign-up metadata is written by the
+client, and anyone can call the Supabase sign-up API directly. A check that only
+ran when a date of birth was supplied could be skipped by not supplying one.
+
+Registration happens in one place, `private.complete_registration`, reached two
+ways:
+
+| Path | When | Under-18 |
+|---|---|---|
+| Sign-up metadata: `date_of_birth`, `age_declared`, `terms_version`, `privacy_version`, `state` in `options.data` | Email sign-up | The sign-up fails; no account is created |
+| `supabase.rpc('register_player', { p_date_of_birth, p_age_declared, p_terms_version, p_privacy_version, p_state })` | Google sign-in, or any account that skipped the fields | Error `23514`; nothing is stored |
+
+A minor's date of birth is never stored. Registration runs once; the date of
+birth cannot be edited afterwards.
+
 ## Things deliberately out of reach
 
 Some columns hold values a player would obviously like to control and must not.
@@ -124,6 +155,7 @@ operation, or a trigger that overwrites whatever the client sent.
 | `player_profile.games_played`, `.no_show_count` | Same |
 | `notification` (all but `is_read`) | Otherwise players rewrite the text of their own notifications |
 | `ranking` (inserts and deletes) | Points are computed from confirmed results, never claimed |
+| `player_private.date_of_birth`, consent columns, `registered_at` | Set once by the age gate. A player who could edit their date of birth could undo the age check |
 | `updated_at` / `updated_by`, everywhere | A trigger overwrites whatever the client sends. A field recording who changed a status is worthless if the person changing it picks the value |
 
 Four more rules are enforced in the policies rather than by grants:
@@ -175,6 +207,7 @@ cannot be called as an RPC).
 | `private.can_post_for_club(club_id)` | Are you a listed representative of this club? |
 | `private.can_manage_post(post_id)` | Did you post this game, or represent the club that did? |
 | `private.is_game_participant(post_id)` | Are you on this game's accepted roster? |
+| `private.is_registered()` | Have you passed the age gate (or are you an admin)? |
 
 All but the first are `security definer`, which means they run with elevated
 privileges and skip RLS on the tables they read. That is not laziness. It is
@@ -190,7 +223,7 @@ the caller's own token and needs no extra privilege.
 
 ## Verifying it
 
-`supabase/tests/rls_test.sh` runs 68 checks against the local stack. It signs up
+`supabase/tests/rls_test.sh` runs 104 checks against the local stack. It signs up
 two real players through the Auth API and drives PostgREST exactly as the
 browser would, so it tests the policies as deployed rather than the SQL as
 written.
@@ -201,7 +234,7 @@ supabase db reset --local
 ./supabase/tests/rls_test.sh
 ```
 
-All 68 pass as of this migration. It covers: the sign-up trigger, the
+All 104 pass as of the BL-007 migration. It covers: the sign-up trigger, the
 discoverability rule, cross-user writes, the escalation paths above, anonymous
 access, game post ownership, the private schema not being exposed, club
 representation, the exactly-one-organiser constraint, and organiser embedding.
@@ -226,7 +259,7 @@ These need a decision from the team. Each one is a guess I made to get the
 schema working, marked `DEVIATION` in the migration.
 
 1. **`updated_by` is not a foreign key to `player`.** Making it one gives every
-   table a second relationship to `player`, which makes `player(display_name)`
+   table a second relationship to `player`, which makes `player(username)`
    ambiguous in PostgREST and forces every embed in the app to name its foreign
    key explicitly. The trigger is the only writer and takes the value from
    `auth.uid()`, so the constraint would protect nothing. The cost is that a
