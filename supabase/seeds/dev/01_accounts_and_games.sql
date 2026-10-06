@@ -2,6 +2,7 @@
 -- the CI deploy job loads supabase/seeds/production/ and nothing else.
 --
 -- Every account's password is Passw0rd!  (meets the local password policy)
+-- All are adults who have accepted the terms, so they pass the age gate.
 --
 --   admin@example.com   platform admin (app_metadata.role = admin)
 --   alice@example.com   organises games, created the Smash Club
@@ -29,7 +30,15 @@ insert into auth.users (
 select
   '00000000-0000-0000-0000-000000000000', u.id, 'authenticated', 'authenticated',
   u.email, extensions.crypt('Passw0rd!', extensions.gen_salt('bf')), now(),
-  u.app_meta::jsonb, jsonb_build_object('display_name', u.display_name),
+  u.app_meta::jsonb,
+  -- display_name becomes the username. The date of birth and consent fields
+  -- pass the 18+ age gate (BL-007) at sign-up, so the accounts can use the
+  -- app straight away; before BL-007 the trigger ignores them.
+  jsonb_build_object(
+    'display_name', u.display_name, 'first_name', u.display_name,
+    'date_of_birth', '1995-05-20', 'age_declared', true,
+    'terms_version', 'dev', 'privacy_version', 'dev', 'state', 'VIC'
+  ),
   now(), now(), '', '', '', '', '', '', '', ''
 from (values
   ('00000000-0000-0000-0000-00000000a000'::uuid, 'admin@example.com', 'Admin',

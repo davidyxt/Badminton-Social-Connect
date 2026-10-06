@@ -1,6 +1,6 @@
 # Database Schema
 
-Implemented across seven migrations in `supabase/migrations/`:
+Implemented across nine migrations in `supabase/migrations/`:
 
 | Migration | What it adds |
 |---|---|
@@ -11,6 +11,8 @@ Implemented across seven migrations in `supabase/migrations/`:
 | `..._bl080_club_admins_and_join_requests.sql` | Club admins, members and join requests (M6, using clubs instead of groups); clubs deactivated instead of deleted |
 | `..._bl011_preferred_format.sql` | `player_profile.preferred_format` (BL-011) |
 | `..._bl001_states_suburbs_venues.sql` | `state` and `suburb` reference tables; venues get a suburb (BL-001) |
+| `..._m4_username_and_private_names.sql` | `display_name` renamed `username` (unique, player-chosen); first and last names in owner-only `player_private` |
+| `..._bl007_age_gate_and_consent.sql` | 18+ age gate, consent records, `register_player`; unregistered accounts locked out (BL-007) |
 
 Access rules are documented separately in [rls-policies.md](./rls-policies.md),
 which also lists the open questions this schema left unresolved.
@@ -40,10 +42,26 @@ deliberately is not one. See [Audit columns](#audit-columns) for why.
 erDiagram
     PLAYER {
         uuid player_id PK "= auth.users.id"
-        text display_name
+        text username UK "player-chosen, unique ignoring case"
         text self_rating_band
         boolean is_verified "service_role only"
         timestamptz joined_at
+        timestamptz updated_at
+        uuid updated_by
+    }
+
+    PLAYER_PRIVATE {
+        uuid player_id PK,FK
+        text first_name "owner and admins only"
+        text last_name "owner and admins only"
+        date date_of_birth "set once, adults only"
+        timestamptz age_declared_at
+        text terms_version
+        timestamptz terms_accepted_at
+        text privacy_version
+        timestamptz privacy_accepted_at
+        timestamptz registered_at "null = locked out"
+        timestamptz created_at
         timestamptz updated_at
         uuid updated_by
     }
@@ -275,6 +293,7 @@ erDiagram
     }
 
     PLAYER ||--|| PLAYER_PROFILE : has
+    PLAYER ||--|| PLAYER_PRIVATE : has
     PLAYER ||--o{ NOTIFICATION : receives
     PLAYER ||--o{ REPORT : files
     PLAYER ||--o{ GAME_POST : organises
@@ -370,7 +389,7 @@ freshly edited.
 grain. Two reasons:
 
 - PostgREST resolves embeds through foreign keys. A second key from, say,
-  `game_participant` to `player` makes `player(display_name)` ambiguous, and
+  `game_participant` to `player` makes `player(username)` ambiguous, and
   every embed in the app would have to be written `player!player_id(...)`. The
   audit column appears on rare detail screens; the roster is read constantly.
 - The trigger is the only writer and it takes the value from `auth.uid()`, so
@@ -388,7 +407,7 @@ through the join table) on top of the direct `organiser_id` foreign key. So this
 now fails with `PGRST201`, "more than one relationship was found":
 
 ```js
-supabase.from('game_post').select('*, player(display_name)')   // ambiguous
+supabase.from('game_post').select('*, player(username)')   // ambiguous
 ```
 
 Say which link you mean with `!`, and alias it to something readable with `:`
@@ -396,9 +415,9 @@ Say which link you mean with `!`, and alias it to something readable with `:`
 ```js
 supabase.from('game_post').select(`
   post_id, player_limit, status,
-  organiser:player!organiser_id(display_name),
+  organiser:player!organiser_id(username),
   club(name, logo_url),
-  game_participant(status, player(display_name))
+  game_participant(status, player(username))
 `)
 ```
 
@@ -411,7 +430,7 @@ Two details worth knowing:
   constraint name (`game_post_organiser_id_fkey`). Both work. Prefer the column
   name: it is shorter, it is the thing you mean, and it does not break
   if someone renames a constraint.
-- `player(display_name)` still works *inside* `game_participant`, because from
+- `player(username)` still works *inside* `game_participant`, because from
   there the route is unambiguous again.
 
 **Do not scatter this across the codebase.** Write the query once in a data
@@ -421,6 +440,29 @@ to forget, the failure only appears at runtime, and any new foreign key to
 twenty.
 
 ## Notes on the tables
+
+**Usernames are chosen by the player; real names are private.** `player.username`
+is the only name other players see: 3-20 letters, digits, `_` or `.`, unique
+ignoring case. First and last names live in `player_private`, which only the
+owner and admins can read. The sign-up trigger reads these keys from the sign-up
+metadata (`options.data`):
+
+| Key | Used for |
+|---|---|
+| `username` | The username, strictly: a taken or malformed one fails the sign-up. Check first with `supabase.rpc('is_username_available', { p_username })` |
+| `display_name` | Legacy alias for `username`, best effort: used if valid and free, otherwise a username is generated from it. Kept so older test scripts and dev seeds still work |
+| `first_name`, `last_name` | Names from the sign-up form |
+| `given_name` / `family_name`, `full_name` / `name` | Names from Google sign-in |
+
+With no username (the current sign-up form), one is generated from the first
+name, e.g. `jane_4821`, or `player_4821` with no name. The email address is
+never used.
+
+**Accounts must pass the 18+ age gate before they can use the app** (BL-007).
+`player_private` records the date of birth, the 18+ declaration and the accepted
+terms and privacy versions, each with a server timestamp. Until `registered_at`
+is set, restrictive policies hide everything involving other players. See
+[The age gate](./rls-policies.md#the-age-gate-bl-007).
 
 **`player` / `player_profile`** are split so the hot path (name and rating band,
 read on every listing) stays narrow, while optional profile text sits in its own
@@ -442,7 +484,7 @@ is filled in. This keeps referential integrity in the database and, just as
 importantly, lets PostgREST embed the organiser in a single request:
 
 ```js
-supabase.from('game_post').select('*, player(display_name), club(name, logo_url)')
+supabase.from('game_post').select('*, player(username), club(name, logo_url)')
 ```
 
 That nested syntax works only because a foreign key exists. The unused side
@@ -533,7 +575,7 @@ It is text because NT and ACT postcodes start with 0.
 supabase start                  # bring up the local stack (needs Docker running)
 supabase db reset --local       # drop and rebuild from migrations + seeds/
 supabase db advisors --local    # security and performance lint
-./supabase/tests/rls_test.sh    # 111 access-control and integrity checks
+./supabase/tests/rls_test.sh    # 147 access-control and integrity checks
 
 supabase migration new <name>   # start a new change
 supabase db push                # apply pending migrations to the linked project
