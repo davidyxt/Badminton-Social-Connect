@@ -4,11 +4,20 @@
 set -uo pipefail
 
 API=http://127.0.0.1:54321
-ANON=$(supabase status -o json 2>/dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin)["ANON_KEY"])')
+STATUS=$(supabase status -o json 2>/dev/null)
+ANON=$(echo "$STATUS" | python3 -c 'import sys,json;print(json.load(sys.stdin)["ANON_KEY"])')
+SERVICE=$(echo "$STATUS" | python3 -c 'import sys,json;print(json.load(sys.stdin)["SERVICE_ROLE_KEY"])')
 
+# Email confirmation is on (auth.email.enable_confirmations), so a plain
+# /signup returns no session. Create the user already confirmed through the
+# admin API, then sign in for a real token. user_metadata still reaches the
+# sign-up trigger exactly as it would from the app.
 signup() {
-  curl -s "$API/auth/v1/signup" -H "apikey: $ANON" -H 'Content-Type: application/json' \
-    -d "{\"email\":\"$1\",\"password\":\"$2\",\"data\":{\"display_name\":\"$3\"}}"
+  curl -s "$API/auth/v1/admin/users" -H "apikey: $SERVICE" \
+    -H "Authorization: Bearer $SERVICE" -H 'Content-Type: application/json' \
+    -d "{\"email\":\"$1\",\"password\":\"$2\",\"email_confirm\":true,\"user_metadata\":{\"display_name\":\"$3\"}}" > /dev/null
+  curl -s "$API/auth/v1/token?grant_type=password" -H "apikey: $ANON" \
+    -H 'Content-Type: application/json' -d "{\"email\":\"$1\",\"password\":\"$2\"}"
 }
 
 pass=0; fail=0
@@ -95,6 +104,33 @@ check "anon cannot read the player roster" 0 \
   "$(count "$(curl -s "$API/rest/v1/player?select=*" -H "apikey: $ANON")")"
 check "anon cannot read game posts"        0 \
   "$(count "$(curl -s "$API/rest/v1/game_post?select=*" -H "apikey: $ANON")")"
+
+echo
+echo "== 5b. reference data: states, suburbs and venues =="
+check "anon can read the states (sign-up form)" 8 \
+  "$(count "$(curl -s "$API/rest/v1/state?select=state_code" -H "apikey: $ANON")")"
+check "anon can look up a suburb by postcode" 1 \
+  "$(count "$(curl -s "$API/rest/v1/suburb?postcode=eq.3053&name=eq.Carlton&select=name" -H "apikey: $ANON")")"
+check "NT postcodes keep their leading zero" 1 \
+  "$(count "$(as "$TA" GET "suburb?name=eq.Darwin&postcode=eq.0800&select=name")")"
+check "mail-only postcodes are excluded" 0 \
+  "$(count "$(as "$TA" GET "suburb?state_code=eq.VIC&postcode=gte.8000&select=name")")"
+check "anon cannot read venues" 0 \
+  "$(count "$(curl -s "$API/rest/v1/venue?select=name" -H "apikey: $ANON")")"
+check "players see the seeded venues with their suburb" '["Albert Park","3206"]' \
+  "$(as "$TA" GET "venue?name=eq.Melbourne%20Sports%20and%20Aquatic%20Centre&select=suburb(name,postcode)" | python3 -c 'import sys,json
+d=json.load(sys.stdin)
+s=(d[0].get("suburb") or {}) if isinstance(d,list) and d else {}
+print(json.dumps([s.get("name"), s.get("postcode")], separators=(",",":")))')"
+BODY='{"name":"Fake","postcode":"3000","state_code":"VIC"}'
+R=$(as "$TA" POST "suburb" "$BODY")
+check "players cannot add suburbs" "ERR:42501" "$(count "$R")"
+check "players cannot rename a state" "ERR:42501" \
+  "$(count "$(as "$TA" PATCH "state?state_code=eq.VIC" '{"name":"Hacked"}')")"
+SUB=$(as "$TA" GET "suburb?name=eq.Carlton&postcode=eq.3053&select=suburb_id" | python3 -c 'import sys,json;d=json.load(sys.stdin);print(d[0]["suburb_id"] if d else "")')
+BODY="{\"name\":\"My Garage\",\"suburb_id\":\"$SUB\"}"
+R=$(as "$TA" POST "venue" "$BODY")
+check "players cannot add venues" "ERR:42501" "$(count "$R")"
 
 echo
 echo "== 6. ownership rules on game posts =="
