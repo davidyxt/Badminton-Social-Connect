@@ -524,7 +524,8 @@ as "$TA" POST "match_participant" "$BODY" > /dev/null
 BODY="{\"match_id\":\"$M2\",\"player_id\":\"$IDB\",\"side\":\"a\"}"
 R=$(as "$TA" POST "match_participant" "$BODY")
 check "a singles side cannot hold two players" "ERR:23514" "$(count "$R")"
-check "several matches can belong to one game" 3 \
+# 3 recorded by hand, plus the one BL-017 creates when bob was accepted.
+check "several matches can belong to one game" 4 \
   "$(count "$(as "$TA" GET "match?post_id=eq.$GAME&select=match_id")")"
 
 # game_participant is what makes a bare player(...) embed on game_post
@@ -718,16 +719,164 @@ curl -s "$API/auth/v1/admin/users" -H "apikey: $SERVICE" -H "Authorization: Bear
 TADM=$(curl -s "$API/auth/v1/token?grant_type=password" -H "apikey: $ANON" -H 'Content-Type: application/json' \
   -d "{\"email\":\"$AEMAIL\",\"password\":\"Passw0rd!x\"}" | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
 check "admins still see deleted posts" 1 "$(count "$(as "$TADM" GET "game_post?post_id=eq.$G3")")"
-check "the admin warning shows what would change" '[true,3]' \
+check "the admin warning shows what would change" '[true,4]' \
   "$(as "$TADM" POST "rpc/admin_game_post_deletion_impact" "{\"p_post_id\":\"$GAME\"}" | python3 -c 'import sys,json
 d=json.load(sys.stdin); print(json.dumps([d["has_happened"], d["matches"]], separators=(",",":")))')"
 BODY="{\"p_post_id\":\"$GAME\",\"p_reason\":\" \"}"
 check "an admin delete needs a reason" "23514" "$(as "$TADM" POST "rpc/admin_delete_game_post" "$BODY" | code)"
 BODY="{\"p_post_id\":\"$GAME\",\"p_reason\":\"Fabricated results\"}"
 check "an admin can delete a game that has happened" "" "$(as "$TADM" POST "rpc/admin_delete_game_post" "$BODY")"
-check "its matches are kept" 3 "$(count "$(as "$TADM" GET "match?post_id=eq.$GAME&select=match_id")")"
+check "its matches are kept" 4 "$(count "$(as "$TADM" GET "match?post_id=eq.$GAME&select=match_id")")"
 check "its results stop counting towards rankings" "True" \
   "$(as "$TADM" GET "match_result?match_id=eq.$M1&select=excluded_from_ranking" | field excluded_from_ranking)"
+
+echo
+echo "== 19. join requests (BL-017) =="
+rpc() { # rpc <token> <function> <json body>; prints the error code, or OK
+  as "$1" POST "rpc/$2" "$3" | code; }
+G4=$(as "$TA" POST "game_post" "{\"organiser_id\":\"$IDA\",\"title\":\"Singles ladder\",\"format\":\"singles\",\"player_limit\":2,\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 25)\"}" | field post_id)
+BODY="{\"p_post_id\":\"$G4\",\"p_message\":\"Hi! Keen for a hit if there is room.\"}"
+check "a player asks to join with a message" "EMPTY" "$(rpc "$TC" request_to_join "$BODY")"
+BODY="{\"p_post_id\":\"$G4\"}"
+check "asking twice is refused" "23505" "$(rpc "$TC" request_to_join "$BODY")"
+BODY="{\"p_post_id\":\"$G4\"}"
+check "the organiser cannot ask to join their own game" "23514" "$(rpc "$TA" request_to_join "$BODY")"
+check "the requester can read their message" 1 \
+  "$(count "$(as "$TC" GET "game_request_message?post_id=eq.$G4&select=message")")"
+check "other players cannot" 0 \
+  "$(count "$(as "$TB" GET "game_request_message?post_id=eq.$G4&select=message")")"
+BODY="{\"post_id\":\"$G4\",\"player_id\":\"$IDC\",\"message\":\"forged\"}"
+check "messages cannot be written directly" "ERR:42501" "$(count "$(as "$TC" POST "game_request_message" "$BODY")")"
+
+BODY="{\"p_post_id\":\"$G4\"}"
+REQ=$(as "$TA" POST "rpc/get_join_requests" "$BODY")
+check "the host sees the request as the Play Request screen needs it" \
+  '["pending","Hi! Keen for a hit if there is room.",true]' \
+  "$(echo "$REQ" | python3 -c 'import sys,json
+r=json.load(sys.stdin)[0]; q=r["requester"]
+print(json.dumps([r["status"], q["message"], all(k in q for k in ("name","initials","rating","verifiedMatches","reliability","level","preferredFormat"))], separators=(",",":")))')"
+BODY="{\"p_post_id\":\"$G4\"}"
+check "other players cannot list a game's requests" "42501" "$(rpc "$TB" get_join_requests "$BODY")"
+BODY="{\"p_post_id\":\"$G4\",\"p_player_id\":\"$IDC\"}"
+check "only the organiser can accept" "42501" \
+  "$(rpc "$TB" accept_request "$BODY")"
+BODY="{\"p_post_id\":\"$G4\",\"p_player_id\":\"$IDC\"}"
+check "the organiser accepts" "EMPTY" \
+  "$(rpc "$TA" accept_request "$BODY")"
+GM=$(as "$TA" GET "match?post_id=eq.$G4&select=match_id" | field match_id)
+check "the first acceptance creates the match" "yes" "$([[ -n "$GM" ]] && echo yes || echo no)"
+check "a singles match puts organiser and player on sides a and b" '["a","b"]' \
+  "$(as "$TA" GET "match_participant?match_id=eq.$GM&select=player_id,side" | python3 -c 'import sys,json
+rows={r["player_id"]:r["side"] for r in json.load(sys.stdin)}
+print(json.dumps([rows.get("'$IDA'"), rows.get("'$IDC'")], separators=(",",":")))')"
+BODY="{\"p_post_id\":\"$G4\",\"p_player_id\":\"$IDC\"}"
+check "accepting again is refused" "23514" \
+  "$(rpc "$TA" accept_request "$BODY")"
+
+BODY="{\"p_post_id\":\"$G4\"}"
+check "bob can still ask while the game is full" "EMPTY" "$(rpc "$TB" request_to_join "$BODY")"
+BODY="{\"p_post_id\":\"$G4\",\"p_player_id\":\"$IDB\"}"
+check "but accepting him would overfill it" "23514" \
+  "$(rpc "$TA" accept_request "$BODY")"
+BODY="{\"p_post_id\":\"$G4\",\"p_player_id\":\"$IDB\"}"
+check "the organiser declines him" "EMPTY" \
+  "$(rpc "$TA" decline_request "$BODY")"
+BODY="{\"p_post_id\":\"$G4\"}"
+check "a declined player cannot ask again" "23514" "$(rpc "$TB" request_to_join "$BODY")"
+BODY="{\"p_post_id\":\"$G1\"}"
+check "requests to a cancelled game are refused" "23514" "$(rpc "$TC" request_to_join "$BODY")"
+
+check "the status history records each step" '["requested","accepted"]' \
+  "$(as "$TC" GET "game_participant_history?post_id=eq.$G4&player_id=eq.$IDC&order=history_id&select=to_status" | python3 -c 'import sys,json
+print(json.dumps([r["to_status"] for r in json.load(sys.stdin)], separators=(",",":")))')"
+check "history cannot be edited" "ERR:42501" \
+  "$(count "$(as "$TC" PATCH "game_participant_history?post_id=eq.$G4" '{"to_status":"accepted"}')")"
+check "other players cannot read someone's history" 0 \
+  "$(count "$(as "$TB" GET "game_participant_history?post_id=eq.$G4&player_id=eq.$IDC")")"
+
+echo
+echo "== 20. player profiles (BL-019) =="
+SUB="{\"match_id\":\"$GM\",\"submitted_by\":\"$IDC\",\"score\":\"21-15 21-17\",\"winning_side\":\"b\"}"
+RID=$(as "$TC" POST "match_result" "$SUB" | field result_id)
+as "$TADM" PATCH "match_result?result_id=eq.$RID" '{"status":"confirmed"}' > /dev/null
+BODY="{\"p_player_id\":\"$IDC\"}"
+PROF=$(as "$TB" POST "rpc/get_player_profile" "$BODY")
+check "a profile has the Player Profile screen's fields" "yes" \
+  "$(echo "$PROF" | python3 -c 'import sys,json
+p=json.load(sys.stdin)
+keys=("name","initials","level","status","rating","wins","losses","matches","reliability","recentForm","preferredFormat","area","league")
+print("yes" if all(k in p for k in keys) else "missing "+str([k for k in keys if k not in p]))')"
+check "wins, losses and form come from confirmed results" '[1,0,1,["W"],"Provisional"]' \
+  "$(echo "$PROF" | python3 -c 'import sys,json
+p=json.load(sys.stdin); print(json.dumps([p["wins"],p["losses"],p["matches"],p["recentForm"],p["status"]], separators=(",",":")))')"
+BODY="{\"p_player_id\":\"$IDA\"}"
+check "the loser's record shows the loss" '[0,1]' \
+  "$(as "$TC" POST "rpc/get_player_profile" "$BODY" | python3 -c 'import sys,json
+p=json.load(sys.stdin); print(json.dumps([p["wins"],p["losses"]], separators=(",",":")))')"
+check "a profile never carries real names or birth dates" "clean" \
+  "$(echo "$PROF" | python3 -c 'import sys
+t=sys.stdin.read(); print("leak" if any(k in t for k in ("first_name","last_name","date_of_birth","email")) else "clean")')"
+# Bob hid his profile in section 2. Carol shares no game with him.
+BODY="{\"p_player_id\":\"$IDB\"}"
+check "a hidden profile is private to strangers" "null" \
+  "$(as "$TC" POST "rpc/get_player_profile" "$BODY")"
+BODY="{\"p_player_id\":\"$IDB\"}"
+check "but visible to the host of a game he asked to join" "$(as "$TB" GET "player?player_id=eq.$IDB&select=username" | field username)" \
+  "$(as "$TA" POST "rpc/get_player_profile" "$BODY" | python3 -c 'import sys,json;print(json.load(sys.stdin)["name"])')"
+BODY="{\"p_player_id\":\"$IDB\"}"
+check "and to the player themselves" "yes" \
+  "$([[ "$(as "$TB" POST "rpc/get_player_profile" "$BODY")" != "null" ]] && echo yes || echo no)"
+
+echo
+echo "== 21. find games and players (BL-015) =="
+G5=$(as "$TA" POST "game_post" "{\"organiser_id\":\"$IDA\",\"title\":\"Friday Night Doubles\",\"format\":\"doubles\",\"player_limit\":4,\"venue_id\":\"$VENUE\",\"ability_level\":\"beginner\",\"duration_minutes\":90,\"proposed_time\":\"$(future 26)\"}" | field post_id)
+has() { # has <json array> <post id>: yes if the id is in it
+  echo "$1" | python3 -c 'import sys,json;print("yes" if sys.argv[1] in [g["id"] for g in json.load(sys.stdin)] else "no")' "$2"; }
+search() { as "$TB" POST "rpc/search_games" "$1"; }
+check "search finds an upcoming game" "yes" "$(has "$(search '{}')" "$G5")"
+CARD=$(search '{"p_query":"friday"}')
+check "by title" "yes" "$(has "$CARD" "$G5")"
+check "a card has the Find Games fields" '["Friday Night Doubles","Doubles","Beginner","Melbourne Sports and Aquatic Centre, Albert Park",1,4]' \
+  "$(echo "$CARD" | python3 -c 'import sys,json
+g=[x for x in json.load(sys.stdin) if x["id"]=="'$G5'"][0]
+print(json.dumps([g["title"],g["format"],g["rank"],g["location"],g["playerCount"],g["maxPlayers"]], separators=(",",":")))')"
+check "the time shows start and end" "yes" \
+  "$(echo "$CARD" | python3 -c 'import sys,json
+g=[x for x in json.load(sys.stdin) if x["id"]=="'$G5'"][0]; print("yes" if " – " in g["time"] else g["time"])')"
+check "by suburb" "yes" "$(has "$(search '{"p_suburb":"albert park"}')" "$G5")"
+check "by venue name in the search box" "yes" "$(has "$(search '{"p_query":"aquatic"}')" "$G5")"
+check "the level filter keeps matching games" "yes" "$(has "$(search '{"p_level":"beginner"}')" "$G5")"
+check "and drops others" "no" "$(has "$(search '{"p_level":"advanced"}')" "$G5")"
+check "the format filter drops other formats" "no" "$(has "$(search '{"p_format":"singles"}')" "$G5")"
+check "cancelled games are not listed" "no" "$(has "$(search '{}')" "$G1")"
+check "deleted games are not listed" "no" "$(has "$(search '{}')" "$G3")"
+check "results come in pages" 1 "$(search '{"p_limit":1}' | python3 -c 'import sys,json;print(len(json.load(sys.stdin)))')"
+TN=$(signup_meta "nobody-$RANDOM@example.com" '{"first_name":"Ned"}')
+check "unregistered accounts find nothing" "[]" "$(as "$TN" POST "rpc/search_games" '{}')"
+
+BODY="{\"p_post_id\":\"$G4\"}"
+DET=$(as "$TB" POST "rpc/get_game_details" "$BODY")
+check "game details show the host's stats and the roster" "yes" \
+  "$(echo "$DET" | python3 -c 'import sys,json
+d=json.load(sys.stdin); h=d["host"]
+ok=all(k in h for k in ("name","rating","verifiedMatches","reliability")) and len(d["players"])==2 and d["players"][0]["host"]
+print("yes" if ok else json.dumps(d)[:300])')"
+check "and the caller's own request status" "declined" \
+  "$(echo "$DET" | python3 -c 'import sys,json;print(json.load(sys.stdin)["myStatus"])')"
+check "players do not manage someone else's game" "False" \
+  "$(echo "$DET" | python3 -c 'import sys,json;print(json.load(sys.stdin)["canManage"])')"
+
+BODY="{\"p_query\":\"$UNA\"}"
+PLAYERS=$(as "$TC" POST "rpc/search_players" "$BODY")
+check "player search finds discoverable players" "yes" \
+  "$(echo "$PLAYERS" | python3 -c 'import sys,json;print("yes" if "'$IDA'" in [p["id"] for p in json.load(sys.stdin)] else "no")')"
+check "but never hidden ones" "no" \
+  "$(as "$TC" POST "rpc/search_players" '{}' | python3 -c 'import sys,json;print("yes" if "'$IDB'" in [p["id"] for p in json.load(sys.stdin)] else "no")')"
+BODY="{\"p_query\":\"$UNA\"}"
+check "or the person searching" "no" \
+  "$(as "$TA" POST "rpc/search_players" "$BODY" | python3 -c 'import sys,json;print("yes" if "'$IDA'" in [p["id"] for p in json.load(sys.stdin)] else "no")')"
+BODY="{\"p_post_id\":\"$G4\"}"
+check "carol withdraws her place" "EMPTY" "$(rpc "$TC" withdraw_request "$BODY")"
 
 echo
 echo "-------------------------------------"

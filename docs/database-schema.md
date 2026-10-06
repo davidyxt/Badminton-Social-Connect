@@ -1,6 +1,6 @@
 # Database Schema
 
-Implemented across ten migrations in `supabase/migrations/`:
+Implemented across thirteen migrations in `supabase/migrations/`:
 
 | Migration | What it adds |
 |---|---|
@@ -14,6 +14,9 @@ Implemented across ten migrations in `supabase/migrations/`:
 | `..._m4_username_and_private_names.sql` | `display_name` renamed `username` (unique, player-chosen); first and last names in owner-only `player_private` |
 | `..._bl007_age_gate_and_consent.sql` | 18+ age gate, consent records, `register_player`; unregistered accounts locked out (BL-007) |
 | `..._bl013_game_posts.sql` | Post a Game fields, cancel with the 4-hour rule, delete hides, admin-only delete of games that happened, inactive clubs have no upcoming games (BL-013) |
+| `..._bl017_join_requests.sql` | Join request RPCs, request messages, status history, match created on first acceptance (BL-017) |
+| `..._bl019_player_profiles.sql` | `get_player_profile` and the stats behind it (BL-019) |
+| `..._bl015_find_games.sql` | `game_post.title`, `search_games`, `search_players`, `get_game_details`, `get_join_requests` (BL-015) |
 
 Access rules are documented separately in [rls-policies.md](./rls-policies.md),
 which also lists the open questions this schema left unresolved.
@@ -112,6 +115,7 @@ erDiagram
         text format
         text suburb "copied from the venue when one is chosen"
         uuid venue_id FK "seeded venue, null = other venue"
+        text title "optional card title"
         text style "social | competitive"
         int duration_minutes
         text ability_level "any or a rating band"
@@ -125,6 +129,23 @@ erDiagram
         timestamptz created_at
         timestamptz updated_at
         uuid updated_by
+    }
+
+    GAME_REQUEST_MESSAGE {
+        uuid post_id PK,FK
+        uuid player_id PK,FK
+        text message "requester and host only"
+        timestamptz created_at
+    }
+
+    GAME_PARTICIPANT_HISTORY {
+        bigint history_id PK
+        uuid post_id FK
+        uuid player_id FK
+        text from_status
+        text to_status
+        uuid changed_by
+        timestamptz changed_at
     }
 
     GAME_PARTICIPANT {
@@ -486,6 +507,25 @@ recorded against it. Nobody can hard-delete a post through the API, and
 `venue_id` is currently readable by every signed-in player; hiding the exact
 venue until a player is accepted is BL-017 (PHY-02).
 
+**Joining a game goes through functions** (BL-017): `request_to_join`
+(optional message), `accept_request`, `decline_request`, `withdraw_request`.
+Requests only work while the game is open (not cancelled, deleted or started).
+The message lives in `game_request_message`, readable by the requester and the
+host only, so it stays private after the roster row becomes public. Every status
+change is written to `game_participant_history`. The first acceptance creates
+the game's `match`; a singles game posted by a player gets the organiser on
+side `a` and the accepted player on side `b`.
+
+**Screens read through functions that return the screen's own objects**
+(BL-015, BL-019): `search_games`, `search_players`, `get_game_details`,
+`get_join_requests`, `get_player_profile`. Their keys are camelCase to match the
+frontend's mock data, unlike the tables. The free-text searches are backed by trigram
+indexes (`pg_trgm`) on `player.username`, `player_profile.suburb`,
+`game_post.title`, `game_post.suburb` and `venue.name`, so `ilike '%…%'` stays
+fast as the tables grow. Postgres ignores them while tables are small. Tested on
+60,000 players: 1.4 ms with the index against about 30 ms without. See
+[features/M1-find-games.md](./features/M1-find-games.md).
+
 **Accounts must pass the 18+ age gate before they can use the app** (BL-007).
 `player_private` records the date of birth, the 18+ declaration and the accepted
 terms and privacy versions, each with a server timestamp. Until `registered_at`
@@ -603,7 +643,7 @@ It is text because NT and ACT postcodes start with 0.
 supabase start                  # bring up the local stack (needs Docker running)
 supabase db reset --local       # drop and rebuild from migrations + seeds/
 supabase db advisors --local    # security and performance lint
-./supabase/tests/rls_test.sh    # 176 access-control and integrity checks
+./supabase/tests/rls_test.sh    # 224 access-control and integrity checks
 
 supabase migration new <name>   # start a new change
 supabase db push                # apply pending migrations to the linked project
