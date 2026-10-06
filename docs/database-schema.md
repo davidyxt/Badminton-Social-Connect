@@ -1,6 +1,6 @@
 # Database Schema
 
-Implemented across fourteen migrations in `supabase/migrations/`:
+Implemented across sixteen migrations in `supabase/migrations/`:
 
 | Migration | What it adds |
 |---|---|
@@ -18,6 +18,8 @@ Implemented across fourteen migrations in `supabase/migrations/`:
 | `..._bl019_player_profiles.sql` | `get_player_profile` and the stats behind it (BL-019) |
 | `..._bl015_find_games.sql` | `game_post.title`, `search_games`, `search_players`, `get_game_details`, `get_join_requests` (BL-015) |
 | `..._bl007_age_gate_local_date.sql` | Fix: age judged by the date in the player's state, not UTC |
+| `..._bl027_blocking.sql` | `blocks`; blocked players hidden from each other everywhere (BL-027) |
+| `..._bl028_reports.sql` | Report categories, server-captured evidence, rate limits, `report_*` functions (BL-028) |
 
 Access rules are documented separately in [rls-policies.md](./rls-policies.md),
 which also lists the open questions this schema left unresolved.
@@ -97,12 +99,20 @@ erDiagram
         uuid updated_by
     }
 
+    BLOCKS {
+        uuid blocker_id PK,FK
+        uuid blocked_id PK,FK
+        timestamptz created_at
+    }
+
     REPORT {
         uuid report_id PK
         uuid reported_by_player_id FK
-        text target_type
+        text target_type "player, game_post, club, mini_league, ..."
         uuid target_id "polymorphic, no FK"
-        text reason
+        text category "harassment, spam, underage, ..."
+        text reason "details; required for other"
+        jsonb evidence "copied by the server"
         text status
         timestamptz created_at
         timestamptz updated_at
@@ -527,6 +537,20 @@ fast as the tables grow. Postgres ignores them while tables are small. Tested on
 60,000 players: 1.4 ms with the index against about 30 ms without. See
 [features/M1-find-games.md](./features/M1-find-games.md).
 
+**Blocks hide two players from each other everywhere** (BL-027), in both
+directions: player and profile rows, game rosters, rankings, games either
+organises, `search_games`, `search_players`, profiles and game details. Neither
+can ask to join the other's games. Blocking also closes requests and places
+between them in upcoming games. Direct table reads are narrowed by restrictive
+`hidden between blocked players` policies; the screen functions check
+`private.blocked_ids()` themselves. **Any new function that lists players or
+games must do the same** (for example the leaderboard, BL-025).
+
+**Reports are filed only through functions** (BL-028): `report_player`,
+`report_post`, `report_league`, `report_club`. The server copies an evidence
+snapshot of the reported item into `report.evidence`, enforces 5 reports an
+hour and 20 a day, and allows one open report per reporter per item.
+
 **Accounts must pass the 18+ age gate before they can use the app** (BL-007).
 `player_private` records the date of birth, the 18+ declaration and the accepted
 terms and privacy versions, each with a server timestamp. Until `registered_at`
@@ -644,7 +668,7 @@ It is text because NT and ACT postcodes start with 0.
 supabase start                  # bring up the local stack (needs Docker running)
 supabase db reset --local       # drop and rebuild from migrations + seeds/
 supabase db advisors --local    # security and performance lint
-./supabase/tests/rls_test.sh    # 225 access-control and integrity checks
+./supabase/tests/rls_test.sh    # 264 access-control and integrity checks
 
 supabase migration new <name>   # start a new change
 supabase db push                # apply pending migrations to the linked project

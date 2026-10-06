@@ -84,6 +84,7 @@ may need to sign out and back in.
 | `ranking` | Any signed-in player (leaderboards) |
 | `notification` | Yours only |
 | `report` | Only the person who filed it, plus admins |
+| `blocks` | Only the blocker, plus admins. The blocked player cannot tell |
 | `admin_post` | Published announcements only; admins also see drafts |
 
 Admins can read everything in every table.
@@ -112,7 +113,8 @@ Admins can read everything in every table.
 | `dispute` | Participants, `status` forced to `open` | Admin | Admin |
 | `ranking` | Nobody | Admin | Nobody |
 | `notification` | Admin | Own row, and only `is_read` | Own row |
-| `report` | Yourself, `status` forced to `open` | Admin | Admin |
+| `report` | Nobody directly. Only `report_player` / `report_post` / `report_league` / `report_club`, which capture the evidence | Admin | Admin |
+| `blocks` | Nobody directly (`block_player`) | Nobody | Nobody directly (`unblock_player`) |
 | `admin_post` | Admin, as themselves | Admin | Admin |
 
 ## The age gate (BL-007)
@@ -234,7 +236,7 @@ the caller's own token and needs no extra privilege.
 
 ## Verifying it
 
-`supabase/tests/rls_test.sh` runs 225 checks against the local stack. It creates
+`supabase/tests/rls_test.sh` runs 264 checks against the local stack. It creates
 three real, already-confirmed players through the Auth admin API (email
 confirmation is on, so a plain sign-up returns no session), signs them in, and drives PostgREST exactly as the
 browser would, so it tests the policies as deployed rather than the SQL as
@@ -246,7 +248,7 @@ supabase db reset --local
 ./supabase/tests/rls_test.sh
 ```
 
-All 225 pass with every migration up to BL-015 and the BL-007 time zone fix. It covers: the sign-up trigger, the
+All 264 pass with every migration up to BL-028. It covers: the sign-up trigger, the
 discoverability rule, cross-user writes, the escalation paths above, anonymous
 access, game post ownership, the private schema not being exposed, club
 admins, members, join requests and deactivation, the exactly-one-organiser constraint, and organiser embedding.

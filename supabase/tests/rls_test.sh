@@ -890,6 +890,105 @@ BODY="{\"p_post_id\":\"$G4\"}"
 check "carol withdraws her place" "EMPTY" "$(rpc "$TC" withdraw_request "$BODY")"
 
 echo
+echo "== 22. blocking (BL-027) =="
+sub_of() { echo "$1" | python3 -c 'import sys,json,base64;t=sys.stdin.read().split(".")[1];print(json.loads(base64.urlsafe_b64decode(t+"=="))["sub"])'; }
+ADULT='"date_of_birth":"1990-01-01","age_declared":true,"terms_version":"2026-10","privacy_version":"2026-10","state":"VIC"'
+TP=$(signup_meta "pat-$RANDOM@example.com" "{\"first_name\":\"Pat\",$ADULT}");   IDP=$(sub_of "$TP")
+TQ=$(signup_meta "quinn-$RANDOM@example.com" "{\"first_name\":\"Quinn\",$ADULT}"); IDQ=$(sub_of "$TQ")
+BODY="{\"organiser_id\":\"$IDQ\",\"format\":\"singles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 27)\"}"
+GQ=$(as "$TQ" POST "game_post" "$BODY" | field post_id)
+BODY="{\"organiser_id\":\"$IDP\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 28)\"}"
+GP=$(as "$TP" POST "game_post" "$BODY" | field post_id)
+BODY="{\"p_post_id\":\"$GQ\"}";  rpc "$TP" request_to_join "$BODY" > /dev/null
+BODY="{\"p_post_id\":\"$GP\"}";  rpc "$TQ" request_to_join "$BODY" > /dev/null
+BODY="{\"p_post_id\":\"$GP\",\"p_player_id\":\"$IDQ\"}"; rpc "$TP" accept_request "$BODY" > /dev/null
+check "before blocking, they can see each other" 1 "$(count "$(as "$TP" GET "player?player_id=eq.$IDQ&select=player_id")")"
+
+BODY="{\"p_player_id\":\"$IDQ\"}"
+check "pat blocks quinn" "EMPTY" "$(rpc "$TP" block_player "$BODY")"
+check "blocking twice is harmless" "EMPTY" "$(rpc "$TP" block_player "$BODY")"
+BODY="{\"p_player_id\":\"$IDP\"}"
+check "nobody can block themselves" "23514" "$(rpc "$TP" block_player "$BODY")"
+BODY="{\"blocker_id\":\"$IDQ\",\"blocked_id\":\"$IDP\"}"
+check "blocks cannot be written directly" "ERR:42501" "$(count "$(as "$TQ" POST "blocks" "$BODY")")"
+
+check "pat no longer sees quinn" 0 "$(count "$(as "$TP" GET "player?player_id=eq.$IDQ&select=player_id")")"
+check "and quinn no longer sees pat" 0 "$(count "$(as "$TQ" GET "player?player_id=eq.$IDP&select=player_id")")"
+check "nor each other's profiles" 0 "$(count "$(as "$TQ" GET "player_profile?player_id=eq.$IDP&select=player_id")")"
+check "nor each other's games" 0 "$(count "$(as "$TQ" GET "game_post?post_id=eq.$GP&select=post_id")")"
+check "other players still see both" 2 \
+  "$(count "$(as "$TA" GET "player?player_id=in.($IDP,$IDQ)&select=player_id")")"
+check "pat's request to quinn's game was withdrawn" "withdrawn" \
+  "$(as "$TP" GET "game_participant?post_id=eq.$GQ&player_id=eq.$IDP&select=status" | field status)"
+check "quinn's place in pat's game was closed" "rejected" \
+  "$(as "$TQ" GET "game_participant?post_id=eq.$GP&player_id=eq.$IDQ&select=status" | field status)"
+
+has_id() { echo "$1" | python3 -c 'import sys,json;print("yes" if sys.argv[1] in [g["id"] for g in json.load(sys.stdin)] else "no")' "$2"; }
+check "search_games hides quinn's games from pat" "no" "$(has_id "$(as "$TP" POST "rpc/search_games" '{}')" "$GQ")"
+check "search_players hides pat from quinn" "no" "$(has_id "$(as "$TQ" POST "rpc/search_players" '{"p_limit":50}')" "$IDP")"
+BODY="{\"p_player_id\":\"$IDQ\"}"
+check "pat sees quinn's profile as private" "null" "$(as "$TP" POST "rpc/get_player_profile" "$BODY")"
+BODY="{\"p_player_id\":\"$IDP\"}"
+check "and so does quinn" "null" "$(as "$TQ" POST "rpc/get_player_profile" "$BODY")"
+BODY="{\"p_post_id\":\"$GQ\"}"
+check "game details are hidden too" "null" "$(as "$TP" POST "rpc/get_game_details" "$BODY")"
+BODY="{\"organiser_id\":\"$IDP\",\"format\":\"singles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 29)\"}"
+GP2=$(as "$TP" POST "game_post" "$BODY" | field post_id)
+BODY="{\"p_post_id\":\"$GP2\"}"
+check "quinn cannot ask to join pat's new game" "42501" "$(rpc "$TQ" request_to_join "$BODY")"
+BODY="{\"post_id\":\"$GP2\",\"player_id\":\"$IDQ\"}"
+check "not even with a direct insert" "ERR:42501" "$(count "$(as "$TQ" POST "game_participant" "$BODY")")"
+
+check "pat's blocked list shows quinn" "yes" \
+  "$(has_id "$(as "$TP" POST "rpc/get_blocked_players" '{}')" "$IDQ")"
+check "quinn cannot see that pat blocked them" 0 "$(count "$(as "$TQ" GET "blocks?select=blocker_id")")"
+BODY="{\"p_player_id\":\"$IDQ\",\"p_category\":\"harassment\",\"p_reason\":\"Kept messaging after I said no\"}"
+check "a blocked player can still be reported" "OK" "$(as "$TP" POST "rpc/report_player" "$BODY" | python3 -c 'import sys,json;d=json.load(sys.stdin);print("OK" if isinstance(d,str) else d.get("code"))')"
+
+BODY="{\"p_player_id\":\"$IDQ\"}"
+check "pat unblocks quinn" "EMPTY" "$(rpc "$TP" unblock_player "$BODY")"
+check "they can see each other again" 1 "$(count "$(as "$TP" GET "player?player_id=eq.$IDQ&select=player_id")")"
+
+echo
+echo "== 23. reporting (BL-028) =="
+report() { # report <token> <function> <json body>; prints OK for a new report id, else the error code
+  as "$1" POST "rpc/$2" "$3" | python3 -c 'import sys,json;d=json.load(sys.stdin);print("OK" if isinstance(d,str) else d.get("code"))'; }
+BODY="{\"p_player_id\":\"$IDA\",\"p_category\":\"harassment\",\"p_reason\":\"Rude at the last game\"}"
+RID=$(as "$TC" POST "rpc/report_player" "$BODY" | python3 -c 'import sys,json;print(json.load(sys.stdin))')
+check "a player reports another, and gets the report id" "yes" "$([[ ${#RID} -eq 36 ]] && echo yes || echo "no ($RID)")"
+check "the server captured evidence of the profile" "$UNA" \
+  "$(as "$TC" GET "report?report_id=eq.$RID&select=evidence" | python3 -c 'import sys,json;print(json.load(sys.stdin)[0]["evidence"]["username"])')"
+check "the same item cannot be reported twice while open" "23505" "$(report "$TC" report_player "$BODY")"
+BODY="{\"p_player_id\":\"$IDJ\",\"p_category\":\"other\"}"
+check "'other' needs details" "23514" "$(report "$TC" report_player "$BODY")"
+BODY="{\"p_player_id\":\"$IDJ\",\"p_category\":\"rude\"}"
+check "unknown categories are rejected" "23514" "$(report "$TC" report_player "$BODY")"
+BODY="{\"p_player_id\":\"$IDC\",\"p_category\":\"spam\"}"
+check "nobody can report themselves" "23514" "$(report "$TC" report_player "$BODY")"
+
+BODY="{\"p_post_id\":\"$G5\",\"p_category\":\"spam\"}"
+check "a game post can be reported" "OK" "$(report "$TC" report_post "$BODY")"
+check "with the post's title in the evidence" "Friday Night Doubles" \
+  "$(as "$TC" GET "report?target_id=eq.$G5&select=evidence" | python3 -c 'import sys,json;print(json.load(sys.stdin)[0]["evidence"]["title"])')"
+check "but not by its organiser" "23514" "$(report "$TA" report_post "$BODY")"
+BODY="{\"p_club_id\":\"$CLUB\",\"p_category\":\"fake_account\",\"p_reason\":\"Pretends to be an official club\"}"
+check "a club can be reported" "OK" "$(report "$TC" report_club "$BODY")"
+BODY="{\"p_league_id\":\"00000000-0000-0000-0000-000000000000\",\"p_category\":\"spam\"}"
+check "a league that does not exist cannot" "42501" "$(report "$TC" report_league "$BODY")"
+BODY="{\"reported_by_player_id\":\"$IDC\",\"target_type\":\"player\",\"target_id\":\"$IDB\",\"reason\":\"x\",\"category\":\"spam\",\"evidence\":{\"username\":\"made up\"}}"
+check "reports cannot be inserted directly (no faked evidence)" "ERR:42501" "$(count "$(as "$TC" POST "report" "$BODY")")"
+
+check "other players cannot read the report" 0 "$(count "$(as "$TB" GET "report?report_id=eq.$RID&select=report_id")")"
+check "admins see it in the queue" 1 "$(count "$(as "$TADM" GET "report?report_id=eq.$RID&status=eq.open&select=report_id")")"
+
+# Carol has filed 3 reports this hour. Two more reach the limit of 5.
+IDK=$(sub_of "$TK"); IDD=$(sub_of "$TD")
+BODY="{\"p_player_id\":\"$IDJ\",\"p_category\":\"spam\"}";  report "$TC" report_player "$BODY" > /dev/null
+BODY="{\"p_player_id\":\"$IDK\",\"p_category\":\"spam\"}";  report "$TC" report_player "$BODY" > /dev/null
+BODY="{\"p_player_id\":\"$IDD\",\"p_category\":\"spam\"}"
+check "a sixth report within the hour is refused" "23514" "$(report "$TC" report_player "$BODY")"
+
+echo
 echo "-------------------------------------"
 echo "  $pass passed, $fail failed"
 [[ $fail -eq 0 ]]
