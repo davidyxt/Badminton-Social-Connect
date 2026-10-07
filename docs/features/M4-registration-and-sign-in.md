@@ -99,6 +99,26 @@ The username is chosen by the player and unique (ignoring case). The sign-up for
 
 `player_private` also holds the date of birth and the terms and privacy acceptances from the 18+ age gate (BL-007). An account cannot see or do anything involving other players until it has passed the gate; the screens for it are in [Not done yet](#not-done-yet).
 
+## The signed-in player's own data (Home and Profile)
+
+| Screen | Call | Returns |
+|---|---|---|
+| Home page, top-bar avatar and bell | `supabase.rpc('get_my_home')` | `greetingName` ("John Doe"), `initials` ("JD"), `level`, `ratingCard`, `nextGame` (null = "No game planned"), `unreadNotifications` |
+| Profile page | `supabase.rpc('get_my_profile')` | `name`, `username`, `initials`, `level`, `reliability`, `location` ("Albert Park area · VIC"), `ratingCard`, plus every editable field |
+| Your Profile / Privacy Settings | `supabase.rpc('update_my_profile', { p_username, p_first_name, p_last_name, p_self_rating_band, p_bio, p_suburb, p_state, p_is_discoverable })` | The updated profile. Send only what changed |
+
+`ratingCard` has `rating`, `band`, `grade`, `ratingChangeThisMonth`, `matches`,
+`wins`, `winRate`, `rankState` and `stateRank` (the "#184 VIC Rank"), and
+`status` (Provisional or Established). Rating, grade, monthly change and rank
+stay null until the rating calculation exists (BL-024).
+
+These return the player's **own** real name. Other players only ever see the
+username. Full request and response shapes are in the API spec
+(`docs/badminton-social-connect-api_v1.2.yaml`, tag **Profile**).
+
+Filled in once other branches merge: preferred format (M1), blocked-user count
+(M3), live reliability and the email opt-out (M5).
+
 ## Security settings
 
 Set in `supabase/config.toml` for local; see [Hosted project configuration](#hosted-project-configuration) for the dashboard.
