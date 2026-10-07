@@ -1,6 +1,6 @@
 # Database Schema
 
-Implemented across thirty-four migrations in `supabase/migrations/`:
+Implemented across thirty-five migrations in `supabase/migrations/`:
 
 | Migration | What it adds |
 |---|---|
@@ -34,10 +34,11 @@ Implemented across thirty-four migrations in `supabase/migrations/`:
 | `..._account_deletion.sql` | Deleting an account keeps the player as "Deleted User" with results and rankings; `delete_my_account` (item 5) |
 | `..._bl028_report_details_required.sql` | Every report needs details (item 12) |
 | `..._bl027_block_reasons_and_blocker_profiles.sql` | Blocks carry an optional category and reason; the blocker can open the blocked player's profile (item 13) |
-| `..._bl052_reliability_band.sql` | `reliabilityBand` and every reliability count on the API (item 14) |
+| `..._bl052_reliability_band.sql` | Every reliability count on the API (item 14); its band was dropped again in `venue_search_and_no_reliability_band` |
 | `..._wiring_form_options_and_profile_fields.sql` | `get_game_form_options`, "Badminton game" default title, Maps links on cards, preferred format and email opt-out in `update_my_profile` |
 | `..._revoke_anon_function_access.sql` | Signed-out visitors can call only `is_username_available` |
 | `..._api_descriptions.sql` | Function descriptions used to build the API spec |
+| `..._venue_search_and_no_reliability_band.sql` | `search_venues` for the venue dropdown (trigram indexes on venue and suburb names); `get_game_form_options` no longer lists venues; no reliability band, the screens show a % |
 
 Access rules are documented separately in [rls-policies.md](./rls-policies.md),
 which also lists the open questions this schema left unresolved.
@@ -717,7 +718,7 @@ supabase start                  # bring up the local stack (needs Docker running
 supabase db reset --local       # drop and rebuild from migrations + seeds/
 supabase db advisors --local    # security and performance lint
 ./supabase/tests/rls_test.sh    # 340 access-control and integrity checks
-python3 supabase/tests/api_test.py   # 173 API cases, writes docs/api-test-report.md
+python3 supabase/tests/api_test.py   # 184 API cases, writes docs/api-test-report.md
 
 supabase migration new <name>   # start a new change
 supabase db push                # apply pending migrations to the linked project

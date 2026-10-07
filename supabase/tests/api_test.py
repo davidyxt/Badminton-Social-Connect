@@ -272,12 +272,13 @@ def main():
     check("returns the Profile page fields", has_keys(r.body, [
         "id", "username", "firstName", "lastName", "name", "initials", "level", "bio", "suburb", "state",
         "stateName", "location", "isDiscoverable", "preferredFormat", "emailNotifications", "reliability",
-        "reliabilityBand", "gamesPlayed", "noShows", "lateWithdrawals", "lateCancellations",
+        "gamesPlayed", "noShows", "lateWithdrawals", "lateCancellations",
         "ratingCard", "unreadNotifications", "joinedAt"]), r)
     b = r.body or {}
-    check("bob's late cancellation shows in his figures (89%, Reliable)",
-          (b.get("reliability"), b.get("reliabilityBand"), b.get("lateCancellations")) == (89, "Reliable", 1),
-          r, detail=json.dumps({k: b.get(k) for k in ["reliability", "reliabilityBand", "lateCancellations"]}))
+    check("bob's late cancellation shows in his figures (89% reliable)",
+          (b.get("reliability"), b.get("lateCancellations")) == (89, 1),
+          r, detail=json.dumps({k: b.get(k) for k in ["reliability", "lateCancellations"]}))
+    check("no reliability band is sent (screens show the %)", "reliabilityBand" not in b, r)
     check("the private real name is the owner's to see", b.get("name") == "Bob Smith", r)
 
     endpoint(A, "rpc/update_my_profile")
@@ -331,11 +332,9 @@ def main():
     endpoint(A, "rpc/get_game_form_options")
     r = rpc("get_game_form_options", T["alice"])
     o = r.body or {}
-    check("returns venues, formats, styles, levels, limits and post-as options", has_keys(o, [
-        "venues", "formats", "styles", "abilityLevels", "limits", "defaultTitle", "postAs"]), r)
-    check("lists the seeded venues with a Maps link", len(o.get("venues", [])) >= 140
-          and all(has_keys(v, ["id", "name", "suburb", "state", "mapsUrl"]) for v in o.get("venues", [])),
-          r, detail=f"{len(o.get('venues', []))} venues")
+    check("returns formats, styles, levels, limits and post-as options", has_keys(o, [
+        "formats", "styles", "abilityLevels", "limits", "defaultTitle", "postAs"]), r)
+    check("venues are not sent here (the dropdown uses search_venues)", "venues" not in o, r)
     check("alice can post as herself or as Smash Club (she is its admin)",
           [p.get("name") for p in o.get("postAs", [])] == ["alice", "Smash Club"], r,
           detail=json.dumps(o.get("postAs")))
@@ -343,9 +342,36 @@ def main():
     r = rpc("get_game_form_options", T["grace"])
     check("unregistered players get null", r.body is None, r)
 
+    endpoint(A, "rpc/search_venues")
+    r = rpc("search_venues", T["alice"], p_query="msac")
+    v = r.body if isinstance(r.body, list) else []
+    check("returns dropdown rows: id, name, address, suburb, postcode, state, label, mapsUrl",
+          v and all(has_keys(x, ["id", "name", "address", "suburb", "postcode", "state", "label", "mapsUrl"])
+                    for x in v), r)
+    check("'msac' finds Melbourne Sports and Aquatic Centre first",
+          v and v[0]["name"].startswith("Melbourne Sports and Aquatic Centre"), r)
+    r = rpc("search_venues", T["alice"], p_query="aquatc")
+    check("tolerates a typo ('aquatc')", any("Aquatic" in x["name"] for x in (r.body or [])), r)
+    r = rpc("search_venues", T["alice"], p_query="Blackburn North")
+    check("matches the suburb", any(x["suburb"] == "Blackburn North" for x in (r.body or [])), r)
+    r = rpc("search_venues", T["alice"], p_query="3130")
+    check("matches the postcode", any(x["postcode"] == "3130" for x in (r.body or [])), r)
+    r = rpc("search_venues", T["alice"], p_state="nsw", p_limit=50)
+    check("no query: venues A to Z, filtered by state",
+          r.body and all(x["state"] == "NSW" for x in r.body)
+          and [x["name"].lower() for x in r.body] == sorted(x["name"].lower() for x in r.body), r)
+    r = rpc("search_venues", T["alice"], p_limit=500)
+    check("at most 50 rows", isinstance(r.body, list) and len(r.body) == 50, r)
+    r = rpc("search_venues", T["alice"], p_query="zzzqqq")
+    check("no match is an empty list", r.body == [], r)
+    r = rpc("search_venues", T["grace"], p_query="msac")
+    check("unregistered players get an empty list", r.body == [], r)
+    r = rpc("search_venues", None, p_query="msac")
+    check("signed out is refused (42501)", r.code == "42501", r)
+    venue = rpc("search_venues", T["alice"], p_query="Melbourne Badminton Centre").body[0]
+
     endpoint(A, "table game_post (create, edit)")
     cid, tc, _ = new_player("host")
-    venue = o["venues"][0]
     r = call("POST", "game_post", tc, {"organiser_id": cid, "title": "API test doubles", "format": "doubles",
                                        "style": "competitive", "ability_level": "intermediate",
                                        "venue_id": venue["id"], "proposed_time": future(10, 9),
@@ -403,8 +429,8 @@ def main():
     check("returns the Game Details fields", has_keys(d, [
         "id", "title", "duration", "durationMinutes", "location", "locationDetail", "address", "venueId",
         "mapsUrl", "notes", "abilityLevel", "host", "players", "canManage", "matchId", "myStatus"]), r)
-    check("the host carries rating, matches, reliability and its band",
-          has_keys(d.get("host"), ["name", "rating", "verifiedMatches", "reliability", "reliabilityBand"]), r)
+    check("the host carries rating, matches and reliability",
+          has_keys(d.get("host"), ["name", "rating", "verifiedMatches", "reliability"]), r)
     check("bob sees he has asked to join", d.get("myStatus") not in (None, ""), r, detail=str(d.get("myStatus")))
     r = rpc("get_game_details", T["frank"], p_post_id=G["b001"])
     check("frank gets null for alice's game", r.body is None, r)
@@ -431,9 +457,9 @@ def main():
     r = rpc("get_join_requests", tc, p_post_id=gpost.get("post_id"))
     req = (r.body or [{}])[0] if isinstance(r.body, list) else {}
     check("the organiser sees the request with the requester's details", has_keys(req.get("requester"), [
-        "id", "name", "level", "message", "rating", "verifiedMatches", "reliability", "reliabilityBand",
+        "id", "name", "level", "message", "rating", "verifiedMatches", "reliability",
         "noShows", "lateWithdrawals"]), r)
-    check("a new player's band is 'New player'", req.get("requester", {}).get("reliabilityBand") == "New player", r)
+    check("a new player is 100% reliable", req.get("requester", {}).get("reliability") == 100, r)
     r = rpc("get_join_requests", T["bob"], p_post_id=gpost.get("post_id"))
     check("anyone else is refused (42501)", r.code == "42501", r)
 
@@ -508,8 +534,8 @@ def main():
     endpoint(A, "rpc/search_players")
     r = rpc("search_players", T["alice"], p_limit=50)
     lst = r.body if isinstance(r.body, list) else []
-    check("returns player cards with reliability and its band", lst and all(has_keys(p, [
-        "id", "name", "initials", "rank", "location", "reliability", "reliabilityBand", "isBlocked"]) for p in lst), r)
+    check("returns player cards with reliability (%)", lst and all(has_keys(p, [
+        "id", "name", "initials", "rank", "location", "reliability", "isBlocked"]) for p in lst), r)
     names = {p["name"] for p in lst}
     check("frank is found, badged as blocked",
           any(p["name"] == "frank" and p["isBlocked"] for p in lst), r)
@@ -523,7 +549,7 @@ def main():
     p = r.body or {}
     check("returns the Player Profile fields", has_keys(p, [
         "id", "name", "level", "status", "rating", "wins", "losses", "matches", "recentForm",
-        "preferredFormat", "area", "league", "reliability", "reliabilityBand", "gamesPlayed", "noShows",
+        "preferredFormat", "area", "league", "reliability", "gamesPlayed", "noShows",
         "lateWithdrawals", "lateCancellations", "isBlocked"]), r)
     r = rpc("get_player_profile", T["alice"], p_player_id=U["frank"])
     check("the blocker can open the blocked player's profile, badged",
@@ -536,9 +562,9 @@ def main():
     check("but not to anyone else", r.body is None, r)
     r = rpc("get_player_profile", T["alice"], p_player_id=U["henry"])
     check("a deleted account has no profile", r.body is None, r)
-    r = rpc("get_player_profile", T["alice"], p_player_id=U["dan"])
-    check("dan's no-show shows in his figures (80%, Reliable)",
-          True if r.body is None else (r.body["reliability"], r.body["reliabilityBand"]) == (80, "Reliable"), r)
+    r = rpc("get_player_profile", T["bob"], p_player_id=U["dan"])
+    check("dan's no-show shows in his figures (80%, 1 no-show)",
+          (r.body or {}).get("reliability") == 80 and (r.body or {}).get("noShows") == 1, r)
 
     endpoint(A, "rpc/get_player_history")
     r = rpc("get_player_history", T["bob"], p_player_id=U["alice"], p_limit=20)

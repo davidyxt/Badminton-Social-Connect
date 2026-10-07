@@ -107,7 +107,7 @@ Changes from the sample data:
 
 ### Find Games, Players tab ✅
 
-Call `rpc('search_players', { p_query, p_level })`. It returns `id`, `name`, `initials`, `rank`, `location`, `reliability`, `reliabilityBand` and `isBlocked`.
+Call `rpc('search_players', { p_query, p_level })`. It returns `id`, `name`, `initials`, `rank`, `location`, `reliability` (a %) and `isBlocked`.
 
 - Show a **Blocked** badge when `isBlocked` is true.
 - **Request to Play** has no backend; see [screens with no backend](#screens-with-no-backend-yet).
@@ -117,7 +117,7 @@ Call `rpc('search_players', { p_query, p_level })`. It returns `id`, `name`, `in
 Call `rpc('get_game_details', { p_post_id })`. Keep reading by id rather than relying on `location.state`. The result has the same keys as `fallbackGame`, plus:
 
 - **Venue:** `mapsUrl` (link "Open in Maps" to it), `address`, `notes`.
-- **Host:** `reliabilityBand`, `isBlocked` and `isDeleted`.
+- **Host:** `reliability` (%), `isBlocked` and `isDeleted`.
 - **Players:** each has `isBlocked` and `isDeleted`.
 - **The caller:** `myStatus` (pending, accepted, declined, withdrawn or null) and `canManage`.
 - **Match:** `matchId`.
@@ -139,11 +139,18 @@ Cancelling and deleting are refused within 4 hours of the start, with a message 
 
 Fill the form from `rpc('get_game_form_options')`:
 
-- **`venues`:** id, name, suburb, mapsUrl.
 - **Choices:** `formats`, `styles` and `abilityLevels`, each as value + label.
 - **`limits`:** the allowed ranges.
 - **`defaultTitle`:** "Badminton game".
 - **`postAs`:** the player, plus any club they're an admin of.
+
+For the **venue dropdown**, search as the player types: `rpc('search_venues', { p_query, p_state, p_limit })`.
+
+- It matches venue name, suburb, address or postcode, and tolerates typos ("msac", "aquatc", "3130").
+- Best matches come first, up to 50 (default 20).
+- With no query it lists venues A to Z, which `p_state` can narrow, e.g. `'VIC'`.
+- Each row has `id`, `name`, `address`, `suburb`, `postcode`, `state`, `mapsUrl` and `label`. `label` is ready to show, e.g. "Melbourne Badminton Centre — Blackburn North VIC".
+- Debounce the calls (about 250 ms), and keep an "Other venue" option at the end of the list.
 
 Save with `from('game_post').insert({...}).select()`:
 
@@ -154,7 +161,7 @@ Save with `from('game_post').insert({...}).select()`:
 | **title** (new field) | `title` (optional; cards show "Badminton game" without it) |
 | format, style, abilityLevel, notes | `format`, `style`, `ability_level`, `notes` |
 | durationMinutes | `duration_minutes` (15–240) |
-| venue | `venue_id` (the suburb is filled in from the venue) |
+| venue | `venue_id` = the chosen `search_venues` row's `id` (the suburb is filled in from the venue) |
 | "Other" venue | `suburb` (required when there's no venue) |
 | date + startTime | `proposed_time`, with the Melbourne offset: `2026-10-10T18:00:00+11:00` |
 | players | `player_limit` (2–64) |
@@ -167,7 +174,7 @@ Call `rpc('get_join_requests', { p_post_id })`. Each item has `status`, `game` (
 
 - `name`, `level`, `preferredFormat`
 - `rating`, `verifiedMatches`
-- `reliability`, `reliabilityBand`, `noShows`, `lateWithdrawals`
+- `reliability` (%), `noShows`, `lateWithdrawals`
 - `message`
 
 That's the same shape as `fallbackRequest`, plus the reliability details.
@@ -179,7 +186,6 @@ To respond, call `rpc('accept_request' | 'decline_request', { p_post_id, p_playe
 Call `rpc('get_player_profile', { p_player_id })`. It has the same keys as `fallbackPlayer`, plus:
 
 - `isBlocked`
-- `reliabilityBand`
 - `gamesPlayed`, `noShows`, `lateWithdrawals`, `lateCancellations`
 
 `null` means the profile is private or not available; show that rather than an error.
@@ -199,7 +205,7 @@ Call `rpc('get_my_profile')`.
 | Sample data | API field |
 |---|---|
 | `name`, `initials`, `level` | `name`, `initials`, `level` |
-| `reliability` | `reliability` (also send `reliabilityBand`) |
+| `reliability` | `reliability` (a %, shown as "94% reliable") |
 | `location` | `location` |
 | `rating`, `winRate`, `vicRank`, `verifiedMatches` | `ratingCard.rating`, `.winRate`, `.stateRank`, `.matches` |
 
@@ -209,7 +215,7 @@ Menu items:
 |---|---|
 | Your Profile, Playing Preferences | `rpc('update_my_profile', {...})`: username, first and last name, level, bio, suburb, state, preferred format |
 | Match History | `rpc('get_player_history', { p_player_id: myId })` |
-| Reliability | `get_my_profile`: `reliability`, `reliabilityBand`, `gamesPlayed`, `noShows`, `lateWithdrawals`, `lateCancellations` |
+| Reliability | `get_my_profile`: `reliability` (%), `gamesPlayed`, `noShows`, `lateWithdrawals`, `lateCancellations` |
 | Privacy Settings | `update_my_profile({ p_is_discoverable })` |
 | Notifications | `update_my_profile({ p_email_notifications })`: email opt-out |
 | Blocked Users | `rpc('get_blocked_players')` lists them; `rpc('unblock_player', { p_player_id })` |
@@ -263,20 +269,20 @@ From the team's decisions in items-to-confirm:
 2. **Post a Game (item 2):**
    - add a **title** field;
    - use "Social", not "Friendly";
-   - send `venue_id` from `get_game_form_options`;
+   - make the venue a searchable dropdown backed by `search_venues`, and send its `venue_id`;
    - "Other" needs a suburb;
    - add "post as me / as a club" (`postAs`).
-3. **Clubs (item 4, Nick's request):**
+3. **Groups (item 4, Nick's request):**
    - players **ask** to join, and a club admin approves;
    - there's no "add member" button for admins.
 
    Screens to build:
-   - create a club;
-   - club page with members, and pending requests for admins;
+   - create a group;
+   - group page with members, and pending requests for admins;
    - ask to join, leave;
    - promote a member to admin;
-   - post a game as the club;
-   - on the Profile page, "my clubs" with leave.
+   - post a game as the group;
+   - on the Profile page, "my groups" with leave.
 
    All of it is table calls on `club` and `club_representative`:
 
@@ -299,11 +305,10 @@ From the team's decisions in items-to-confirm:
    - The blocker can still open the blocked player's profile, so show the badge and an **Unblock** button there.
    - Add a **Blocked Users** page from `get_blocked_players` (shows category and reason).
    - Rankings will stay visible both ways, without a picture or click-through, when the leaderboard is built.
-7. **Reliability (item 14):** show the band ("Very reliable", "Reliable", "Sometimes unreliable", "Unreliable", "New player") next to every score. The counts behind it are on the profile.
+7. **Reliability (item 14):** keep the screens as they are: reliability is a percentage ("96% reliable"). There is no band. The counts behind the score (`gamesPlayed`, `noShows`, `lateWithdrawals`, `lateCancellations`) are on the profile.
 8. **Email opt-out (item 15):** add a toggle in Notifications settings: `update_my_profile({ p_email_notifications })`.
 9. **Admin (item 18, report filter):**
    - the admin console needs a report queue filtered by category;
-   - and a list of venues the geocoder could not place (`venue_geocode_queue` with `status = failed`), so an admin can set the pin by hand.
 
 Report and block categories:
 
@@ -317,7 +322,7 @@ Report and block categories:
 | `underage` | Appears to be under 18 |
 | `other` | Something else |
 
-## Backend ready, no screen yet
+## Backend ready, no screen implementation yet
 
 | Feature | Backend |
 |---|---|

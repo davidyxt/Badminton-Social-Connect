@@ -344,6 +344,8 @@ RPCS = OrderedDict([
     ("get_my_profile", ("Profile", "MyProfile", [("alice", {}), ("bob", {}), ("ivy", {})])),
     ("update_my_profile", ("Profile", "MyProfile", [])),
     ("get_game_form_options", ("Find games", "GameFormOptions", [("alice", {}), ("bob", {})])),
+    ("search_venues", ("Find games", "VenueOption", [("alice", {"p_query": "badminton"}),
+                                                     ("bob", {"p_query": "msac"})])),
     ("search_games", ("Find games", "GameCard", [("alice", {"p_limit": 50}), ("bob", {"p_limit": 50})])),
     ("get_game_details", ("Find games", "GameDetails", [
         ("bob", {"p_post_id": G("b001")}), ("alice", {"p_post_id": G("b004")}),

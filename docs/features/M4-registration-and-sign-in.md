@@ -240,5 +240,5 @@ One team member does this in the [Supabase dashboard](https://supabase.com/dashb
   - Their upcoming games are cancelled, and the players in them are told.
   - The same happens when an admin deletes the user in the Supabase dashboard.
 - **Profile settings** also set preferred format and the email opt-out.
-- **`get_my_profile`** returns every reliability figure with its band.
+- **`get_my_profile`** returns reliability (%) and every count behind it.
 - Screen-by-screen wiring: [frontend-wiring-guide.md](../frontend-wiring-guide.md).

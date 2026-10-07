@@ -169,16 +169,6 @@ addresses.
 ## Team decisions applied (2026-10-08)
 
 - **No-shows weigh more than late changes** (item 14). The formula already does this: a no-show counts 1, a late withdrawal or cancellation counts ½.
-- **Every figure and an overall band on the API.** Wherever a score appears, `reliabilityBand` appears with it. Profiles also carry `gamesPlayed`, `noShows`, `lateWithdrawals` and `lateCancellations`.
-
-  | Band | Score |
-  |---|---|
-  | New player | No games yet, nothing against them |
-  | Very reliable | 90 and over |
-  | Reliable | 75–89 |
-  | Sometimes unreliable | 50–74 |
-  | Unreliable | Under 50 |
-
-  Change the bands in `private.reliability_band`.
+- **Every figure on the API, no band.** The screens show reliability as a percentage ("96% reliable"), so the API sends `reliability` (0–100) and, on profiles, the counts behind it: `gamesPlayed`, `noShows`, `lateWithdrawals` and `lateCancellations`. A band ("Very reliable") was added and then dropped the same day (`20261008100900`).
 - **Email opt-out:** `update_my_profile({ p_email_notifications })`.
 - Screen-by-screen wiring: [frontend-wiring-guide.md](../frontend-wiring-guide.md).

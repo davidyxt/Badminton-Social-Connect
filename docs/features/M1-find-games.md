@@ -31,7 +31,7 @@ An account must have passed the 18+ age gate (see
 | Play Request (host) | `PlayRequestPage.jsx` | `supabase.rpc('get_join_requests', { p_post_id })`, then `accept_request` / `decline_request` |
 | Player Profile | `PlayerProfilePage.jsx` | `supabase.rpc('get_player_profile', { p_player_id })` |
 | Post a Game | `PostGamePage.jsx` | `supabase.from('game_post').insert({...})` |
-| Venue dropdown | `PostGamePage.jsx` | `supabase.from('venue').select('venue_id, name, suburb(name)')` |
+| Venue dropdown | `PostGamePage.jsx` | `supabase.rpc('search_venues', { p_query, p_state, p_limit })` as the player types |
 
 All `search_*` filters are optional. `p_level` is `beginner`, `intermediate`
 or `advanced`; games open to any level always match. `p_format` is `singles` or
@@ -142,12 +142,14 @@ cannot be cancelled within 4 hours of the start time…". Useful `code` values:
 - **Venue shown as it is** (item 1): no change.
 - **Untitled games are called "Badminton game"** (item 2), not "Singles game".
 - **`get_game_form_options()`** answers "is there an API for the form's options?". It returns:
-  - venues with their Maps link;
   - formats, styles and ability levels;
   - limits;
   - the default title;
   - who the player can post as (themselves, or a club they admin).
 - **Maps links:** game cards, Game Details and the Home page's next game carry `mapsUrl`.
-- **Reliability band:** the host on Game Details and requesters on the Play Request screen carry `reliabilityBand` next to `reliability`.
+- **Venue search:** `search_venues(p_query, p_state, p_limit)` backs the venue dropdown.
+  - It matches name, suburb, address or postcode, tolerates typos, and returns the best matches first (up to 50).
+  - Trigram indexes on venue and suburb names keep it fast as the list grows.
+  - Each row has a ready-made `label` and the `mapsUrl`.
 - **Deleted organisers** show as "Deleted User" with `isDeleted: true`.
 - Screen-by-screen wiring: [frontend-wiring-guide.md](../frontend-wiring-guide.md).
