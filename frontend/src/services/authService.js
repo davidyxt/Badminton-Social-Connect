@@ -1,10 +1,15 @@
 import { supabase } from "./supabase";
+import { getStorage, saveLastActivity } from "../utils/idleTimeout";
 
 const authCallbackUrl = `${window.location.origin}/auth/callback`;
 const emailConfirmedUrl = `${window.location.origin}/auth/confirmed`;
 const resetPasswordUrl = `${window.location.origin}/reset-password`;
 
 export const signIn = async (email, password, captchaToken) => {
+  // Start the idle clock before the session lands, so an old record from a
+  // previous visit can never sign this new session straight back out.
+  saveLastActivity(getStorage(), Date.now());
+
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,

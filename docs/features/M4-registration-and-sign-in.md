@@ -11,6 +11,7 @@ To run it locally, see [SETUP.md](../SETUP.md).
 - [Code map](#code-map)
 - [Where user data lives](#where-user-data-lives)
 - [Security settings](#security-settings)
+  - [Idle sign-out](#idle-sign-out)
 - [Email templates](#email-templates)
 - [Hosted project configuration](#hosted-project-configuration)
 - [Troubleshooting](#troubleshooting)
@@ -39,6 +40,7 @@ If a player signs up with email and later uses Google with the same address (or 
 - **Log in:** `/login` with email and password, then `/dashboard`.
 - **Log out:** visit `/signout`. It ends the session and returns to the home page (`/`). There's no sign-out button in the UI yet.
 - **Protected pages:** `/dashboard` sends logged-out users to `/login`.
+- **Idle sign-out:** after 7 days with no activity in the app, the player is signed out and sent to `/login?expired=1`. See [Idle sign-out](#idle-sign-out).
 
 ### Reset a forgotten password
 
@@ -73,7 +75,9 @@ All paths are under `frontend/src/` unless noted.
 |---|---|
 | `services/supabase.js` | Creates the Supabase client from the `VITE_SUPABASE_*` env vars (PKCE flow) |
 | `services/authService.js` | All auth calls: sign up, sign in, Google, resend verification, request/verify password reset, update password, sign out |
-| `context/AuthContext.jsx` | Tracks the current session for the whole app. Use `useAuth()` to get `{ session, user, loading }`. |
+| `context/AuthContext.jsx` | Tracks the current session for the whole app. Use `useAuth()` to get `{ session, user, loading }`. Also runs the idle sign-out. |
+| `config/session.js` | Idle sign-out timings: the 7-day timeout and how often activity is saved and checked |
+| `utils/idleTimeout.js` | Idle sign-out rules, kept free of React. Tested by `frontend/tests/idleTimeout.test.mjs`. |
 | `components/auth/ProtectedRoute.jsx` | Redirects to `/login` when there's no session |
 | `components/auth/Captcha.jsx` | Cloudflare Turnstile widget and `useCaptcha()` hook. Renders nothing while CAPTCHA is off. |
 | `utils/passwordPolicy.js` | Password rules and hint text shown on the forms. Keep in sync with `config.toml`. |
@@ -129,10 +133,23 @@ Set in `supabase/config.toml` for local; see [Hosted project configuration](#hos
 | Password policy | At least 8 characters, with a lowercase letter, an uppercase letter and a number. The signup and reset forms check this too. | `minimum_password_length`, `password_requirements` |
 | Email frequency | At most one verification or reset email per address every 60 seconds | `[auth.email] max_frequency` |
 | Rate limits (per IP) | 30 sign-ins/sign-ups and 30 link verifications per 5 minutes; 150 session refreshes per 5 minutes | `[auth.rate_limit]` |
-| Session expiry | Access tokens last 1 hour and refresh automatically. Logged out after 7 days of inactivity, and after 30 days regardless. | `jwt_expiry`, `[auth.sessions]` |
+| Session expiry | Access tokens last 1 hour and refresh automatically. Logged out after 7 days of inactivity, and after 30 days regardless (server-side, paid plan only). On the free plan the app does the 7-day idle sign-out itself; the 30-day limit is not enforced. | `jwt_expiry`, `[auth.sessions]`, `frontend/src/config/session.js` |
 | CAPTCHA | **Off for now.** When on: Cloudflare Turnstile on email sign-up, log-in, resend verification and password reset (not Google). | `[auth.captcha]` |
 
 When a session ends, the app notices and sends the user to `/login` from any protected page.
+
+### Idle sign-out
+
+The free Supabase plan ignores the `[auth.sessions]` inactivity timeout, so the app signs idle players out itself.
+
+- **What counts as activity:** tapping, clicking, typing or scrolling anywhere in the app, and coming back to the tab. Activity is saved at most once a minute.
+- **Where it's stored:** `localStorage` key `bsc:lastActivity`, so all open tabs share it and it survives closing the browser.
+- **When it's checked:** on opening the app, on coming back to the tab, and once a minute while the app is open.
+- **What happens:** the session is ended and the player lands on `/login?expired=1`, which says "You were signed out after 7 days of inactivity."
+- **Fresh sign-ins restart the clock:** logging in with a password, and landing on `/auth/callback` (Google), `/auth/confirmed` or `/reset-password`. Signing out clears the record.
+- **Limits:** this runs in the browser, so it only protects a device left signed in. A stolen refresh token keeps working until the 30-day server limit, which needs the paid plan. If `localStorage` is blocked (some private windows), idle sign-out is skipped.
+- **Change the timeout:** edit `IDLE_TIMEOUT_MS` in `frontend/src/config/session.js`, and the message in `pages/LoginPage.jsx`.
+- **Test it:** `node --test frontend/tests/idleTimeout.test.mjs`. To try it by hand, sign in, then in the browser console run `localStorage.setItem("bsc:lastActivity", Date.now() - 8 * 864e5)` and switch tabs away and back.
 
 ### Turning CAPTCHA on
 
@@ -174,7 +191,7 @@ One team member does this in the [Supabase dashboard](https://supabase.com/dashb
    - **Reset password:** `recovery.html`
 4. **Authentication → Emails → SMTP Settings:** add a real SMTP provider (for example Resend, or Brevo if you don't own a domain) before real users sign up. The built-in sender only allows a few emails per hour and only delivers to members of your Supabase organization.
 5. **Authentication → Rate Limits:** the defaults are sensible. Review them once custom SMTP is set up.
-6. **Authentication → Sessions:** time-box **720 hours** (30 days), inactivity timeout **168 hours** (7 days). These need a paid Supabase plan; on the free plan, sessions last until the user logs out.
+6. **Authentication → Sessions:** time-box **720 hours** (30 days), inactivity timeout **168 hours** (7 days). These need a paid Supabase plan. On the free plan the app's own [idle sign-out](#idle-sign-out) covers the 7 days of inactivity; the 30-day limit is not enforced.
 
 ### Cloudflare Turnstile (when turning CAPTCHA on)
 
