@@ -118,10 +118,22 @@ check "mail-only postcodes are excluded" 0 \
 check "anon cannot read venues" 0 \
   "$(count "$(curl -s "$API/rest/v1/venue?select=name" -H "apikey: $ANON")")"
 check "players see the seeded venues with their suburb" '["Albert Park","3206"]' \
-  "$(as "$TA" GET "venue?name=eq.Melbourne%20Sports%20and%20Aquatic%20Centre&select=suburb(name,postcode)" | python3 -c 'import sys,json
+  "$(as "$TA" GET "venue?name=like.Melbourne%20Sports%20and%20Aquatic%20Centre*&select=suburb(name,postcode)" | python3 -c 'import sys,json
 d=json.load(sys.stdin)
 s=(d[0].get("suburb") or {}) if isinstance(d,list) and d else {}
 print(json.dumps([s.get("name"), s.get("postcode")], separators=(",",":")))')"
+check "all 142 venues are listed across Australia" 142 \
+  "$(count "$(as "$TA" GET "venue?select=venue_id")")"
+check "every venue has a Google Maps link" 0 \
+  "$(count "$(as "$TA" GET "venue?or=(maps_url.is.null,maps_url.not.like.https://www.google.com/maps/*)&select=venue_id")")"
+check "every venue has a pin" 0 "$(count "$(as "$TA" GET "venue?latitude=is.null&select=venue_id")")"
+check "pins from OpenStreetMap are marked for the credit" 1 \
+  "$(count "$(as "$TA" GET "venue?coordinates_source=eq.openstreetmap&select=venue_id")")"
+check "a venue with a pin links to its coordinates" "yes" \
+  "$(as "$TA" GET "venue?name=like.Melbourne%20Sports%20and%20Aquatic%20Centre*&select=maps_url,latitude,longitude" | python3 -c 'import sys,json
+v=json.load(sys.stdin)[0]; print("yes" if v["maps_url"].endswith("%.6f,%.6f" % (v["latitude"], v["longitude"])) else v["maps_url"])')"
+check "players cannot change a venue's coordinates" 0 \
+  "$(count "$(as "$TA" PATCH "venue?name=like.Melbourne%20Sports*" '{"latitude":-37.0}')")"
 BODY='{"name":"Fake","postcode":"3000","state_code":"VIC"}'
 R=$(as "$TA" POST "suburb" "$BODY")
 check "players cannot add suburbs" "ERR:42501" "$(count "$R")"

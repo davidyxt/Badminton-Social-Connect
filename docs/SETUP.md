@@ -62,7 +62,7 @@ Useful commands (from the repo root):
 
 | Folder | What | Reaches the hosted project? |
 |---|---|---|
-| `supabase/seeds/production/` | Real reference data: states, all Australian suburbs and postcodes, badminton venues | Yes, through the CI deploy job. Files must be safe to run again (upserts) |
+| `supabase/seeds/production/` | Real reference data: states, all Australian suburbs and postcodes, 142 badminton venues with coordinates | Yes, through the CI deploy job. Files must be safe to run again (upserts) |
 | `supabase/seeds/dev/` | Dummy accounts, a club and upcoming games | **Never** |
 
 Dev accounts, all with the password `Passw0rd!`:
@@ -80,8 +80,28 @@ crediting GeoNames wherever the data is shown (for example an About or credits
 page). To refresh them, run `python3 supabase/seeds/scripts/generate_suburbs.py`
 and commit the regenerated `02_suburbs.sql`.
 
-The venue list in `03_venues.sql` is a starting list from public listings and
-must be confirmed with Badminton Victoria before launch.
+Venues come from [BadmintonHub](https://www.badmintonhub.com.au)'s published
+venue pages (name, address and coordinates), collected respecting its
+`robots.txt`. **Use in production needs BadmintonHub's permission** (team item
+8). Pins that are missing or wrong there are looked up with OpenStreetMap's free
+Nominatim geocoder (one request per second, kept only if within 10 km of the
+venue's suburb); those need the credit "© OpenStreetMap contributors"
+(`venue.coordinates_source = 'openstreetmap'`). To refresh them, run `python3 supabase/seeds/scripts/generate_venues.py`
+(about 3 minutes, one page per second) and commit the regenerated
+`03_venues.sql`. Then check every venue's Google Maps link and pin:
+
+```bash
+npx supabase db reset
+python3 supabase/tests/venue_maps_check.py   # about 2.5 minutes; --offline skips Google
+```
+
+The generator's Nominatim look-ups have offline tests (no requests are sent;
+they use fake replies and a fake clock, including a burst of 20 requests that
+must go out one second apart):
+
+```bash
+python3 -m unittest supabase/seeds/scripts/test_generate_venues.py -v
+```
 
 ## 4. Supabase env (`supabase/.env`)
 
