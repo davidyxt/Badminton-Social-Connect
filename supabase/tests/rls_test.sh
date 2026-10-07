@@ -15,7 +15,7 @@ SERVICE=$(echo "$STATUS" | python3 -c 'import sys,json;print(json.load(sys.stdin
 signup() {
   curl -s "$API/auth/v1/admin/users" -H "apikey: $SERVICE" \
     -H "Authorization: Bearer $SERVICE" -H 'Content-Type: application/json' \
-    -d "{\"email\":\"$1\",\"password\":\"$2\",\"email_confirm\":true,\"user_metadata\":{\"display_name\":\"$3\"}}" > /dev/null
+    -d "{\"email\":\"$1\",\"password\":\"$2\",\"email_confirm\":true,\"user_metadata\":{\"display_name\":\"$3_$RANDOM\"}}" > /dev/null
   curl -s "$API/auth/v1/token?grant_type=password" -H "apikey: $ANON" \
     -H 'Content-Type: application/json' -d "{\"email\":\"$1\",\"password\":\"$2\"}"
 }
@@ -85,9 +85,16 @@ echo "== 1b. usernames and private names =="
 # Sign up through the admin API with arbitrary metadata, as the app or Google
 # would send it. Prints the access token, or the error body if sign-up failed.
 signup_meta() { # signup_meta <email> <user_metadata json>
+  # Email sign-ups must send a username. One is added from the email when the
+  # metadata has none; signup_raw sends the metadata exactly as given.
+  local meta; meta=$(python3 -c 'import sys,json,random
+m=json.loads(sys.argv[2])
+if "username" not in m and "display_name" not in m and not m.get("_raw"):
+    m["username"]=(sys.argv[1].split("@")[0].replace("-","_")[:14]+"_"+str(random.randint(100,999)))
+m.pop("_raw",None); print(json.dumps(m))' "$1" "$2")
   curl -s "$API/auth/v1/admin/users" -H "apikey: $SERVICE" \
     -H "Authorization: Bearer $SERVICE" -H 'Content-Type: application/json' \
-    -d "{\"email\":\"$1\",\"password\":\"Passw0rd!x\",\"email_confirm\":true,\"user_metadata\":$2}" > /dev/null
+    -d "{\"email\":\"$1\",\"password\":\"Passw0rd!x\",\"email_confirm\":true,\"user_metadata\":$meta}" > /dev/null
   curl -s "$API/auth/v1/token?grant_type=password" -H "apikey: $ANON" \
     -H 'Content-Type: application/json' -d "{\"email\":\"$1\",\"password\":\"Passw0rd!x\"}" |
     python3 -c 'import sys,json;d=json.load(sys.stdin);print(d.get("access_token") or "NO_SESSION")'
@@ -125,13 +132,12 @@ check "a username with a space fails the sign-up" "NO_SESSION" \
 check "a username shaped like an email fails the sign-up" "NO_SESSION" \
   "$(signup_meta "jane4-$RANDOM@example.com" '{"username":"jane@example"}')"
 
+check "an email sign-up without a username fails (none is made up)" "NO_SESSION" \
+  "$(signup_meta "nouser-$RANDOM@example.com" '{"_raw":true,"first_name":"Kim","last_name":"Lee"}')"
 TK=$(signup_meta "kim-$RANDOM@example.com" '{"first_name":"Kim","last_name":"Lee"}')
-check "no username: one is generated from the first name" "yes" \
-  "$([[ "$(me "$TK" username)" =~ ^kim_[0-9]{4}$ ]] && echo yes || echo "no ($(me "$TK" username))")"
 EMAIL="secret.person.$RANDOM@example.com"
-TS=$(signup_meta "$EMAIL" '{}')
-check "no name at all: player_NNNN, never the email" "yes" \
-  "$([[ "$(me "$TS" username)" =~ ^player_[0-9]{4}$ ]] && echo yes || echo "no ($(me "$TS" username))")"
+check "no name at all: the sign-up fails, the email is never used" "NO_SESSION" \
+  "$(signup_meta "$EMAIL" '{"_raw":true}')"
 TG=$(signup_meta "gee-$RANDOM@example.com" '{"full_name":"Grace Van Der Berg"}')
 IDG=$(echo "$TG" | python3 -c 'import sys,json,base64;t=sys.stdin.read().split(".")[1];print(json.loads(base64.urlsafe_b64decode(t+"=="))["sub"])')
 check "a Google full name is split into first and last" '["Grace","Van Der Berg"]' \
@@ -627,7 +633,11 @@ check "the club admin can decline it" 1 "$(count "$(as "$TA" DELETE "$CREP")")"
 
 BODY="{\"club_id\":\"$CLUB\",\"player_id\":\"$IDC\",\"status\":\"approved\"}"
 R=$(as "$TA" POST "club_representative" "$BODY")
-check "a club admin can add a member directly" 1 "$(count "$R")"
+check "a club admin cannot add a member directly (players must ask)" "ERR:42501" "$(count "$R")"
+BODY="{\"club_id\":\"$CLUB\",\"player_id\":\"$IDC\"}"
+as "$TC" POST "club_representative" "$BODY" > /dev/null
+check "carol asks again and the admin approves" 1 \
+  "$(count "$(as "$TA" PATCH "$CREP" '{"status":"approved"}')")"
 check "approved membership is visible to other players" 1 "$(count "$(as "$TB" GET "$CREP")")"
 check "approval is stamped with the admin, not the member" "$IDA" \
   "$(as "$TA" GET "$CREP&select=updated_by" | field updated_by)"
@@ -635,9 +645,10 @@ check "a member can leave" 1 "$(count "$(as "$TC" DELETE "$CREP")")"
 
 echo
 echo "== 17. clubs are deactivated, not deleted =="
-# Bob is an approved member again, not an admin.
-BODY="{\"club_id\":\"$CLUB\",\"player_id\":\"$IDB\",\"status\":\"approved\"}"
-as "$TA" POST "club_representative" "$BODY" > /dev/null
+# Bob is an approved member again, not an admin: he asks, Alice approves.
+BODY="{\"club_id\":\"$CLUB\",\"player_id\":\"$IDB\"}"
+as "$TB" POST "club_representative" "$BODY" > /dev/null
+as "$TA" PATCH "$BREP" '{"status":"approved"}' > /dev/null
 check "a plain member cannot deactivate the club" 0 \
   "$(count "$(as "$TB" PATCH "club?club_id=eq.$CLUB" '{"is_active":false}')")"
 check "a club with upcoming games cannot be deactivated" "ERR:23514" \
@@ -739,7 +750,7 @@ check "players cannot see the admin warning data" "42501" \
 AEMAIL="admin-$RANDOM@example.com"
 curl -s "$API/auth/v1/admin/users" -H "apikey: $SERVICE" -H "Authorization: Bearer $SERVICE" \
   -H 'Content-Type: application/json' \
-  -d "{\"email\":\"$AEMAIL\",\"password\":\"Passw0rd!x\",\"email_confirm\":true,\"app_metadata\":{\"role\":\"admin\"}}" > /dev/null
+  -d "{\"email\":\"$AEMAIL\",\"password\":\"Passw0rd!x\",\"email_confirm\":true,\"app_metadata\":{\"role\":\"admin\"},\"user_metadata\":{\"username\":\"admin_$RANDOM\"}}" > /dev/null
 TADM=$(curl -s "$API/auth/v1/token?grant_type=password" -H "apikey: $ANON" -H 'Content-Type: application/json' \
   -d "{\"email\":\"$AEMAIL\",\"password\":\"Passw0rd!x\"}" | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
 check "admins still see deleted posts" 1 "$(count "$(as "$TADM" GET "game_post?post_id=eq.$G3")")"
@@ -942,7 +953,8 @@ check "and its details, host badged" "True" \
   "$(as "$TP" POST "rpc/get_game_details" "$BODY" | python3 -c 'import sys,json;d=json.load(sys.stdin);print(d["host"]["isBlocked"] if d else "null")')"
 check "but cannot join it" "42501" "$(rpc "$TP" request_to_join "$BODY")"
 BODY="{\"p_player_id\":\"$IDQ\"}"
-check "profiles stay closed for the blocker too" "null" "$(as "$TP" POST "rpc/get_player_profile" "$BODY")"
+check "the blocker can still open the profile, badged" "True" \
+  "$(as "$TP" POST "rpc/get_player_profile" "$BODY" | python3 -c 'import sys,json;d=json.load(sys.stdin);print(d["isBlocked"] if d else "null")')"
 
 echo "-- blocked side: quinn loses sight of pat"
 check "quinn cannot see pat's name" 0 "$(count "$(as "$TQ" GET "player?player_id=eq.$IDP&select=player_id")")"
@@ -1009,21 +1021,23 @@ check "a player reports another, and gets the report id" "yes" "$([[ ${#RID} -eq
 check "the server captured evidence of the profile" "$UNA" \
   "$(as "$TC" GET "report?report_id=eq.$RID&select=evidence" | python3 -c 'import sys,json;print(json.load(sys.stdin)[0]["evidence"]["username"])')"
 check "the same item cannot be reported twice while open" "23505" "$(report "$TC" report_player "$BODY")"
-BODY="{\"p_player_id\":\"$IDJ\",\"p_category\":\"other\"}"
-check "'other' needs details" "23514" "$(report "$TC" report_player "$BODY")"
-BODY="{\"p_player_id\":\"$IDJ\",\"p_category\":\"rude\"}"
+BODY="{\"p_player_id\":\"$IDJ\",\"p_category\":\"spam\"}"
+check "every report needs details, not only 'other'" "23514" "$(report "$TC" report_player "$BODY")"
+BODY="{\"p_player_id\":\"$IDJ\",\"p_category\":\"other\",\"p_reason\":\"   \"}"
+check "blank details do not count" "23514" "$(report "$TC" report_player "$BODY")"
+BODY="{\"p_player_id\":\"$IDJ\",\"p_category\":\"rude\",\"p_reason\":\"x\"}"
 check "unknown categories are rejected" "23514" "$(report "$TC" report_player "$BODY")"
-BODY="{\"p_player_id\":\"$IDC\",\"p_category\":\"spam\"}"
+BODY="{\"p_player_id\":\"$IDC\",\"p_category\":\"spam\",\"p_reason\":\"x\"}"
 check "nobody can report themselves" "23514" "$(report "$TC" report_player "$BODY")"
 
-BODY="{\"p_post_id\":\"$G5\",\"p_category\":\"spam\"}"
+BODY="{\"p_post_id\":\"$G5\",\"p_category\":\"spam\",\"p_reason\":\"Advertising, not a game\"}"
 check "a game post can be reported" "OK" "$(report "$TC" report_post "$BODY")"
 check "with the post's title in the evidence" "Friday Night Doubles" \
   "$(as "$TC" GET "report?target_id=eq.$G5&select=evidence" | python3 -c 'import sys,json;print(json.load(sys.stdin)[0]["evidence"]["title"])')"
 check "but not by its organiser" "23514" "$(report "$TA" report_post "$BODY")"
 BODY="{\"p_club_id\":\"$CLUB\",\"p_category\":\"fake_account\",\"p_reason\":\"Pretends to be an official club\"}"
 check "a club can be reported" "OK" "$(report "$TC" report_club "$BODY")"
-BODY="{\"p_league_id\":\"00000000-0000-0000-0000-000000000000\",\"p_category\":\"spam\"}"
+BODY="{\"p_league_id\":\"00000000-0000-0000-0000-000000000000\",\"p_category\":\"spam\",\"p_reason\":\"x\"}"
 check "a league that does not exist cannot" "42501" "$(report "$TC" report_league "$BODY")"
 BODY="{\"reported_by_player_id\":\"$IDC\",\"target_type\":\"player\",\"target_id\":\"$IDB\",\"reason\":\"x\",\"category\":\"spam\",\"evidence\":{\"username\":\"made up\"}}"
 check "reports cannot be inserted directly (no faked evidence)" "ERR:42501" "$(count "$(as "$TC" POST "report" "$BODY")")"
@@ -1033,9 +1047,9 @@ check "admins see it in the queue" 1 "$(count "$(as "$TADM" GET "report?report_i
 
 # Carol has filed 3 reports this hour. Two more reach the limit of 5.
 IDK=$(sub_of "$TK"); IDD=$(sub_of "$TD")
-BODY="{\"p_player_id\":\"$IDJ\",\"p_category\":\"spam\"}";  report "$TC" report_player "$BODY" > /dev/null
-BODY="{\"p_player_id\":\"$IDK\",\"p_category\":\"spam\"}";  report "$TC" report_player "$BODY" > /dev/null
-BODY="{\"p_player_id\":\"$IDD\",\"p_category\":\"spam\"}"
+BODY="{\"p_player_id\":\"$IDJ\",\"p_category\":\"spam\",\"p_reason\":\"Spam messages\"}";  report "$TC" report_player "$BODY" > /dev/null
+BODY="{\"p_player_id\":\"$IDK\",\"p_category\":\"spam\",\"p_reason\":\"Spam messages\"}";  report "$TC" report_player "$BODY" > /dev/null
+BODY="{\"p_player_id\":\"$IDD\",\"p_category\":\"spam\",\"p_reason\":\"Spam messages\"}"
 check "a sixth report within the hour is refused" "23514" "$(report "$TC" report_player "$BODY")"
 
 echo

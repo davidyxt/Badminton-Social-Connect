@@ -56,20 +56,16 @@ export async function isUsernameAvailable(username) {
   return rpc("is_username_available", { p_username: username });
 }
 
-export async function changeUsername(userId, username) {
-  return unwrap(
-    supabase.from("player").update({ username }).eq("player_id", userId)
-  );
-}
-
 // Completes the 18+ age gate after sign-up (Google sign-in, or anyone whose
-// sign-up did not include the fields).
-export async function registerPlayer({ dateOfBirth, stateCode }) {
+// sign-up did not include the fields). Google sign-ups choose their username
+// here; for everyone else it is optional.
+export async function registerPlayer({ dateOfBirth, stateCode, username }) {
   return rpc("register_player", {
     p_date_of_birth: dateOfBirth,
     p_age_declared: true,
     p_terms_version: TERMS_VERSION,
     p_privacy_version: PRIVACY_VERSION,
     p_state: stateCode,
+    p_username: username || null,
   });
 }

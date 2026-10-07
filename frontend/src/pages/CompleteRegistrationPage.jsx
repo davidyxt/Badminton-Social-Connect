@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
-  changeUsername,
   isUsernameAvailable,
   listStates,
   registerPlayer,
@@ -58,18 +57,18 @@ function CompleteRegistrationPage() {
 
     try {
       const username = formData.username.trim();
-      if (username && username !== player?.username) {
-        if (!(await isUsernameAvailable(username))) {
-          setError("That username is taken or not allowed. Use 3-20 letters, numbers, _ or .");
-          setLoading(false);
-          return;
-        }
-        await changeUsername(player.id, username);
+      if (username !== player?.username && !(await isUsernameAvailable(username))) {
+        setError("That username is taken or not allowed. Use 3-20 letters, numbers, _ or .");
+        setLoading(false);
+        return;
       }
 
+      // The username is saved together with the age gate. Google sign-ups
+      // have none until this point.
       await registerPlayer({
         dateOfBirth: formData.dateOfBirth,
         stateCode: formData.stateCode,
+        username,
       });
 
       await refreshPlayer();
