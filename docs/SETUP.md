@@ -4,6 +4,8 @@ How to get Badminton Social Connect running on your machine.
 
 For how registration and sign-in work (flows, security settings, email templates, hosted dashboard configuration), see [M4: Registration and sign-in](features/M4-registration-and-sign-in.md).
 
+To deploy to the hosted Supabase project, see [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ## 1. Install
 
 - **Node.js 20+**
@@ -93,6 +95,38 @@ venue's suburb); those need the credit "© OpenStreetMap contributors"
 ```bash
 npx supabase db reset
 python3 supabase/tests/venue_maps_check.py   # about 2.5 minutes; --offline skips Google
+```
+
+### New venues get their pin automatically
+
+A venue saved without coordinates is queued (`venue_geocode_queue`). Every
+minute, `pg_cron` calls the `geocode-venues` Edge Function, which looks pins up
+with Nominatim at one request per second, writes them back
+(`coordinates_source = 'openstreetmap'`) and releases its lease. A venue it
+can't place after 3 tries is marked `failed` for an admin. Only one worker ever
+runs at a time.
+
+Off until configured, like email. To turn it on locally:
+
+```bash
+# supabase/functions/.env needs GEOCODE_WEBHOOK_SECRET (see .env.example)
+npx supabase functions serve --env-file supabase/functions/.env
+```
+
+and in Studio's SQL editor, with the same secret:
+
+```sql
+select vault.create_secret('http://host.docker.internal:54321/functions/v1/geocode-venues', 'geocode_function_url');
+select vault.create_secret('<GEOCODE_WEBHOOK_SECRET>', 'geocode_function_secret');
+```
+
+Hosted: set the secret with `npx supabase secrets set`, deploy with
+`npx supabase functions deploy geocode-venues`, and create the two vault
+secrets with the hosted URL
+(`https://<project-ref>.supabase.co/functions/v1/geocode-venues`). Tests:
+
+```bash
+npx deno test --no-check supabase/functions/geocode-venues/nominatim_test.ts
 ```
 
 The generator's Nominatim look-ups have offline tests (no requests are sent;

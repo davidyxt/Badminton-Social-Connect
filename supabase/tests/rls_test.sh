@@ -285,11 +285,12 @@ check "players see the seeded venues with their suburb" '["Albert Park","3206"]'
 d=json.load(sys.stdin)
 s=(d[0].get("suburb") or {}) if isinstance(d,list) and d else {}
 print(json.dumps([s.get("name"), s.get("postcode")], separators=(",",":")))')"
-check "all 142 venues are listed across Australia" 142 \
-  "$(count "$(as "$TA" GET "venue?select=venue_id")")"
+check "all 142 seeded venues are listed across Australia" 142 \
+  "$(count "$(as "$TA" GET "venue?source_url=like.https://www.badmintonhub.com.au/*&select=venue_id")")"
 check "every venue has a Google Maps link" 0 \
   "$(count "$(as "$TA" GET "venue?or=(maps_url.is.null,maps_url.not.like.https://www.google.com/maps/*)&select=venue_id")")"
-check "every venue has a pin" 0 "$(count "$(as "$TA" GET "venue?latitude=is.null&select=venue_id")")"
+check "every seeded venue has a pin" 0 \
+  "$(count "$(as "$TA" GET "venue?source_url=like.https://www.badmintonhub.com.au/*&latitude=is.null&select=venue_id")")"
 check "pins from OpenStreetMap are marked for the credit" 1 \
   "$(count "$(as "$TA" GET "venue?coordinates_source=eq.openstreetmap&select=venue_id")")"
 check "a venue with a pin links to its coordinates" "yes" \
@@ -900,6 +901,25 @@ check "or the person searching" "no" \
   "$(as "$TA" POST "rpc/search_players" "$BODY" | python3 -c 'import sys,json;print("yes" if "'$IDA'" in [p["id"] for p in json.load(sys.stdin)] else "no")')"
 BODY="{\"p_post_id\":\"$G4\"}"
 check "carol withdraws her place" "EMPTY" "$(rpc "$TC" withdraw_request "$BODY")"
+
+echo
+echo "== 22. venue geocoding queue =="
+check "players cannot read the geocoding queue" 0 "$(count "$(as "$TA" GET "venue_geocode_queue?select=queue_id")")"
+check "players cannot take the worker lease" "42501" "$(rpc "$TA" geocode_claim_batch '{}')"
+BODY='{"p_queue_id":1,"p_lat":-37.8,"p_lng":144.9}'
+check "players cannot write a pin through the worker functions" "42501" "$(rpc "$TA" geocode_complete "$BODY")"
+check "players cannot release the lease" "42501" "$(rpc "$TA" geocode_release '{}')"
+SUBP=$(as "$TA" GET "suburb?name=eq.Parkville&postcode=eq.3052&select=suburb_id" | field suburb_id)
+BODY="{\"name\":\"Queue Test Hall $RANDOM\",\"address\":\"103 Tin Alley, Parkville VIC 3010\",\"suburb_id\":\"$SUBP\"}"
+NEWV=$(as "$TADM" POST "venue" "$BODY" | field venue_id)
+check "a venue added without a pin is queued for a look-up" 1 \
+  "$(count "$(as "$TADM" GET "venue_geocode_queue?venue_id=eq.$NEWV&status=eq.pending&select=queue_id")")"
+check "and links to Google Maps by address until then" "yes" \
+  "$(as "$TADM" GET "venue?venue_id=eq.$NEWV&select=maps_url" | field maps_url | grep -q 'query=Queue+Test+Hall' && echo yes || echo no)"
+BODY="{\"name\":\"Pinned Hall $RANDOM\",\"suburb_id\":\"$SUBP\",\"latitude\":-37.79,\"longitude\":144.96}"
+PINNED=$(as "$TADM" POST "venue" "$BODY" | field venue_id)
+check "a venue added with a pin is not queued" 0 \
+  "$(count "$(as "$TADM" GET "venue_geocode_queue?venue_id=eq.$PINNED&select=queue_id")")"
 
 echo
 echo "-------------------------------------"
