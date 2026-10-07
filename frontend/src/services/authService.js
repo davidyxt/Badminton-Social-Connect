@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { getStorage, saveLastActivity } from "../utils/idleTimeout";
+import { TERMS_VERSION, PRIVACY_VERSION } from "../config/legal";
 
 const authCallbackUrl = `${window.location.origin}/auth/callback`;
 const emailConfirmedUrl = `${window.location.origin}/auth/confirmed`;
@@ -28,16 +29,27 @@ export const signUp = async ({
   password,
   firstName,
   lastName,
+  username,
+  dateOfBirth,
+  stateCode,
   captchaToken,
 }) => {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      // Stored in auth.users.raw_user_meta_data
+      // Stored in auth.users.raw_user_meta_data. The database's sign-up
+      // trigger creates the player from it and runs the 18+ age gate: an
+      // under-18 date of birth or a taken username fails the sign-up.
       data: {
         first_name: firstName,
         last_name: lastName,
+        username,
+        date_of_birth: dateOfBirth,
+        age_declared: true,
+        terms_version: TERMS_VERSION,
+        privacy_version: PRIVACY_VERSION,
+        state: stateCode,
       },
       // Where the email verification link sends the user
       emailRedirectTo: emailConfirmedUrl,

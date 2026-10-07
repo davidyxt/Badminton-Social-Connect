@@ -8,6 +8,7 @@ import EmailConfirmedPage from "./pages/EmailConfirmedPage";
 import SignOutPage from "./pages/SignOutPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import CompleteRegistrationPage from "./pages/CompleteRegistrationPage";
 import PostGamePage from "./pages/PostGamePage";
 import PostGameConfirmationPage from "./pages/PostGameConfirmationPage";
 import DashboardPage from "./pages/DashboardPage";
@@ -84,7 +85,17 @@ function App() {
         />
 
 
-        {/* Protected pages: signed in only (restored from 2c7d2e3) */}
+        {/* Signed in, but the 18+ age gate is not done yet (BL-007) */}
+
+        <Route element={<ProtectedRoute requireRegistration={false} />}>
+          <Route
+            path="/complete-registration"
+            element={<CompleteRegistrationPage />}
+          />
+        </Route>
+
+
+        {/* Protected pages: signed in and registered */}
 
         <Route element={<ProtectedRoute />}>
 

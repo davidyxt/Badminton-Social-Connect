@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { supabase } from "../services/supabase";
+import { getMyPlayer } from "../services/playerService";
 import {
   ACTIVITY_SAVE_INTERVAL_MS,
   IDLE_CHECK_INTERVAL_MS,
@@ -17,7 +18,9 @@ import {
 const AuthContext = createContext({
   session: null,
   user: null,
+  player: null,
   loading: true,
+  refreshPlayer: async () => {},
 });
 
 // What counts as the player being active.
@@ -30,19 +33,26 @@ const FRESH_SIGN_IN_PATHS = ["/auth/callback", "/auth/confirmed", "/reset-passwo
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [sessionLoading, setSessionLoading] = useState(true);
+
+  // The player's own status from the database: username and whether they
+  // have passed the 18+ age gate (BL-007).
+  const [player, setPlayer] = useState(null);
+  // Which user `player` was loaded for. Until it matches the session's user,
+  // we are still loading, so routes never act on a stale or missing player.
+  const [loadedFor, setLoadedFor] = useState(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
-      setLoading(false);
+      setSessionLoading(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
         if (event === "SIGNED_OUT") clearLastActivity(getStorage());
         setSession(newSession);
-        setLoading(false);
+        setSessionLoading(false);
       }
     );
 
@@ -50,6 +60,28 @@ export function AuthProvider({ children }) {
   }, []);
 
   const userId = session?.user?.id ?? null;
+
+  const refreshPlayer = useCallback(async () => {
+    if (!userId) {
+      setPlayer(null);
+      setLoadedFor(null);
+      return null;
+    }
+
+    let me = null;
+    try {
+      me = await getMyPlayer(userId);
+    } catch {
+      me = null;
+    }
+    setPlayer(me);
+    setLoadedFor(userId);
+    return me;
+  }, [userId]);
+
+  useEffect(() => {
+    refreshPlayer();
+  }, [refreshPlayer]);
 
   // Idle sign-out: the free Supabase plan does not enforce an inactivity
   // timeout, so the app does. The last-activity time lives in localStorage,
@@ -119,7 +151,13 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, user: session?.user ?? null, loading }}
+      value={{
+        session,
+        user: session?.user ?? null,
+        player,
+        loading: sessionLoading || (userId !== null && loadedFor !== userId),
+        refreshPlayer,
+      }}
     >
       {children}
     </AuthContext.Provider>
