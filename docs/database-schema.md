@@ -1,6 +1,6 @@
 # Database Schema
 
-Implemented across seventeen migrations in `supabase/migrations/`:
+Implemented across eighteen migrations in `supabase/migrations/`:
 
 | Migration | What it adds |
 |---|---|
@@ -21,6 +21,7 @@ Implemented across seventeen migrations in `supabase/migrations/`:
 | `..._bl027_blocking.sql` | `blocks`; blocked players hidden from each other everywhere (BL-027) |
 | `..._bl028_reports.sql` | Report categories, server-captured evidence, rate limits, `report_*` functions (BL-028) |
 | `..._bl027_one_sided_blocking.sql` | Blocking revised to be one-sided: the blocker still sees the blocked player, badged (BL-027) |
+| `..._bl050_notifications.sql` | `dispatch_notification`, request/acceptance notifications, Realtime, notification screen functions (BL-050) |
 
 Access rules are documented separately in [rls-policies.md](./rls-policies.md),
 which also lists the open questions this schema left unresolved.
@@ -554,6 +555,12 @@ the leaderboard, BL-025).
 snapshot of the reported item into `report.evidence`, enforces 5 reports an
 hour and 20 a day, and allows one open report per reporter per item.
 
+**Every notification goes through `private.dispatch_notification`** (BL-050).
+Triggers on `game_participant` tell the host about requests and withdrawals and
+the player about acceptance and decline; cancel and delete use it too.
+`notification` has `post_id` and a second line, `detail`, and is published to
+Supabase Realtime. Email (BL-087) attaches to the same insert.
+
 **Accounts must pass the 18+ age gate before they can use the app** (BL-007).
 `player_private` records the date of birth, the 18+ declaration and the accepted
 terms and privacy versions, each with a server timestamp. Until `registered_at`
@@ -671,7 +678,7 @@ It is text because NT and ACT postcodes start with 0.
 supabase start                  # bring up the local stack (needs Docker running)
 supabase db reset --local       # drop and rebuild from migrations + seeds/
 supabase db advisors --local    # security and performance lint
-./supabase/tests/rls_test.sh    # 273 access-control and integrity checks
+./supabase/tests/rls_test.sh    # 286 access-control and integrity checks
 
 supabase migration new <name>   # start a new change
 supabase db push                # apply pending migrations to the linked project

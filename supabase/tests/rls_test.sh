@@ -1026,6 +1026,52 @@ BODY="{\"p_player_id\":\"$IDD\",\"p_category\":\"spam\"}"
 check "a sixth report within the hour is refused" "23514" "$(report "$TC" report_player "$BODY")"
 
 echo
+echo "== 24. notifications (BL-050) =="
+TH=$(signup_meta "host-$RANDOM@example.com" "{\"first_name\":\"Hana\",$ADULT}"); IDH=$(sub_of "$TH")
+TR=$(signup_meta "req-$RANDOM@example.com" "{\"first_name\":\"Ravi\",$ADULT}");  IDR=$(sub_of "$TR")
+UNR=$(as "$TR" GET "player?player_id=eq.$IDR&select=username" | field username)
+latest() { # latest <token> <type> <field>: that field of the newest notification of that type
+  as "$1" GET "notification?type=eq.$2&order=created_at.desc&limit=1&select=$3" | field "$3"; }
+BODY="{\"organiser_id\":\"$IDH\",\"format\":\"singles\",\"player_limit\":2,\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 33)\"}"
+GN=$(as "$TH" POST "game_post" "$BODY" | field post_id)
+
+BODY="{\"p_post_id\":\"$GN\"}"; rpc "$TR" request_to_join "$BODY" > /dev/null
+check "the host hears about a new request" "$GN" "$(latest "$TH" join_request post_id)"
+check "naming the player" "yes" \
+  "$([[ "$(latest "$TH" join_request message)" == "$UNR asked to join your Singles game on"* ]] && echo yes || echo "no: $(latest "$TH" join_request message)")"
+BODY="{\"p_post_id\":\"$GN\",\"p_player_id\":\"$IDR\"}"; rpc "$TH" accept_request "$BODY" > /dev/null
+check "the player hears they were accepted" "$GN" "$(latest "$TR" request_accepted post_id)"
+check "with the match to open" "yes" "$([[ -n "$(latest "$TR" request_accepted match_id)" ]] && echo yes || echo no)"
+BODY="{\"p_post_id\":\"$GN\"}"; rpc "$TR" withdraw_request "$BODY" > /dev/null
+check "the host hears that an accepted player withdrew" "A place has opened up" "$(latest "$TH" request_withdrawn detail)"
+rpc "$TR" request_to_join "$BODY" > /dev/null
+BODY="{\"p_post_id\":\"$GN\",\"p_player_id\":\"$IDR\"}"; rpc "$TH" decline_request "$BODY" > /dev/null
+check "the player hears they were declined" "$GN" "$(latest "$TR" request_declined post_id)"
+check "nobody else can read them" 0 "$(count "$(as "$TA" GET "notification?player_id=eq.$IDR&select=notification_id")")"
+
+BODY="{\"organiser_club_id\":\"$CLUB\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 34)\"}"
+GC=$(as "$TA" POST "game_post" "$BODY" | field post_id)
+BODY="{\"p_post_id\":\"$GC\"}"; rpc "$TR" request_to_join "$BODY" > /dev/null
+check "for a club game, the club's admins hear about requests" "$GC" "$(latest "$TA" join_request post_id)"
+
+LIST=$(as "$TR" POST "rpc/get_notifications" '{}')
+check "the screen gets title, message, unread and the game to open" "yes" \
+  "$(echo "$LIST" | python3 -c 'import sys,json
+n=json.load(sys.stdin)[0]; print("yes" if all(k in n for k in ("id","type","title","message","unread","createdAt","postId","matchId")) and n["unread"] else json.dumps(n))')"
+check "mark all read reports how many changed" "yes" \
+  "$([[ $(as "$TR" POST "rpc/mark_all_notifications_read" '{}') -ge 2 ]] && echo yes || echo no)"
+check "after which nothing is unread" 0 "$(count "$(as "$TR" GET "notification?is_read=eq.false&select=notification_id")")"
+BODY="{\"player_id\":\"$IDR\",\"type\":\"system\",\"message\":\"x\"}"
+check "players cannot write notifications" "ERR:42501" "$(count "$(as "$TR" POST "notification" "$BODY")")"
+
+BODY="{\"organiser_id\":\"$IDH\",\"format\":\"singles\",\"player_limit\":2,\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 35)\"}"
+GN2=$(as "$TH" POST "game_post" "$BODY" | field post_id)
+BODY="{\"p_post_id\":\"$GN2\"}"; rpc "$TR" request_to_join "$BODY" > /dev/null
+BODY="{\"p_player_id\":\"$IDR\"}"; rpc "$TH" block_player "$BODY" > /dev/null
+check "blocking closes the request without telling the blocked player" 0 \
+  "$(count "$(as "$TR" GET "notification?type=eq.request_declined&post_id=eq.$GN2&select=notification_id")")"
+
+echo
 echo "-------------------------------------"
 echo "  $pass passed, $fail failed"
 [[ $fail -eq 0 ]]

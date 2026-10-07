@@ -237,7 +237,7 @@ the caller's own token and needs no extra privilege.
 
 ## Verifying it
 
-`supabase/tests/rls_test.sh` runs 273 checks against the local stack. It creates
+`supabase/tests/rls_test.sh` runs 286 checks against the local stack. It creates
 three real, already-confirmed players through the Auth admin API (email
 confirmation is on, so a plain sign-up returns no session), signs them in, and drives PostgREST exactly as the
 browser would, so it tests the policies as deployed rather than the SQL as
@@ -249,7 +249,7 @@ supabase db reset --local
 ./supabase/tests/rls_test.sh
 ```
 
-All 273 pass with every migration up to BL-028 and the one-sided blocking revision. It covers: the sign-up trigger, the
+All 286 pass with every migration up to BL-050. It covers: the sign-up trigger, the
 discoverability rule, cross-user writes, the escalation paths above, anonymous
 access, game post ownership, the private schema not being exposed, club
 admins, members, join requests and deactivation, the exactly-one-organiser constraint, and organiser embedding.
