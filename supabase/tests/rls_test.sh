@@ -1172,6 +1172,64 @@ check "a venue added with a pin is not queued" 0 \
   "$(count "$(as "$TADM" GET "venue_geocode_queue?venue_id=eq.$PINNED&select=queue_id")")"
 
 echo
+echo "== 16. my home and my profile =="
+errcode() { python3 -c 'import sys,json
+try:
+  d=json.load(sys.stdin); print(d.get("code","?") if isinstance(d,dict) and "code" in d else "OK")
+except Exception: print("EMPTY")'; }
+key() { python3 -c 'import sys,json
+d=json.load(sys.stdin)
+for k in sys.argv[1].split("."): d=d[k] if d is not None else None
+print(json.dumps(d, ensure_ascii=False))' "$1"; }
+
+HOME_J=$(as "$TJ" POST "rpc/get_my_home" '{}')
+check "home greets the player by their own name" '"Jane Smyth"' "$(echo "$HOME_J" | key greetingName)"
+check "with initials for the top bar" '"JS"' "$(echo "$HOME_J" | key initials)"
+check "and a rating card" '[0,0]' "[$(echo "$HOME_J" | key ratingCard.matches),$(echo "$HOME_J" | key ratingCard.winRate)]"
+check "no rating yet means no state rank" "null" "$(echo "$HOME_J" | key ratingCard.stateRank)"
+check "no upcoming game shows as null (No game planned)" "null" "$(echo "$HOME_J" | key nextGame)"
+check "unread notifications are counted" "0" "$(echo "$HOME_J" | key unreadNotifications)"
+
+FUTURE=$(python3 -c 'import datetime;print((datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(days=12)).strftime("%Y-%m-%dT08:00:00Z"))')
+BODY="{\"organiser_id\":\"$IDA\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$FUTURE\"}"
+GH=$(as "$TA" POST "game_post" "$BODY" | field post_id)
+BODY="{\"post_id\":\"$GH\",\"player_id\":\"$IDB\"}"; as "$TB" POST "game_participant" "$BODY" > /dev/null
+as "$TA" PATCH "game_participant?post_id=eq.$GH&player_id=eq.$IDB" '{"status":"accepted"}' > /dev/null
+check "a game the player is accepted into is their next game" "\"$GH\"" \
+  "$(as "$TB" POST "rpc/get_my_home" '{}' | key nextGame.id)"
+check "and the host sees it too, marked as host" "true" \
+  "$(as "$TA" POST "rpc/get_my_home" '{}' | key nextGame.isHost)"
+
+PROF_J=$(as "$TJ" POST "rpc/get_my_profile" '{}')
+check "my profile has my real name and username" "[\"Jane Smyth\",\"${UN}_x\"]" \
+  "[$(echo "$PROF_J" | key name),$(echo "$PROF_J" | key username)]"
+check "and the editable fields" "yes" \
+  "$(echo "$PROF_J" | python3 -c 'import sys,json
+p=json.load(sys.stdin)
+keys=("firstName","lastName","selfRatingBand","bio","suburb","state","isDiscoverable","reliability","ratingCard","location")
+print("yes" if all(k in p for k in keys) else [k for k in keys if k not in p])')"
+check "it only ever returns the caller's own profile" "\"$IDA\"" \
+  "$(as "$TA" POST "rpc/get_my_profile" '{}' | key id)"
+check "signed-out callers get nothing" "42501" \
+  "$(curl -s "$API/rest/v1/rpc/get_my_profile" -H "apikey: $ANON" -H 'Content-Type: application/json' -d '{}' | errcode)"
+
+BODY='{"p_bio":"Weeknight doubles","p_suburb":"Carlton","p_state":"VIC","p_self_rating_band":"upper_intermediate"}'
+UPD=$(as "$TJ" POST "rpc/update_my_profile" "$BODY")
+check "update saves several fields and returns the profile" '["Weeknight doubles","Carlton area · VIC","Upper Intermediate"]' \
+  "[$(echo "$UPD" | key bio),$(echo "$UPD" | key location),$(echo "$UPD" | key level)]"
+BODY='{"p_bio":""}'
+check "an empty string clears a field" "null" "$(as "$TJ" POST "rpc/update_my_profile" "$BODY" | key bio)"
+check "fields not sent stay as they were" '"Carlton"' "$(as "$TJ" POST "rpc/get_my_profile" '{}' | key suburb)"
+BODY="{\"p_username\":\"$UNA\"}"
+check "a taken username is refused" "23505" "$(as "$TJ" POST "rpc/update_my_profile" "$BODY" | errcode)"
+BODY='{"p_self_rating_band":"pro"}'
+check "an unknown level is refused" "22023" "$(as "$TJ" POST "rpc/update_my_profile" "$BODY" | errcode)"
+BODY='{"p_first_name":"  "}'
+check "a blank first name is refused" "23514" "$(as "$TJ" POST "rpc/update_my_profile" "$BODY" | errcode)"
+BODY='{"p_is_discoverable":false}'
+check "a player can hide their profile" "false" "$(as "$TJ" POST "rpc/update_my_profile" "$BODY" | key isDiscoverable)"
+
+echo
 echo "-------------------------------------"
 echo "  $pass passed, $fail failed"
 [[ $fail -eq 0 ]]

@@ -26,6 +26,10 @@ function LoginPage() {
       return "Your email is verified. Log in to continue.";
     }
 
+    if (searchParams.get("expired")) {
+      return "You were signed out after 7 days of inactivity. Log in to continue.";
+    }
+
     if (searchParams.get("reset")) {
       return "Your password has been updated. Log in with your new password.";
     }

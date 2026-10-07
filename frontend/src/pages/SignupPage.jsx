@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { signUp, signInWithGoogle } from "../services/authService";
 import Captcha, { useCaptcha } from "../components/auth/Captcha";
 import { getAuthErrorMessage } from "../utils/authErrors";
 import { PASSWORD_HINT, getPasswordError } from "../utils/passwordPolicy";
+import { isUsernameAvailable, listStates } from "../services/playerService";
+import { isOldEnough } from "../config/legal";
 import "../styles/auth.css";
 
 function SignupPage() {
@@ -13,21 +15,32 @@ function SignupPage() {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
+    username: "",
     email: "",
+    dateOfBirth: "",
+    stateCode: "",
     password: "",
     confirmPassword: "",
+    ageDeclared: false,
+    termsAccepted: false,
   });
+
+  const [states, setStates] = useState([]);
+
+  useEffect(() => {
+    listStates().then(setStates).catch(() => setStates([]));
+  }, []);
 
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleChange = (event) => {
-    const { name, value } = event.target;
+    const { name, value, type, checked } = event.target;
 
     setFormData((previous) => ({
       ...previous,
-      [name]: value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
@@ -48,14 +61,29 @@ function SignupPage() {
       return;
     }
 
+    if (!isOldEnough(formData.dateOfBirth)) {
+      setError("You must be 18 or over to use Badminton Social Connect.");
+      return;
+    }
+
     setLoading(true);
 
     try {
+      // Checked here so the player gets a clear message; the database checks
+      // again when the account is created.
+      if (!(await isUsernameAvailable(formData.username.trim()))) {
+        setError("That username is taken or not allowed. Use 3-20 letters, numbers, _ or .");
+        return;
+      }
+
       const { session } = await signUp({
         email: formData.email,
         password: formData.password,
         firstName: formData.firstName,
         lastName: formData.lastName,
+        username: formData.username.trim(),
+        dateOfBirth: formData.dateOfBirth,
+        stateCode: formData.stateCode,
         captchaToken: captcha.token,
       });
 
@@ -157,6 +185,28 @@ function SignupPage() {
             </div>
 
             <div className="form-group">
+              <label htmlFor="username">Username</label>
+
+              <input
+                id="username"
+                type="text"
+                name="username"
+                placeholder="sarah_k"
+                value={formData.username}
+                onChange={handleChange}
+                autoComplete="username"
+                minLength={3}
+                maxLength={20}
+                pattern="[A-Za-z0-9_.]{3,20}"
+                required
+              />
+
+              <span className="form-hint">
+                What other players see. 3-20 letters, numbers, _ or .
+              </span>
+            </div>
+
+            <div className="form-group">
               <label htmlFor="email">Email address</label>
 
               <input
@@ -169,6 +219,41 @@ function SignupPage() {
                 autoComplete="email"
                 required
               />
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="dateOfBirth">Date of birth</label>
+
+                <input
+                  id="dateOfBirth"
+                  type="date"
+                  name="dateOfBirth"
+                  value={formData.dateOfBirth}
+                  onChange={handleChange}
+                  autoComplete="bday"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="stateCode">State or territory</label>
+
+                <select
+                  id="stateCode"
+                  name="stateCode"
+                  value={formData.stateCode}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="" disabled>Choose</option>
+                  {states.map((s) => (
+                    <option key={s.state_code} value={s.state_code}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div className="form-group">
@@ -206,6 +291,31 @@ function SignupPage() {
                 required
               />
             </div>
+
+            <label className="auth-checkbox">
+              <input
+                type="checkbox"
+                name="ageDeclared"
+                checked={formData.ageDeclared}
+                onChange={handleChange}
+                required
+              />
+              <span>I confirm I am 18 or over.</span>
+            </label>
+
+            <label className="auth-checkbox">
+              <input
+                type="checkbox"
+                name="termsAccepted"
+                checked={formData.termsAccepted}
+                onChange={handleChange}
+                required
+              />
+              <span>
+                I accept the <a href="/terms" target="_blank">terms of use</a>{" "}
+                and the <a href="/privacy" target="_blank">privacy notice</a>.
+              </span>
+            </label>
 
             {error && (
               <div className="auth-error" role="alert">

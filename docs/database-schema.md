@@ -28,6 +28,7 @@ Implemented across twenty-two migrations in `supabase/migrations/`:
 | `..._bl087_email_notifications.sql` | Email for every notification via `pg_net` and the `send-email-notification` Edge Function; opt-out (BL-087) |
 | `..._bl001_venue_locations_and_maps.sql` | Venue `latitude`, `longitude`, `source_url` and a generated Google Maps `maps_url` |
 | `..._venue_geocoding_queue.sql` | Venues without a pin are queued and geocoded by the `geocode-venues` Edge Function (Nominatim, one worker, 1 request/s) |
+| `..._m4_my_home_and_profile.sql` | `get_my_home`, `get_my_profile`, `update_my_profile` for the Home and Profile pages |
 
 Access rules are documented separately in [rls-policies.md](./rls-policies.md),
 which also lists the open questions this schema left unresolved.

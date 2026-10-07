@@ -17,6 +17,10 @@ export function getAuthErrorMessage(err, fallback) {
       return "Your new password must be different from your current one.";
     case "otp_expired":
       return "This link is invalid or has expired. Please request a new one.";
+    case "unexpected_failure":
+      // The database refused the new account: the sign-up trigger checks
+      // the username and the 18+ age gate.
+      return "We couldn't create your account. Check that your username isn't taken and that you are 18 or over.";
     default:
       return err?.message || fallback;
   }

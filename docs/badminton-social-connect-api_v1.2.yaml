@@ -4,7 +4,7 @@
 openapi: 3.0.3
 info:
   title: Badminton Social Connect API
-  version: 0.1.0
+  version: 0.2.0
   description: 'Badminton Social Connect follows a two-tier approach to backend access. Most screens read
     and write data directly against Supabase''s auto-generated PostgREST APIs (the `Data: *` operations
     below), called through the Supabase client from Next.js Server Components, Server Actions and Route
@@ -17,6 +17,11 @@ info:
     logic that can''t be expressed as a simple insert, update or delete are implemented as Postgres RPC
     functions, called as `POST /rpc/{function}` (the operations grouped under Auth, Game Posts, Results
     & Ranking, Mini Leagues, Trust & Safety and Admin below).
+
+
+    Version 0.2.0 (2026-10-07) brings the Player, PlayerProfile and PlayerPrivate data endpoints, register_player
+    and the Profile operations in line with the implementation. Other sections still describe the original
+    design.
 
 
     This mirrors, and should be kept in sync with, the Data Endpoints / Custom Functions / Conventions
@@ -158,6 +163,14 @@ tags:
     in and access control); createdBy set server-side. GET is open to every signed-in player but RLS restricts
     it to status=published rows; admins additionally see their own drafts. Shown on the player home page
     and mirrored on an admin management page.'
+- name: Profile
+  description: The signed-in player's own data for the Home page and the Profile page (get_my_home,
+    get_my_profile, update_my_profile). Returns the player's own real name; other players only ever
+    see the username.
+- name: 'Data: PlayerPrivate'
+  description: Standard Supabase/PostgREST access to the PlayerPrivate table. The owner (and admins)
+    can read their own row; the owner can update only first_name and last_name. Date of birth and consent
+    are set once by register_player and cannot be edited.
 - name: Auth
   description: Account creation and onboarding.
 - name: Game Posts
@@ -1180,6 +1193,56 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationError'
+  /player_private:
+    get:
+      tags:
+      - 'Data: PlayerPrivate'
+      summary: Read the signed-in player's own private details.
+      x-implementation: supabase-postgrest
+      description: Owner and admins only. Other players never see these fields; they see player.username.
+      parameters:
+      - $ref: '#/components/parameters/player_private_playerIdFilter'
+      - $ref: '#/components/parameters/selectParam'
+      responses:
+        '200':
+          description: The caller's own row (or none).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PlayerPrivate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    patch:
+      tags:
+      - 'Data: PlayerPrivate'
+      summary: Update the signed-in player's first or last name.
+      x-implementation: supabase-postgrest
+      description: Only first_name and last_name are writable. update_my_profile does the same in one call
+        with the other profile fields.
+      parameters:
+      - $ref: '#/components/parameters/player_private_playerIdFilter'
+      - $ref: '#/components/parameters/preferParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlayerPrivateUpdate'
+      responses:
+        '200':
+          description: Row updated.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PlayerPrivate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /player_profile:
     get:
       tags:
@@ -1796,6 +1859,52 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationError'
+  /rpc/get_my_home:
+    post:
+      tags:
+      - Profile
+      summary: '[Postgres RPC] Everything the Home page shows about the signed-in player.'
+      x-implementation: postgres-rpc
+      description: Greeting name and top-bar initials, level, the rating card (rating, band, matches, win
+        rate, state rank), the next game the player is in (null shows "No game planned") and the unread
+        notification count. No parameters.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: The signed-in player's home data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyHome'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /rpc/get_my_profile:
+    post:
+      tags:
+      - Profile
+      summary: '[Postgres RPC] The signed-in player''s own profile, for the Profile page and its edit screens.'
+      x-implementation: postgres-rpc
+      description: Own real name and username, initials, level, bio, suburb, state, location label, profile
+        visibility, reliability, games played and the rating card. Only ever returns the caller's own data.
+        No parameters.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: The signed-in player's profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /rpc/join_mini_league:
     post:
       tags:
@@ -1938,11 +2047,14 @@ paths:
     post:
       tags:
       - Auth
-      summary: '[Postgres RPC] Create the Player and PlayerProfile rows after Supabase Auth sign-up.'
+      summary: '[Postgres RPC] Complete the 18+ age gate and record consent (BL-007).'
       x-implementation: postgres-rpc
-      description: Enforces the minimum-age check before the account is usable. Called once, immediately
-        after Supabase Auth sign-up completes. state is captured on the sign-up form and written straight
-        to PlayerProfile.state.
+      description: 'The player, player_profile and player_private rows are created by a database trigger
+        when Supabase Auth creates the user. An email sign-up that sends date_of_birth, age_declared,
+        terms_version, privacy_version and state in options.data is registered at that moment (an under-18
+        sign-up fails). Everyone else, including every Google sign-in, calls this once afterwards. Until
+        registered, the account sees no other players or games. Age is judged by the date in the player''s
+        own state. A minor''s date of birth is never stored. Runs once per account.'
       requestBody:
         required: true
         content:
@@ -1950,33 +2062,66 @@ paths:
             schema:
               type: object
               properties:
-                displayName:
-                  type: string
-                selfRatingBand:
-                  type: string
-                dateOfBirth:
+                p_date_of_birth:
                   type: string
                   format: date
-                state:
+                p_age_declared:
+                  type: boolean
+                  description: The 18+ declaration checkbox. Must be true.
+                p_terms_version:
                   type: string
+                  description: Label of the terms of use accepted, e.g. 2026-10.
+                p_privacy_version:
+                  type: string
+                  description: Label of the privacy notice accepted, e.g. 2026-10.
+                p_state:
+                  type: string
+                  enum: [NSW, VIC, QLD, WA, SA, TAS, ACT, NT]
               required:
-              - displayName
-              - selfRatingBand
-              - dateOfBirth
-              - state
+              - p_date_of_birth
+              - p_age_declared
+              - p_terms_version
+              - p_privacy_version
+              - p_state
       responses:
-        '200':
-          description: Success.
+        '204':
+          description: Registered.
+        '400':
+          description: 'Rejected, with a message safe to show: under 18 (code 23514), missing declaration
+            or acceptance (23514), invalid date or state (22023), already registered (23505).'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Player'
+                $ref: '#/components/schemas/Error'
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+  /rpc/is_username_available:
+    post:
+      tags:
+      - Auth
+      summary: '[Postgres RPC] Check a username before sign-up or before changing it.'
+      x-implementation: postgres-rpc
+      description: True when the username is well formed (3-20 letters, digits, _ or .) and nobody has it,
+        ignoring case. Callable without signing in, so the sign-up form can use it.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_username:
+                  type: string
+              required:
+              - p_username
+      responses:
+        '200':
+          description: Whether the username can be used.
+          content:
+            application/json:
+              schema:
+                type: boolean
   /rpc/report_league:
     post:
       tags:
@@ -2224,6 +2369,57 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationError'
+  /rpc/update_my_profile:
+    post:
+      tags:
+      - Profile
+      summary: '[Postgres RPC] Save edits to the signed-in player''s own profile.'
+      x-implementation: postgres-rpc
+      description: Send only the fields that changed; anything left out (or null) stays as it is. An empty
+        string clears bio, suburb or last name. Returns the updated profile.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_username:
+                  type: string
+                  description: 3-20 letters, digits, _ or .; must be free (ignoring case).
+                p_first_name:
+                  type: string
+                p_last_name:
+                  type: string
+                p_self_rating_band:
+                  type: string
+                  enum: [beginner, lower_intermediate, intermediate, upper_intermediate, advanced]
+                p_bio:
+                  type: string
+                p_suburb:
+                  type: string
+                p_state:
+                  type: string
+                  enum: [NSW, VIC, QLD, WA, SA, TAS, ACT, NT]
+                p_is_discoverable:
+                  type: boolean
+                  description: False hides the profile from other players.
+      responses:
+        '200':
+          description: The updated profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyProfile'
+        '400':
+          description: 'Rejected, with a message safe to show: username taken (23505), unknown level or state
+            (22023), blank first name (23514).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /rpc/withdraw_request:
     post:
       tags:
@@ -2396,21 +2592,29 @@ components:
         default: return=representation
       description: Set to return=representation to get the affected row(s) back in the response body.
     player_playerIdFilter:
-      name: playerId
+      name: player_id
       in: query
       required: false
       schema:
         type: string
-      description: PostgREST filter on playerId, e.g. playerId=eq.<value>. Required (for every primary-key
-        column) on PATCH/DELETE to target specific row(s).
+      description: PostgREST filter on player_id, e.g. player_id=eq.<value>. Required on PATCH/DELETE to
+        target specific row(s).
+    player_private_playerIdFilter:
+      name: player_id
+      in: query
+      required: false
+      schema:
+        type: string
+      description: PostgREST filter on player_id, e.g. player_id=eq.<value>. RLS only ever returns the
+        caller's own row.
     player_profile_playerIdFilter:
-      name: playerId
+      name: player_id
       in: query
       required: false
       schema:
         type: string
-      description: PostgREST filter on playerId, e.g. playerId=eq.<value>. Required (for every primary-key
-        column) on PATCH/DELETE to target specific row(s).
+      description: PostgREST filter on player_id, e.g. player_id=eq.<value>. Required on PATCH/DELETE to
+        target specific row(s).
     notification_notificationIdFilter:
       name: notificationId
       in: query
@@ -2614,118 +2818,291 @@ components:
   schemas:
     Player:
       type: object
+      description: The public player record (the roster). Column names are as the API returns them.
       properties:
-        playerId:
+        player_id:
           type: string
           format: uuid
-          description: Unique player id (matches the Supabase Auth user id).
-        displayName:
+          description: Same as the Supabase Auth user id.
+        username:
           type: string
-          description: Public display name.
-        selfRatingBand:
+          description: Public name, chosen by the player. Unique ignoring case; 3-20 letters, digits, _ or .
+        self_rating_band:
           type: string
-          description: Self-declared skill band at sign-up (e.g. Beginner, Intermediate, Advanced).
-        isVerified:
+          enum: [beginner, lower_intermediate, intermediate, upper_intermediate, advanced]
+        is_verified:
           type: boolean
-          description: Whether the player has completed identity/age verification.
-        joinedAt:
+          description: Staff-set badge; not writable by players.
+        joined_at:
           type: string
           format: date-time
-          description: When the player account was created.
+        updated_at:
+          type: string
+          format: date-time
+        updated_by:
+          type: string
+          format: uuid
       required:
-      - playerId
+      - player_id
+      - username
     PlayerCreate:
       type: object
-      properties:
-        playerId:
-          type: string
-          format: uuid
-          description: Unique player id (matches the Supabase Auth user id).
-        displayName:
-          type: string
-          description: Public display name.
-        selfRatingBand:
-          type: string
-          description: Self-declared skill band at sign-up (e.g. Beginner, Intermediate, Advanced).
-        isVerified:
-          type: boolean
-          description: Whether the player has completed identity/age verification.
-        joinedAt:
-          type: string
-          format: date-time
-          description: When the player account was created.
+      description: Not used. Player rows are created by the sign-up trigger.
     PlayerUpdate:
       type: object
+      description: Writable by the owner.
       properties:
-        displayName:
+        username:
           type: string
-          description: Public display name.
+        self_rating_band:
+          type: string
+          enum: [beginner, lower_intermediate, intermediate, upper_intermediate, advanced]
+    PlayerPrivate:
+      type: object
+      description: Personal details only the player and admins can read.
+      properties:
+        player_id:
+          type: string
+          format: uuid
+        first_name:
+          type: string
+        last_name:
+          type: string
+        date_of_birth:
+          type: string
+          format: date
+          description: Set once by register_player; not editable.
+        age_declared_at:
+          type: string
+          format: date-time
+        terms_version:
+          type: string
+        terms_accepted_at:
+          type: string
+          format: date-time
+        privacy_version:
+          type: string
+        privacy_accepted_at:
+          type: string
+          format: date-time
+        registered_at:
+          type: string
+          format: date-time
+          description: Null until the 18+ age gate is complete.
+    PlayerPrivateUpdate:
+      type: object
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+    PlayerProfile:
+      type: object
+      description: Profile details. Readable by others while is_discoverable is true.
+      properties:
+        player_id:
+          type: string
+          format: uuid
+        bio:
+          type: string
+        suburb:
+          type: string
+        state:
+          type: string
+          enum: [NSW, VIC, QLD, WA, SA, TAS, ACT, NT]
+        reliability_score:
+          type: number
+          description: 0-100. Maintained by the database; not writable by players.
+        games_played:
+          type: integer
+          description: Maintained by the database.
+        no_show_count:
+          type: integer
+          description: Maintained by the database.
+        is_discoverable:
+          type: boolean
+          description: False hides the profile from other players.
+        updated_at:
+          type: string
+          format: date-time
+        updated_by:
+          type: string
+          format: uuid
+      required:
+      - player_id
+    PlayerProfileUpdate:
+      type: object
+      description: Writable by the owner.
+      properties:
+        bio:
+          type: string
+        suburb:
+          type: string
+        state:
+          type: string
+          enum: [NSW, VIC, QLD, WA, SA, TAS, ACT, NT]
+        is_discoverable:
+          type: boolean
+    RatingCard:
+      type: object
+      description: The rating card on the Home and Profile pages.
+      properties:
+        rating:
+          type: integer
+          nullable: true
+          description: Best rating across formats. Null until the rating calculation (BL-024) has run.
+        ratingFormat:
+          type: string
+          nullable: true
+        band:
+          type: string
+          nullable: true
+          description: e.g. Intermediate.
+        grade:
+          type: string
+          nullable: true
+          description: e.g. B1. Null until BL-024.
+        ratingChangeThisMonth:
+          type: integer
+          nullable: true
+          description: e.g. 24 for "+24 this month". Null until BL-024.
+        matches:
+          type: integer
+          description: Verified (confirmed) matches.
+        wins:
+          type: integer
+        winRate:
+          type: integer
+          description: Percentage, 0-100.
+        rankState:
+          type: string
+          description: The state the rank is for, e.g. VIC.
+        stateRank:
+          type: integer
+          nullable: true
+          description: Position among players in the same state, e.g. 184 for "#184 VIC Rank".
+        status:
+          type: string
+          enum: [Provisional, Established]
+    NextGame:
+      type: object
+      nullable: true
+      description: The soonest upcoming game the player is in. Null shows "No game planned".
+      properties:
+        id:
+          type: string
+          format: uuid
+        format:
+          type: string
+        startsAt:
+          type: string
+          format: date-time
+        date:
+          type: string
+          description: Melbourne time, e.g. Sat, 10 Oct.
+        time:
+          type: string
+          description: Melbourne time, e.g. 6:00 PM.
+        suburb:
+          type: string
+        isHost:
+          type: boolean
+        playerCount:
+          type: integer
+        maxPlayers:
+          type: integer
+    MyHome:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        firstName:
+          type: string
+          nullable: true
+        greetingName:
+          type: string
+          description: First and last name, or the username if none, e.g. John Doe.
+        initials:
+          type: string
+          description: For the top-bar avatar, e.g. JD.
+        profileImageUrl:
+          type: string
+          nullable: true
+        registered:
+          type: boolean
+          description: False until the 18+ age gate is complete.
+        level:
+          type: string
+        ratingCard:
+          $ref: '#/components/schemas/RatingCard'
+        nextGame:
+          $ref: '#/components/schemas/NextGame'
+        unreadNotifications:
+          type: integer
+          description: For the bell badge.
+    MyProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
+        name:
+          type: string
+          description: First and last name, or the username, e.g. Alex Chen.
+        initials:
+          type: string
+        profileImageUrl:
+          type: string
+          nullable: true
         selfRatingBand:
           type: string
-          description: Self-declared skill band at sign-up (e.g. Beginner, Intermediate, Advanced).
+        level:
+          type: string
+          description: e.g. Intermediate.
         isVerified:
           type: boolean
-          description: Whether the player has completed identity/age verification.
+        bio:
+          type: string
+          nullable: true
+        suburb:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        stateName:
+          type: string
+          nullable: true
+        location:
+          type: string
+          description: e.g. "Albert Park area · VIC".
+        isDiscoverable:
+          type: boolean
+        reliability:
+          type: integer
+          description: 0-100, e.g. 94 for "94% reliable".
+        gamesPlayed:
+          type: integer
+        noShows:
+          type: integer
+        ratingCard:
+          $ref: '#/components/schemas/RatingCard'
+        unreadNotifications:
+          type: integer
         joinedAt:
           type: string
           format: date-time
-          description: When the player account was created.
-    PlayerProfile:
-      type: object
-      properties:
-        playerId:
-          type: string
-          format: uuid
-          description: Player this profile belongs to (PK, FK to player.playerId).
-        bio:
-          type: string
-          description: Free-text profile bio.
-        suburb:
-          type: string
-          description: Home suburb, used for Find Games matching.
-        state:
-          type: string
-          description: Australian state/territory the player plays in (e.g. VIC, NSW), captured at sign-up.
-        reliabilityScore:
-          type: number
-          format: float
-          description: Computed reliability score, 0-1.
-        gamesPlayed:
-          type: integer
-          description: Total verified games played.
-        noShowCount:
-          type: integer
-          description: Total recorded no-shows.
-        isDiscoverable:
-          type: boolean
-          description: Whether other players can find this profile.
-      required:
-      - playerId
-    PlayerProfileUpdate:
-      type: object
-      properties:
-        bio:
-          type: string
-          description: Free-text profile bio.
-        suburb:
-          type: string
-          description: Home suburb, used for Find Games matching.
-        state:
-          type: string
-          description: Australian state/territory the player plays in (e.g. VIC, NSW), captured at sign-up.
-        reliabilityScore:
-          type: number
-          format: float
-          description: Computed reliability score, 0-1.
-        gamesPlayed:
-          type: integer
-          description: Total verified games played.
-        noShowCount:
-          type: integer
-          description: Total recorded no-shows.
-        isDiscoverable:
-          type: boolean
-          description: Whether other players can find this profile.
     Notification:
       type: object
       properties:
