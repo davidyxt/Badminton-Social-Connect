@@ -1,6 +1,6 @@
 # Database Schema
 
-Implemented across eighteen migrations in `supabase/migrations/`:
+Implemented across twenty-two migrations in `supabase/migrations/`:
 
 | Migration | What it adds |
 |---|---|
@@ -22,6 +22,10 @@ Implemented across eighteen migrations in `supabase/migrations/`:
 | `..._bl028_reports.sql` | Report categories, server-captured evidence, rate limits, `report_*` functions (BL-028) |
 | `..._bl027_one_sided_blocking.sql` | Blocking revised to be one-sided: the blocker still sees the blocked player, badged (BL-027) |
 | `..._bl050_notifications.sql` | `dispatch_notification`, request/acceptance notifications, Realtime, notification screen functions (BL-050) |
+| `..._bl054_no_shows_and_late_withdrawals.sql` | `no_show` status, `late_withdrawal`, `mark_no_show` / `clear_no_show` (BL-054) |
+| `..._bl052_reliability.sql` | `private.reliability`, profile copies refreshed on change and hourly by `pg_cron` (BL-052) |
+| `..._bl060_playing_history.sql` | `get_player_history` (BL-060) |
+| `..._bl087_email_notifications.sql` | Email for every notification via `pg_net` and the `send-email-notification` Edge Function; opt-out (BL-087) |
 
 Access rules are documented separately in [rls-policies.md](./rls-policies.md),
 which also lists the open questions this schema left unresolved.
@@ -561,6 +565,19 @@ the player about acceptance and decline; cancel and delete use it too.
 `notification` has `post_id` and a second line, `detail`, and is published to
 Supabase Realtime. Email (BL-087) attaches to the same insert.
 
+**Reliability is computed, not counted** (BL-052). `private.reliability(player)`
+works out attended games, no-shows, late withdrawals (accepted place given up
+within 24 hours) and late cancellations (organiser, within 24 hours) from the
+records, and turns them into a 0-100 score. The `player_profile` counters are
+copies, refreshed on each change and hourly by the `refresh-reliability`
+`pg_cron` job.
+
+**Email rides on notifications** (BL-087). A trigger on `notification` posts
+each new row to the `send-email-notification` Edge Function through `pg_net`.
+The function URL and shared secret live in Supabase Vault (`email_webhook_url`,
+`email_webhook_secret`), not in a migration, so they can differ per
+environment; without them nothing is sent.
+
 **Accounts must pass the 18+ age gate before they can use the app** (BL-007).
 `player_private` records the date of birth, the 18+ declaration and the accepted
 terms and privacy versions, each with a server timestamp. Until `registered_at`
@@ -678,7 +695,7 @@ It is text because NT and ACT postcodes start with 0.
 supabase start                  # bring up the local stack (needs Docker running)
 supabase db reset --local       # drop and rebuild from migrations + seeds/
 supabase db advisors --local    # security and performance lint
-./supabase/tests/rls_test.sh    # 286 access-control and integrity checks
+./supabase/tests/rls_test.sh    # 306 access-control and integrity checks
 
 supabase migration new <name>   # start a new change
 supabase db push                # apply pending migrations to the linked project

@@ -1072,6 +1072,74 @@ check "blocking closes the request without telling the blocked player" 0 \
   "$(count "$(as "$TR" GET "notification?type=eq.request_declined&post_id=eq.$GN2&select=notification_id")")"
 
 echo
+echo "== 25. no-shows, late withdrawals, reliability, history (BL-054, BL-052, BL-060) =="
+TO=$(signup_meta "org-$RANDOM@example.com" "{\"first_name\":\"Olga\",$ADULT}"); IDO=$(sub_of "$TO")
+TW=$(signup_meta "wil-$RANDOM@example.com" "{\"first_name\":\"Wil\",$ADULT}");  IDW=$(sub_of "$TW")
+in_secs() { python3 -c 'import sys,datetime;print((datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(seconds=int(sys.argv[1]))).strftime("%Y-%m-%dT%H:%M:%SZ"))' "$1"; }
+rel() { # rel <token> <player id> <key>: a reliability figure from the profile
+  BODY="{\"p_player_id\":\"$2\"}"; as "$1" POST "rpc/get_player_profile" "$BODY" | python3 -c 'import sys,json;print(json.load(sys.stdin)[sys.argv[1]])' "$3"; }
+join_and_accept() { # join_and_accept <post id>
+  BODY="{\"p_post_id\":\"$1\"}"; rpc "$TW" request_to_join "$BODY" > /dev/null
+  BODY="{\"p_post_id\":\"$1\",\"p_player_id\":\"$IDW\"}"; rpc "$TO" accept_request "$BODY" > /dev/null; }
+check "a new player starts at 100% reliability" 100 "$(rel "$TA" "$IDW" reliability)"
+
+# A game starting in 20 seconds, so a no-show can be recorded during the run.
+BODY="{\"organiser_id\":\"$IDO\",\"format\":\"singles\",\"player_limit\":2,\"duration_minutes\":15,\"suburb\":\"Carlton\",\"proposed_time\":\"$(in_secs 20)\"}"
+GS=$(as "$TO" POST "game_post" "$BODY" | field post_id)
+join_and_accept "$GS"
+BODY="{\"p_post_id\":\"$GS\",\"p_player_id\":\"$IDW\"}"
+check "a no-show cannot be recorded before the start" "23514" "$(rpc "$TO" mark_no_show "$BODY")"
+sleep 21
+check "only the host can record one" "42501" "$(rpc "$TA" mark_no_show "$BODY")"
+check "nobody can set it by editing the status" "ERR:42501" \
+  "$(count "$(as "$TO" PATCH "game_participant?post_id=eq.$GS&player_id=eq.$IDW" '{"status":"no_show"}')")"
+check "after the start, the host records the no-show" "EMPTY" "$(rpc "$TO" mark_no_show "$BODY")"
+check "the player is told" "$GS" "$(latest "$TW" no_show post_id)"
+check "and their reliability drops (2 / 3 = 67%)" "[67,1]" \
+  "[$(rel "$TA" "$IDW" reliability),$(rel "$TA" "$IDW" noShows)]"
+check "the copy on their profile row is refreshed too" 67 \
+  "$(as "$TW" GET "player_profile?player_id=eq.$IDW&select=reliability_score" | python3 -c 'import sys,json;print(round(json.load(sys.stdin)[0]["reliability_score"]))')"
+check "the host can undo a mistaken no-show" "EMPTY" "$(rpc "$TO" clear_no_show "$BODY")"
+check "which restores the score" 100 "$(rel "$TA" "$IDW" reliability)"
+check "undoing it does not send an 'accepted' notification" 1 \
+  "$(count "$(as "$TW" GET "notification?type=eq.request_accepted&post_id=eq.$GS&select=notification_id")")"
+
+BODY="{\"organiser_id\":\"$IDO\",\"format\":\"singles\",\"player_limit\":2,\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 40)\"}"
+GE=$(as "$TO" POST "game_post" "$BODY" | field post_id)
+join_and_accept "$GE"
+BODY="{\"p_post_id\":\"$GE\"}"; rpc "$TW" withdraw_request "$BODY" > /dev/null
+check "withdrawing weeks ahead is not late" "False" \
+  "$(as "$TW" GET "game_participant?post_id=eq.$GE&player_id=eq.$IDW&select=late_withdrawal" | field late_withdrawal)"
+BODY="{\"organiser_id\":\"$IDO\",\"format\":\"singles\",\"player_limit\":2,\"suburb\":\"Carlton\",\"proposed_time\":\"$(in_secs 36000)\"}"
+GL=$(as "$TO" POST "game_post" "$BODY" | field post_id)
+join_and_accept "$GL"
+BODY="{\"p_post_id\":\"$GL\"}"; rpc "$TW" withdraw_request "$BODY" > /dev/null
+check "withdrawing within 24 hours is late" "True" \
+  "$(as "$TW" GET "game_participant?post_id=eq.$GL&player_id=eq.$IDW&select=late_withdrawal" | field late_withdrawal)"
+check "and costs reliability (2 / 2.5 = 80%)" "[80,1]" \
+  "[$(rel "$TA" "$IDW" reliability),$(rel "$TA" "$IDW" lateWithdrawals)]"
+BODY="{\"organiser_id\":\"$IDO\",\"format\":\"singles\",\"player_limit\":2,\"suburb\":\"Carlton\",\"proposed_time\":\"$(in_secs 36000)\"}"
+GLC=$(as "$TO" POST "game_post" "$BODY" | field post_id)
+BODY="{\"p_post_id\":\"$GLC\"}"; rpc "$TO" cancel_game_post "$BODY" > /dev/null
+check "an organiser cancelling within 24 hours loses reliability too" 80 "$(rel "$TA" "$IDO" reliability)"
+
+BODY="{\"p_player_id\":\"$IDC\"}"
+HIST=$(as "$TB" POST "rpc/get_player_history" "$BODY")
+check "history lists verified matches with result, score and opponent" "[\"W\",\"21-15 21-17\",\"$UNA\"]" \
+  "$(echo "$HIST" | python3 -c 'import sys,json
+h=[x for x in json.load(sys.stdin) if x["matchId"]=="'$GM'"][0]
+print(json.dumps([h["result"],h["score"],h["opponents"][0]["name"]], separators=(",",":")))')"
+BODY="{\"p_player_id\":\"$IDB\"}"
+check "a private profile's history is private too" "null" "$(as "$TC" POST "rpc/get_player_history" "$BODY")"
+check "profiles now include games played" "yes" \
+  "$(rel "$TA" "$IDW" gamesPlayed >/dev/null && echo yes)"
+
+check "a player can turn notification emails off" 1 \
+  "$(count "$(as "$TW" PATCH "player_profile?player_id=eq.$IDW" '{"email_notifications":false}')")"
+check "but not for someone else" 0 \
+  "$(count "$(as "$TA" PATCH "player_profile?player_id=eq.$IDW" '{"email_notifications":false}')")"
+
+echo
 echo "-------------------------------------"
 echo "  $pass passed, $fail failed"
 [[ $fail -eq 0 ]]

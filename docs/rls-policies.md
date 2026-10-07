@@ -162,7 +162,8 @@ operation, or a trigger that overwrites whatever the client sent.
 | `player.is_verified` | Otherwise any player awards themselves a verification badge |
 | `club.is_verified` | Same. Anyone can register a club, so the badge is the only signal that it is genuine |
 | `player_profile.reliability_score` | Derived from no-shows; self-reporting defeats the point |
-| `player_profile.games_played`, `.no_show_count` | Same |
+| `player_profile.games_played`, `.no_show_count`, `.late_withdrawal_count`, `.late_cancellation_count` | Same. Refreshed from `private.reliability` |
+| `game_participant.status = no_show`, `.late_withdrawal` | Only `mark_no_show` / `clear_no_show` and a trigger. A player who could clear their own no-show would undo the point |
 | `notification` (all but `is_read`) | Otherwise players rewrite the text of their own notifications |
 | `ranking` (inserts and deletes) | Points are computed from confirmed results, never claimed |
 | `player_private.date_of_birth`, consent columns, `registered_at` | Set once by the age gate. A player who could edit their date of birth could undo the age check |
@@ -237,7 +238,7 @@ the caller's own token and needs no extra privilege.
 
 ## Verifying it
 
-`supabase/tests/rls_test.sh` runs 286 checks against the local stack. It creates
+`supabase/tests/rls_test.sh` runs 306 checks against the local stack. It creates
 three real, already-confirmed players through the Auth admin API (email
 confirmation is on, so a plain sign-up returns no session), signs them in, and drives PostgREST exactly as the
 browser would, so it tests the policies as deployed rather than the SQL as
@@ -249,7 +250,7 @@ supabase db reset --local
 ./supabase/tests/rls_test.sh
 ```
 
-All 286 pass with every migration up to BL-050. It covers: the sign-up trigger, the
+All 306 pass with every migration up to BL-087. It covers: the sign-up trigger, the
 discoverability rule, cross-user writes, the escalation paths above, anonymous
 access, game post ownership, the private schema not being exposed, club
 admins, members, join requests and deactivation, the exactly-one-organiser constraint, and organiser embedding.
