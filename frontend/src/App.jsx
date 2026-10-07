@@ -3,6 +3,11 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import LandingPage from "./pages/landingPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
+import AuthCallbackPage from "./pages/AuthCallbackPage";
+import EmailConfirmedPage from "./pages/EmailConfirmedPage";
+import SignOutPage from "./pages/SignOutPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import PostGamePage from "./pages/PostGamePage";
 import PostGameConfirmationPage from "./pages/PostGameConfirmationPage";
 import DashboardPage from "./pages/DashboardPage";
@@ -48,16 +53,47 @@ function App() {
           element={<SignupPage />}
         />
 
-
-        {/* Focused pages without bottom navigation */}
+        {/* Auth redirects and account pages. Restored from the M4 commit
+            (2c7d2e3): they were dropped in merge 24eb24b, which left the
+            Google callback, email verification and password reset links on
+            a blank page. */}
 
         <Route
-          path="/post-game"
-          element={<PostGamePage />}
+          path="/auth/callback"
+          element={<AuthCallbackPage />}
+        />
+
+        <Route
+          path="/auth/confirmed"
+          element={<EmailConfirmedPage />}
+        />
+
+        <Route
+          path="/signout"
+          element={<SignOutPage />}
+        />
+
+        <Route
+          path="/forgot-password"
+          element={<ForgotPasswordPage />}
+        />
+
+        <Route
+          path="/reset-password"
+          element={<ResetPasswordPage />}
         />
 
 
-        {/* Protected pages */}
+        {/* Protected pages: signed in only (restored from 2c7d2e3) */}
+
+        <Route element={<ProtectedRoute />}>
+
+          {/* Focused pages without bottom navigation */}
+
+          <Route
+            path="/post-game"
+            element={<PostGamePage />}
+          />
 
           {/* Pages WITH top/bottom navigation */}
 
@@ -155,7 +191,7 @@ function App() {
 
           </Route>
 
-      {/* Remember to replace protected route after */}
+        </Route>
 
       </Routes>
     </BrowserRouter>
