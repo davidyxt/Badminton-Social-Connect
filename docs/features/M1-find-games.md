@@ -51,7 +51,7 @@ Insert into `game_post`:
 | Duration | `duration_minutes` | 15 to 240 |
 | Ability level | `ability_level` | `any`, `beginner`, `intermediate`, `advanced` (the other self-rating bands also work) |
 | Notes | `notes` | Up to 300 characters |
-| Title | `title` | Optional, up to 80 characters. Cards show "Singles game" when empty |
+| Title | `title` | Optional, up to 80 characters. Cards show "Badminton game" when empty |
 | Players | `player_limit` | 2 to 64, organiser included |
 
 Edit with `update` on the same columns. Cancelling and deleting are functions:
@@ -136,3 +136,18 @@ cannot be cancelled within 4 hours of the start time…". Useful `code` values:
 - **Notifications** for new requests and acceptances come with BL-050. Cancelling and deleting already notify.
 - **Withdrawal time windows** and their effect on reliability come with BL-054.
 - **Distance** ("2.4 km" on Play Request) is not calculated.
+
+## Team decisions applied (2026-10-08)
+
+- **Venue shown as it is** (item 1): no change.
+- **Untitled games are called "Badminton game"** (item 2), not "Singles game".
+- **`get_game_form_options()`** answers "is there an API for the form's options?". It returns:
+  - venues with their Maps link;
+  - formats, styles and ability levels;
+  - limits;
+  - the default title;
+  - who the player can post as (themselves, or a club they admin).
+- **Maps links:** game cards, Game Details and the Home page's next game carry `mapsUrl`.
+- **Reliability band:** the host on Game Details and requesters on the Play Request screen carry `reliabilityBand` next to `reliability`.
+- **Deleted organisers** show as "Deleted User" with `isDeleted: true`.
+- Screen-by-screen wiring: [frontend-wiring-guide.md](../frontend-wiring-guide.md).

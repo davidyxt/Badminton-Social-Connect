@@ -106,7 +106,7 @@ Admins can read everything in every table.
 | `game_participant` | Request to join as yourself, `status` forced to `requested`. The organiser may add people directly | The organiser decides accept/reject; you may only move your own row to `withdrawn` | Yourself, or the organiser |
 | `cancellation_record` | Organiser of the post (player or club admin), or admin | Admin | Admin |
 | `club` | Any player, as themselves (they become its first club admin) | Club admins or platform admin (including `is_active`), and not `is_verified` | Nobody. Clubs are deactivated, not deleted |
-| `club_representative` | Request to join as yourself, forced to `pending` / `member`. Club admins may add anyone directly | Club admins approve requests and promote members; only `role` and `status`; never another admin's row | Yourself (leave or withdraw), club admins removing a non-admin, or platform admin. The last club admin cannot leave |
+| `club_representative` | Request to join as yourself, forced to `pending` / `member`. Nobody can add someone else (team item 4) | Club admins approve requests and promote members; only `role` and `status`; never another admin's row | Yourself (leave or withdraw), club admins removing a non-admin, or platform admin. The last club admin cannot leave |
 | `match` | Anyone on the game's roster, or the league organiser for a fixture | Creator, game organiser, league organiser or admin | Same |
 | `match_participant` | Yourself, or the match manager adding you. Must be on the game's roster | Your own attendance, or the manager's | Yourself, or the manager |
 | `check_in` | Yourself, only if you are a participant, only unverified | Admin | Admin |
@@ -231,6 +231,12 @@ participant?" would re-enter `match_participant`'s own policy and recurse
 forever. Each function checks `auth.uid()` internally, so it can only ever
 answer questions about the caller.
 
+**Signed-out visitors** (the `anon` role) can call only `is_username_available`.
+Supabase's default privileges grant `anon` EXECUTE on every new function in
+`public`, and `revoke ... from public` does not remove that, so
+`20261008100700_revoke_anon_function_access.sql` revokes it and changes the
+default for future functions. `supabase/tests/api_test.py` checks it.
+
 `private.is_admin()` is deliberately **not** `security definer`: it reads only
 the caller's own token and needs no extra privilege.
 
@@ -238,7 +244,7 @@ the caller's own token and needs no extra privilege.
 
 ## Verifying it
 
-`supabase/tests/rls_test.sh` runs 306 checks against the local stack. It creates
+`supabase/tests/rls_test.sh` runs 340 checks against the local stack. It creates
 three real, already-confirmed players through the Auth admin API (email
 confirmation is on, so a plain sign-up returns no session), signs them in, and drives PostgREST exactly as the
 browser would, so it tests the policies as deployed rather than the SQL as
@@ -250,7 +256,7 @@ supabase db reset --local
 ./supabase/tests/rls_test.sh
 ```
 
-All 306 pass with every migration up to BL-087. It covers: the sign-up trigger, the
+All 340 pass with every migration up to the API descriptions (2026-10-08). It covers: the sign-up trigger, the
 discoverability rule, cross-user writes, the escalation paths above, anonymous
 access, game post ownership, the private schema not being exposed, club
 admins, members, join requests and deactivation, the exactly-one-organiser constraint, and organiser embedding.

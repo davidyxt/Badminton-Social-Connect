@@ -92,3 +92,15 @@ Every error carries a `message` that is safe to show.
 - Admins are not alerted in real time; the queue is the `report` table, read by the admin console (BL-038 / BL-039).
 - **Leaderboards (BL-025, Player BE-2)** show every entry, both ways. For each entry, `private.block_relation(player_id)` returns `blocked_by_me`, `blocked_me` or null: when not null, hide the profile picture and make the entry unclickable; for `blocked_by_me`, add the Blocked badge.
 - If Quinn joined a third player's game *before* Pat did, Quinn keeps seeing that game (without Pat on its roster). Pat saw Quinn there, badged, before joining.
+
+## Team decisions applied (2026-10-08)
+
+- **Every report needs details** (item 12). Categories and rate limits are unchanged.
+- **The blocker can open the blocked player's profile** (item 13). It comes back with `isBlocked: true`. The blocked player still cannot open the blocker's.
+- **Blocks take an optional category and reason**:
+  - Call `block_player(p_player_id, p_category, p_reason)`.
+  - The categories are the same as for reports.
+  - `get_blocked_players` returns them.
+  - Only the blocker and admins can read them.
+- **A game both players are in keeps both** (item 13). Keeping track is the blocker's responsibility; no change.
+- Screen-by-screen wiring: [frontend-wiring-guide.md](../frontend-wiring-guide.md).

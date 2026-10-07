@@ -35,7 +35,7 @@ Click **Continue with Google** on `/login` or `/signup`. The first sign-in creat
 
 ### Complete registration (18+ age gate)
 
-Any signed-in player whose account hasn't passed the age gate is sent to `/complete-registration`, whichever page they try to open. In practice that's every new Google player. The page asks for username (prefilled with the generated one), date of birth, state, the 18+ box and the terms box, then calls `register_player`. Once that succeeds they continue to the page they were going to, or `/dashboard`. Until then the database hides every other player and game from them (BL-007).
+Any signed-in player whose account hasn't passed the age gate is sent to `/complete-registration`, whichever page they try to open. In practice that's every new Google player. The page asks for username (empty for Google players, who have none yet), date of birth, state, the 18+ box and the terms box, then calls `register_player`, which saves the username in the same step. Once that succeeds they continue to the page they were going to, or `/dashboard`. Until then the database hides every other player and game from them (BL-007).
 
 If a player signs up with email and later uses Google with the same address (or the other way round), Supabase links both to one account.
 
@@ -107,7 +107,7 @@ When an account is created, a database trigger also creates the player's rows in
 | `player_private` | `first_name`, `last_name` | The player and admins only |
 | `player_profile` | Suburb, state, bio, reliability | Other players, unless the profile is hidden |
 
-The username is chosen by the player and unique (ignoring case). The sign-up form asks for one, checks it with `supabase.rpc('is_username_available', { p_username })`, and sends it as `username` in `options.data`. Google sign-ups get a generated one from the first name (e.g. `jane_4821`), which they can change on `/complete-registration`. See [database-schema.md](../database-schema.md#notes-on-the-tables) for every metadata key the trigger reads.
+The username is chosen by the player and unique (ignoring case). The sign-up form asks for one, checks it with `supabase.rpc('is_username_available', { p_username })`, and sends it as `username` in `options.data`. No username is ever made up: an email sign-up without one fails, and Google sign-ups start without one and choose it on `/complete-registration`. See [database-schema.md](../database-schema.md#notes-on-the-tables) for every metadata key the trigger reads.
 
 `player_private` also holds the date of birth and the terms and privacy acceptances from the 18+ age gate (BL-007). An account cannot see or do anything involving other players until it has passed the gate; see [Complete registration](#complete-registration-18-age-gate).
 
@@ -117,7 +117,7 @@ The username is chosen by the player and unique (ignoring case). The sign-up for
 |---|---|---|
 | Home page, top-bar avatar and bell | `supabase.rpc('get_my_home')` | `greetingName` ("John Doe"), `initials` ("JD"), `level`, `ratingCard`, `nextGame` (null = "No game planned"), `unreadNotifications` |
 | Profile page | `supabase.rpc('get_my_profile')` | `name`, `username`, `initials`, `level`, `reliability`, `location` ("Albert Park area · VIC"), `ratingCard`, plus every editable field |
-| Your Profile / Privacy Settings | `supabase.rpc('update_my_profile', { p_username, p_first_name, p_last_name, p_self_rating_band, p_bio, p_suburb, p_state, p_is_discoverable })` | The updated profile. Send only what changed |
+| Your Profile / Privacy Settings | `supabase.rpc('update_my_profile', { p_username, p_first_name, p_last_name, p_self_rating_band, p_bio, p_suburb, p_state, p_is_discoverable, p_preferred_format, p_email_notifications })` | The updated profile. Send only what changed |
 
 `ratingCard` has `rating`, `band`, `grade`, `ratingChangeThisMonth`, `matches`,
 `wins`, `winRate`, `rankState` and `stateRank` (the "#184 VIC Rank"), and
@@ -230,3 +230,15 @@ One team member does this in the [Supabase dashboard](https://supabase.com/dashb
 - **State list:** `listStates()` returns a fixed list on this branch. Once the foundation branch's `state` table is merged, it can read from the database.
 - **CAPTCHA:** off until the app is public (see [Turning CAPTCHA on](#turning-captcha-on)).
 - **Hosted configuration:** the dashboard steps above, custom SMTP, and production URLs once deployed.
+
+## Team decisions applied (2026-10-08)
+
+- **Usernames are never generated** (item 9). `register_player` takes `p_username`, required when the account has none.
+- **Deleting an account** (item 5): `supabase.rpc('delete_my_account')`, then sign out.
+  - The player stays as "Deleted User", so other players' results and rankings are kept.
+  - Their names, date of birth, consent records, bio, suburb, blocks, club memberships and notifications are removed.
+  - Their upcoming games are cancelled, and the players in them are told.
+  - The same happens when an admin deletes the user in the Supabase dashboard.
+- **Profile settings** also set preferred format and the email opt-out.
+- **`get_my_profile`** returns every reliability figure with its band.
+- Screen-by-screen wiring: [frontend-wiring-guide.md](../frontend-wiring-guide.md).

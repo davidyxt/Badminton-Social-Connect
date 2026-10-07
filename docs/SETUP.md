@@ -65,16 +65,33 @@ Useful commands (from the repo root):
 | Folder | What | Reaches the hosted project? |
 |---|---|---|
 | `supabase/seeds/production/` | Real reference data: states, all Australian suburbs and postcodes, 142 badminton venues with coordinates | Yes, through the CI deploy job. Files must be safe to run again (upserts) |
-| `supabase/seeds/dev/` | Dummy accounts, a club and upcoming games | **Never** |
+| `supabase/seeds/dev/` | Dummy data in every table: accounts, clubs, upcoming and past games, results, blocks, reports, notifications | **Never** |
 
 Dev accounts, all with the password `Passw0rd!`:
 
 | Email | Notes |
 |---|---|
 | `admin@example.com` | Platform admin |
-| `alice@example.com` | Created Smash Club, organises games |
-| `bob@example.com`, `carol@example.com` | Ordinary players |
-| `dan@example.com` | Profile hidden from other players |
+| `alice@example.com` | Organiser, Smash Club admin, runs the Spring Singles Ladder, blocked Frank |
+| `bob@example.com` | Pending request to join Smash Club, one late cancellation |
+| `carol@example.com` | Northside Shuttlers admin, a disputed result |
+| `dan@example.com` | Profile hidden from other players, one no-show |
+| `erin@example.com` | Smash Club member, one late withdrawal |
+| `frank@example.com` | Blocked by Alice, reported by Carol |
+| `grace@example.com` | Google-style sign-up, no username, not past the age gate |
+| `ivy@example.com` | New player, no games |
+
+`henry@example.com` is deleted by the seed, so he appears as "Deleted User".
+The full story is at the top of `supabase/seeds/dev/01_accounts.sql`.
+
+### Tests
+
+```bash
+npx supabase db reset
+./supabase/tests/rls_test.sh > /tmp/rls.log       # 340 access-control checks
+python3 supabase/tests/api_test.py --rls-log /tmp/rls.log   # 173 API cases, writes docs/api-test-report.md
+python3 supabase/scripts/build_openapi.py         # rebuilds the API spec from the running stack
+```
 
 Suburbs come from [GeoNames](https://www.geonames.org) under
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), which requires

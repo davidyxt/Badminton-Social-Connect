@@ -2922,15 +2922,15 @@ paths:
                 initials: AN
                 nextGame:
                   id: 00000000-0000-0000-0000-00000000b001
-                  date: Sat, 10 Oct
-                  time: 7:00 PM
+                  date: Sun, 11 Oct
+                  time: 4:00 AM
                   title: Friday Night Doubles
                   format: Doubles
                   isHost: true
                   suburb: Albert Park
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
                   location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
-                  startsAt: '2026-10-10T08:00:00+00:00'
+                  startsAt: '2026-10-10T17:00:00+00:00'
                   maxPlayers: 4
                   playerCount: 3
                 username: alice
@@ -2984,7 +2984,7 @@ paths:
                 suburb: Carlton
                 noShows: 0
                 initials: AN
-                joinedAt: '2026-07-09T14:26:19.993158+00:00'
+                joinedAt: '2026-07-09T23:00:36.320349+00:00'
                 lastName: Nguyen
                 location: Carlton area · VIC
                 username: alice
@@ -3115,596 +3115,596 @@ paths:
                 - label: Competitive
                   value: competitive
                 venues:
-                - id: f9abf702-9da6-4713-aa91-f977ea78b763
+                - id: c95a1813-7301-40df-ac20-53c399b15724
                   name: A1 Badminton Centre
                   state: NSW
                   suburb: Campbelltown
                   address: 11 Mount Erin Rd, Campbelltown NSW 2560
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-34.059673,150.803931
-                - id: dd24c66c-7f87-4b90-91bc-f75bd5de4b4f
+                - id: 405b125a-1c57-4e65-8b54-ded35d69a6c2
                   name: ABC- Abbotsford Badminton Club
                   state: VIC
                   suburb: Abbotsford
                   address: 18 Flockhart St, Abbotsford VIC 3067
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.809485,145.007744
-                - id: aabfe36a-f5e1-4709-aeb2-afffefd356fb
+                - id: bf1f9527-0cf4-46a3-9799-d972244ebfc5
                   name: ACM Sports
                   state: VIC
                   suburb: Bayswater
                   address: 493 Mountain Hwy, Bayswater VIC 3153
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.843332,145.246920
-                - id: afd185fc-6b26-4c6b-a9e1-48b6680926cf
+                - id: 65b0fbc3-69d5-4771-a283-0879d10e71d4
                   name: ACM Sports Point Cook
                   state: VIC
                   suburb: Point Cook
                   address: 16 Wallace Avenue
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.872567,144.742556
-                - id: d973ae0d-3281-4d27-af6f-83e7f735b681
+                - id: 94576b18-92dc-4e4d-9651-48197f680f48
                   name: Adelaide Badminton Centre
                   state: SA
                   suburb: Torrensville
                   address: 60 Hardys Rd, Torrensville SA 5031
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-34.918155,138.554442
-                - id: ca9f0251-e8ed-4f70-9779-b5767bac1c7b
+                - id: 8f40dac7-9523-4848-ba80-f006c5b99d1f
                   name: Alpha Badminton Centre (Egerton)
                   state: NSW
                   suburb: Silverwater
                   address: 46 Egerton St, Silverwater NSW 2128
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-33.834446,151.045578
-                - id: 85b9c860-4b28-43d1-b958-53f82e726baf
+                - id: 0f68527c-4518-4e94-95a8-2a0a67531507
                   name: Alpha Badminton Centre Auburn
                   state: NSW
                   suburb: Auburn
                   address: Unit 6, Building 2/161 Manchester Rd, Auburn NSW 2144
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-33.845106,151.018670
-                - id: 7d446b0a-2569-43a6-9fde-7e7860adfb30
+                - id: cdb1bb88-3cda-47b5-9238-5544c615d68a
                   name: Alpha Slough
                   state: NSW
                   suburb: Silverwater
                   address: f47/2 Slough Ave, Silverwater NSW 2128
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-33.830845,151.050033
-                - id: ccbe4aa3-b652-42f4-9c55-d3ccfc3fb751
+                - id: a09abdc6-929e-42af-a9f5-07676d948ecd
                   name: Altona Badminton Centre - WSBA Inc
                   state: VIC
                   suburb: Altona North
                   address: 217 Mason Street
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.840580,144.857998
-                - id: 24eab002-64a0-44ae-8072-de718fe1f7c4
+                - id: 2715bb04-ba2a-4e9f-aa5f-e340ba65184c
                   name: APX Badminton Courts
                   state: NSW
                   suburb: Thornleigh
                   address: Unit 2 & 3/35E Sefton Rd, Thornleigh NSW 2120
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-33.721399,151.078813
-                - id: a285f2e3-5f1d-4094-b633-f1e222b5ffc6
+                - id: a363d726-780e-40c4-9c76-1dfd9268467f
                   name: Ararat & District Badminton Association
                   state: VIC
                   suburb: Ararat
                   address: Alexandra Hall, Ararat VIC 3377
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.283300,142.933300
-                - id: ac96c4bc-5819-4472-9be0-6b1e363c119a
+                - id: 0cfea872-400e-43a1-b089-7069303fb6ba
                   name: ATC badminton centre
                   state: NSW
                   suburb: Alexandria
                   address: Unit A/27 Hiles St, Alexandria NSW 2015
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-33.903511,151.199512
-                - id: 3935f606-9361-4dc1-afe4-852e9e1dc5eb
+                - id: 95e1955c-c802-49eb-bac1-f5ff5918f9fc
                   name: Avalon Badminton Club
                   state: NSW
                   suburb: Avalon Beach
                   address: 59 Old Barrenjoey Rd, Avalon Beach NSW 2106
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-33.635726,151.329256
-                - id: 5222923b-19f5-4002-b91f-ec41129d6a96
+                - id: d8da2c0f-5127-406d-902f-4f1e64f6a01f
                   name: Badminton Connect
                   state: VIC
                   suburb: Noble Park North
                   address: 450 Princes Highway ,Noble Park North,  VIC, 3174
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.956922,145.185721
-                - id: 75903b06-8629-4af8-baae-c49a21894d2b
+                - id: 492dcc6a-29d8-404d-8be8-a58f8cc8471a
                   name: Badminton Connect Hallam
                   state: VIC
                   suburb: Hallam
                   address: 22 Technology Circuit
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.009994,145.259471
-                - id: 697506fd-f1d5-4461-83dd-b80d683bcf0a
+                - id: 53594f89-3d4b-423f-bc28-c25b1ec41b67
                   name: Badminton Connect Truganina
                   state: VIC
                   suburb: Truganina
                   address: 4 Infinity Drive
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.835310,144.745924
-                - id: 44284c8a-3daa-40dc-b8f6-1bb001859203
-                  name: Badminton Court
-                  state: VIC
-                  suburb: Wantirna
-                  address: Badminton Ct, Wantirna VIC 3152
-                  mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.849473,145.230175
-                - id: 3ad12c49-22a1-481c-9277-36228a2972ef
+                - id: a9070aa8-2a28-444e-8e4b-e7fa0b7ca1b6
                   name: Badminton Court
                   state: VIC
                   suburb: Marshall
                   address: Badminton Ct, Marshall VIC 3216
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.189121,144.354826
-                - id: 255fb55f-477d-4a0e-b1ba-f61665523256
+                - id: 9b1e4477-a693-4514-a210-2d23725bdbc8
+                  name: Badminton Court
+                  state: VIC
+                  suburb: Wantirna
+                  address: Badminton Ct, Wantirna VIC 3152
+                  mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.849473,145.230175
+                - id: 589f6b15-8eb7-42bd-9f14-a986811b5206
                   name: BadmintonWorx - Botany
                   state: NSW
                   suburb: Botany
                   address: Unit 2/30 Sir Joseph Banks St, Botany NSW 2019
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-33.949570,151.202927
-                - id: 27711499-88e2-4748-91e9-ddb50e9ef72c
+                - id: aa941386-11d5-4dd7-977d-35e2886ed6fd
                   name: BadmintonWorx Norwest
                   state: NSW
                   suburb: Norwest
                   address: 2/2 Inglewood Pl, Norwest NSW 2153
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-33.735858,150.958946
-                - id: 3c25e095-6f8f-4e23-8c19-656336e08cd4
+                - id: 8a095e9c-7624-4647-aecb-2601773216bd
                   name: Ballarat Badminton Association Inc
                   state: VIC
                   suburb: Wendouree
                   address: 407 Dowling Street, Wendouree VIC 3355
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.533300,143.833300
-                - id: 77398e2b-7f20-4531-83c5-e6b664d19514
+                - id: 311ee839-9be8-4e69-8da6-446f2efcccdf
                   name: Bayside Badminton Club Inc
                   state: VIC
                   suburb: Hampton
                   address: 221 Thomas Street, Hampton VIC 3188
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.939848,145.017772
-                - id: 48c0356a-d296-4606-99cb-359058a25db5
+                - id: 134fd6e0-35fb-4e0d-8139-a7e12f7818e6
                   name: Benalla Badminton Association Inc
                   state: VIC
                   suburb: Benalla
                   address: Ackerley Ave, Benalla VIC 3672
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-36.550000,145.983300
-                - id: b819d6ca-4a60-4bfe-96e8-c6110fc545b8
+                - id: f4f9dbc4-8b17-40a9-b99f-26cc769fb552
                   name: Bendigo Eaglehawk Badminton Association
                   state: VIC
                   suburb: Eaglehawk
                   address: 40 Victoria Street, Eaglehawk VIC 3556
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-36.716700,144.250000
-                - id: 4cd9c05d-1e76-4b30-8878-39fd012b29b2
+                - id: 1763d4c2-7a80-47f6-abbb-2e5b74415380
                   name: Beyond Badminton Centre
                   state: VIC
                   suburb: Clayton
                   address: 6 Torteval Pl, Clayton VIC 3168
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.928533,145.134565
-                - id: 96852b2a-8150-47ad-a93c-f6d3cecd0830
+                - id: 280621ae-4d03-454d-ab79-6588e7529da3
                   name: Beyond Badminton Centre - BBC
                   state: VIC
                   suburb: Clayton
                   address: 6 Torteval PI, Clayton VIC 3168
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.928533,145.134565
-                - id: f278fc5c-4635-47e4-bc97-542d92117890
+                - id: 5fdf846b-ac1d-4ecc-ad2c-2ca9f05749cd
                   name: Brisbane Badminton
                   state: QLD
                   suburb: Crestmead
                   address: 39 Quilton Pl, Crestmead QLD 4132
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-27.691910,153.072136
-                - id: 598f4f9b-2e20-42ca-babb-c741119f90ea
+                - id: a1b21921-d383-4a94-9c11-655e58a71d69
                   name: Camperdown Badminton Association
                   state: VIC
                   suburb: Camperdown
                   address: C/- 27 Cressy Street, Camperdown VIC 3260
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.233300,143.150000
-                - id: 1f158f7c-96f4-44ce-a16e-b46f078a0ac8
+                - id: eb2b04f5-f3e8-41a6-b856-8bf2f832134f
                   name: Canberra Badminton Centre
                   state: ACT
                   suburb: Fyshwick
                   address: 27 Lithgow St, Fyshwick ACT 2609
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-35.328869,149.169223
-                - id: 981bae5c-d8e8-4aa1-8a6d-7a20d13fcb4a
+                - id: b9656174-26b8-4c35-b522-1cc7e7d7acbc
                   name: Cannington Leisureplex
                   state: WA
                   suburb: Cannington
                   address: Wharf St &, Sevenoaks St, Cannington WA 6107
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-32.010517,115.940636
-                - id: 9c9bfe23-0b18-4014-b43c-6b3a66060d2e
+                - id: d6e489c7-0716-4199-bd75-21409a08900b
                   name: Cardinia Life
                   state: VIC
                   suburb: Pakenham
                   address: 4/6 Olympic Way, Pakenham VIC 3810
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.064562,145.458411
-                - id: 3dffe487-dacf-4d89-83e7-df955396aed0
+                - id: a91e5696-91ad-4336-a9b7-326f2c69d59f
                   name: Caroline Springs Leisure Centre
                   state: VIC
                   suburb: Caroline Springs
                   address: Leisure Centre, Caroline Springs Leisure Centre The Parade, Caroline Springs
                     VIC 3023
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.733041,144.738754
-                - id: f8000b43-89c8-4608-96c2-af39ea19aa2b
+                - id: 891c8374-7f0a-42b5-8b53-336de843e929
                   name: Carrara Indoor Sports Stadium
                   state: QLD
                   suburb: Carrara
                   address: 296 Nerang Broadbeach Rd, Carrara QLD 4211
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-28.005684,153.365263
-                - id: 557cc88d-393f-4de4-967a-f09b6458e974
+                - id: 3ec36ec1-30ed-44bd-a011-139d83f47043
                   name: Castlemaine Badminton Club
                   state: VIC
                   suburb: Castlemaine
                   address: McGrath Street, Castlemaine VIC 3450
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.066700,144.216700
-                - id: 6d7eed34-a05a-490c-a328-fa89c40a458f
+                - id: 4f7a7939-eb23-4571-98af-da8071c59fae
                   name: Champions Arena Pakenham
                   state: VIC
                   suburb: Pakenham
                   address: 15 Jersey Rd, Pakenham VIC 3810
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.104107,145.480738
-                - id: 1eda2ebd-f806-4f08-9168-2ba62a58f3ec
+                - id: 5ca55cf7-ce6b-434e-bd5a-0bd527a50c91
                   name: Charlton Badminton Club
                   state: VIC
                   suburb: Charlton
                   address: Davies Street, Charlton VIC 3525
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-36.266700,143.350000
-                - id: 738cba4b-a5e8-4d59-8019-c9a36e4122be
+                - id: 7c6ecec6-eeee-4f91-9531-12930443ff5d
                   name: Civic Reserve Recreation Centre
                   state: VIC
                   suburb: Mornington
                   address: 350 Dunns Rd, Mornington VIC 3931
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.237236,145.053348
-                - id: 0527d085-984a-40e6-9c69-7a7069157a43
+                - id: 1debe408-f312-4bcc-96e1-20d6f6658048
                   name: Cobblebank Indoor Stadium (MCBC)
                   state: VIC
                   suburb: Cobblebank
                   address: 25 Stadium Drive
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.715297,144.598274
-                - id: 4d0d67b1-123e-4747-8c5f-7560b8c7f54b
+                - id: 96185f47-6be1-41a0-97b3-3a0f4f157a0e
                   name: Colac Ladies Daytime Badminton
                   state: VIC
                   suburb: Colac
                   address: Bruce Street, Colac VIC 3250
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.333300,143.583300
-                - id: b9fa36c0-eb8f-4ffb-aca1-a19fda755310
+                - id: 14be17f0-b541-426d-8ddb-39abb257cc31
                   name: Coomera Indoor Sports Centre
                   state: QLD
                   suburb: Coomera
                   address: 35 Beattie Rd, Coomera QLD 4209
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-27.866546,153.319753
-                - id: 829fbcbc-615b-4723-8db0-b6d54d0710f4
+                - id: 740d2375-d320-4e4a-9a70-0e20efb8e17a
                   name: Craigieburn Sports Stadium
                   state: VIC
                   suburb: Craigieburn
                   address: 127/141 Craigieburn Rd, Craigieburn VIC 3064
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.599115,144.934982
-                - id: 72d9e8fd-ac8f-4452-8d88-da273d5cf339
+                - id: a660efd0-1ec1-49fc-8de3-5ca56b790804
                   name: Darebin Community Sports Stadium
                   state: VIC
                   suburb: Reservoir
                   address: 857 Plenty Rd, Reservoir VIC 3073
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.721568,145.029904
-                - id: e87ff510-2404-46d5-bd9b-ce32b0c0cf75
+                - id: 3f62b84b-dfac-4d6e-9ffe-a581f6ac30b7
                   name: Diamond Creek Community Centre
                   state: VIC
                   suburb: Diamond Creek
                   address: 28 Main Hurstbridge Road
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.674149,145.155809
-                - id: b0adea1f-2794-47b2-8d6b-dd26709fcbbf
+                - id: b08e641a-7d21-43f9-a1ca-67f849a27b67
                   name: Diamond Valley Badminton Association
                   state: VIC
                   suburb: Greensborough
                   address: 44 Civic Drive, Greensborough, VIC 3088
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.689662,145.111027
-                - id: b7aec26a-8e7c-4215-9702-1bdfc7c83874
+                - id: 60e5f906-6223-45f4-a514-498034c16cbe
                   name: Doncaster Badminton Centre
                   state: VIC
                   suburb: Doncaster
                   address: Hummel Way, Doncaster, VIC 3108 (Access via JJ Tully Drive)
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.786500,145.130655
-                - id: a335f9da-dc75-49c6-b803-19fa8fb9fada
+                - id: df035f91-9d05-4a6d-9a75-f61e3d6cfb09
                   name: Doncaster East Badminton Centre
                   state: VIC
                   suburb: Doncaster East
                   address: 350 Blackburn Rd, Doncaster East VIC 3109
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.775879,145.165374
-                - id: 88ba6bd3-186e-4624-8118-f5c0b297cd5e
+                - id: 5719f9b4-87e9-4a05-985f-ce238d5c7355
                   name: Drouin Badminton Club
                   state: VIC
                   suburb: Drouin
                   address: 24 Sinclair Street, Drouin VIC 3818
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.133300,145.850000
-                - id: 8eeac953-a308-41ef-aa57-926ed3e8cf20
+                - id: 0ef1eb6e-84d4-4247-98de-027bb3664f5f
                   name: East Gippsland Badminton
                   state: VIC
                   suburb: Bairnsdale
                   address: 93 McKean Street, Bairnsdale VIC 3875
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.833300,147.616700
-                - id: 035f204a-b84f-44e8-b79b-0b0f3ada968d
+                - id: 7c29ed2d-5858-41b7-8cfc-453ac3e2fd66
                   name: Echuca Moama Badminton Club
                   state: NSW
                   suburb: Moama
                   address: 48 Echuca Street, Moama NSW 2731
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-36.100000,144.750000
-                - id: c1f268d5-1549-48cd-8452-2ad78f166d9a
+                - id: ed1f305e-b610-4330-b555-061ed7a8229c
                   name: Ellinbank Badminton Club
                   state: VIC
                   suburb: Ellinbank
                   address: 18 Community Place, Ellinbank VIC 3821
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.233300,145.933300
-                - id: 58c6e121-c493-4523-a77f-066e01211739
+                - id: dc8fc6d1-2d2a-4eb8-b779-e5628c3c53cf
                   name: Endeavour Hills Leisure Centre
                   state: VIC
                   suburb: Endeavour Hills
                   address: 10 Raymond McMahon Blvd, Endeavour Hills VIC 3802
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.978001,145.259872
-                - id: 1a295aa3-4bd4-47b0-bf7e-795de30a0b02
+                - id: f8b197db-9bf6-4ee0-b5b3-e4ff4fb87f11
                   name: Energy Badminton Centre (EBC)
                   state: VIC
                   suburb: Springvale
                   address: 2/4 Brough St, Springvale VIC 3171
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.941795,145.169842
-                - id: ca506e19-0a84-4537-9740-6a556d5a5f5a
+                - id: d5643fbe-6d2f-47e3-8a5a-46033084dc27
                   name: Erindale Leisure Centre
                   state: ACT
                   suburb: Wanniassa
                   address: 115 McBryde Cres, Wanniassa ACT 2903
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-35.403052,149.095603
-                - id: 561f7472-57be-4aa6-9cea-111ce21318ac
+                - id: c3e89625-6d79-4195-8b8e-9abdf8bf37ca
                   name: Fawkner Leisure Centre
                   state: VIC
                   suburb: Fawkner
                   address: 79/83 Jukes Road, Fawkner VIC 3060
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.703088,144.968752
-                - id: b88090ad-61dc-44f6-8c1f-4028eef1e1f3
+                - id: beacec4e-ecc3-4643-9eac-c82881c292cd
                   name: Frankston South Community and Recreation Centre
                   state: VIC
                   suburb: Frankston South
                   address: Unit 2/55 Towerhill Rd, Frankston South VIC 3199
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.161263,145.127280
-                - id: 936d10fb-560b-4f62-8149-36f18aa586c5
+                - id: 536b1a0d-4f99-4993-98ff-41fb6a4185ba
                   name: Gippsland Junior Badminton Association
                   state: VIC
                   suburb: Labertouche
                   address: 440 Labertouche Rd, Labertouche VIC 3816
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.100000,145.866700
-                - id: e6bd5e18-1131-4b45-a548-5bb83d5af03a
+                - id: 19771fb4-a1ee-4a43-bb26-1e670a6b5aa0
                   name: Gladstone Park Community Centre
                   state: VIC
                   suburb: Gladstone Park
                   address: 9 South Circular Road
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.686924,144.886655
-                - id: 5b5112d1-a912-4099-a1f0-1fad91fc8533
+                - id: 575485c2-cd6a-4af4-9808-cadf310e6734
                   name: Hawthorn Badminton Club / Xavier College Burke Hall
                   state: VIC
                   suburb: Kew
                   address: 2 Nolan Avenue, Kew VIC 3101
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.809000,145.034500
-                - id: b0a3cf79-542d-4838-a942-5a4ce285eeb7
+                - id: cfb4c792-8852-400e-a89d-f9dd4ebcd7ad
                   name: Heidelberg Badminton Centre
                   state: VIC
                   suburb: Heidelberg West
                   address: U3, 661 Waterdale Rd entrance on Northern Rd
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.729792,145.049465
-                - id: 37fb0068-c258-4547-9a53-c7903e74ef89
+                - id: d5f48c76-7310-4610-8ea0-8a3f2f760117
                   name: Horsham Badminton Club
                   state: VIC
                   suburb: Horsham
                   address: Baillie Street, Horsham VIC 3400
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-36.716700,142.200000
-                - id: 9a3d16a4-b56d-4b92-aef0-49f5017558eb
+                - id: 53d6bd0b-9cf6-47e0-a417-e5317c83597b
                   name: IBC Coopers Plains | International Badminton Centre
                   state: QLD
                   suburb: Coopers Plains
                   address: 4/260 Musgrave Rd, Coopers Plains QLD 4108
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-27.560341,153.036233
-                - id: bce4d1aa-05bf-41d6-a75d-48165499bb02
+                - id: 23108e77-0128-4509-97f3-13c9f6a87fba
                   name: Indoor Sports Arena
                   state: VIC
                   suburb: Coolaroo
                   address: Unit 2/22-36 Reservoir Dr, Coolaroo VIC 3048
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.642557,144.932220
-                - id: d7e38b00-150b-4e3d-ac07-984003714b30
+                - id: ee6d51e3-7d87-4f47-85b1-f229c61bb3a4
                   name: Ingle Farm Recreation Centre
                   state: SA
                   suburb: Ingle Farm
                   address: 3/58 Beovich Rd, Ingle Farm SA 5098
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-34.831944,138.649167
-                - id: 9a9ca0dc-55a4-4e1e-8f62-7aeb8ace7eef
+                - id: 345a584f-4066-474a-85b7-47cdb14a3398
                   name: JS Sports Arena
                   state: NSW
                   suburb: Smeaton Grange
                   address: 75 Anderson Rd, Smeaton Grange NSW 2567
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-34.034063,150.761189
-                - id: b6daf756-31a2-4c9a-9a6c-f409e88cd908
+                - id: 29f99730-c3c1-4def-9252-f6c9f87858c5
                   name: Kangaroo Indoor Sports
                   state: VIC
                   suburb: Pakenham
                   address: 147 Mulcahy Rd, Pakenham VIC 3810
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.058479,145.464523
-                - id: 40cc6770-bdbd-470b-a262-8184ac4069f0
+                - id: f85e8c2b-b6d5-47a5-8dd2-835634393452
                   name: Keilor Basketball Netball Stadium
                   state: VIC
                   suburb: Keilor Park
                   address: 135 Stadium Dr, Keilor Park VIC 3042
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.713286,144.848203
-                - id: 392f8409-51e0-4ffa-bf15-3a1bd28b7679
+                - id: f02eaf82-1b62-4cd1-808e-11c0d6c27d24
                   name: KG Badminton HQ | Perth
                   state: WA
                   suburb: Forrestdale
                   address: 35 Edison Cct, Forrestdale WA 6112
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-32.136693,115.961432
-                - id: 3250f150-c664-42ad-9cf9-5d1ec13427b3
+                - id: 89f75db9-7516-49e2-b326-cad936cd5f15
                   name: Kilsyth Sports Centre
                   state: VIC
                   suburb: Kilsyth
                   address: 115 Liverpool Road
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.812225,145.317793
-                - id: ff71f253-fb2b-428c-b734-3566ba24abcc
+                - id: b83a584c-4078-40bd-8c01-eb539a1a537f
                   name: Kingsway Indoor Stadium
                   state: WA
                   suburb: Madeley
                   address: Kingsway Indoor Stadium, Level 1/130 Kingsway, Madeley WA 6065
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-31.813829,115.834217
-                - id: 6a80cf7d-f797-4aa1-b45d-fa4ac13c2dbe
+                - id: ea474676-5246-4d45-a27c-2c66a634f12e
                   name: Kyabram Badminton
                   state: VIC
                   suburb: Kyabram
                   address: 7 Unwin St, Kyabram VIC 3620
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-36.316700,145.050000
-                - id: a23a9916-977d-42d6-a3dd-d83cd6a142ea
+                - id: e49d6b09-207a-4443-ac09-5ea08fe41a51
                   name: Kyneton Badminton Association
                   state: VIC
                   suburb: Kyneton
                   address: 4 Victoria Street, Kyneton VIC 3444
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.250000,144.450000
-                - id: 8f9a9423-5f73-4107-91f0-e3f62908ceed
+                - id: 032bd6a7-f400-4e9b-a8e5-ee995d2ce11b
                   name: Latrobe Valley Badminton Association
                   state: VIC
                   suburb: Traralgon
                   address: Catterick Crescent, Traralgon VIC 3840
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.200000,146.533300
-                - id: 539f73bb-559e-49c9-a3e0-a0b5b3d0a1c6
+                - id: 56fd7c81-27f1-4927-b80e-dd10d7b7894c
                   name: Leongatha Badminton Club
                   state: VIC
                   suburb: Leongatha
                   address: Eca Centre, Leongatha VIC 3953
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.483300,145.950000
-                - id: 4628ee7c-e770-44d2-85c4-b12e0d335928
+                - id: 2b6ce8e5-5496-46e2-a454-c87ce38419f6
                   name: Logan Badminton & Court Hire
                   state: QLD
                   suburb: Slacks Creek
                   address: 2 Alfred St, Slacks Creek QLD 4127
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-27.652975,153.160898
-                - id: 3c16944f-d276-4b2f-9776-6149d7a3aa96
+                - id: d3ca30d3-cc4b-40a4-925d-21df3b0a8ee8
                   name: Macedon Community Centre  (Macedon Ranges Badminton Club)
                   state: VIC
                   suburb: Macedon
                   address: 37 Waterfalls Rd, Macedon VIC 3440
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.417413,144.572439
-                - id: cb135310-fc2e-4346-b0c5-53ad060bf5b9
+                - id: e493f5a1-d9c1-4f62-aa1f-7a7dcaa75e4c
                   name: Mansfield Badminton Association
                   state: VIC
                   suburb: Mansfield
                   address: 35 Highett Street, Mansfield VIC 3722
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.050000,146.083300
-                - id: ad7dbbb2-816a-490a-bd5c-9b7d68a87cd7
+                - id: 8a0c0c99-4726-43bd-8a66-e09f8f5ff5a3
                   name: Maribyrnong College / Play Badminton
                   state: VIC
                   suburb: Maribyrnong
                   address: Maribyrnong College, River Street, Maribyrnong VIC 3032
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.778024,144.889050
-                - id: 602e3f28-77ef-4948-a32d-b4927290603d
+                - id: a82b278e-0289-44e0-9162-7ef5e8b903ce
                   name: Maroondah Nets
                   state: VIC
                   suburb: Heathmont
                   address: 154 Heathmont Rd, Heathmont VIC 3135
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.835230,145.255620
-                - id: 2616e317-7c9d-497c-a0f5-f27c6cc97e60
+                - id: 4d414acb-aa9a-423e-b0b1-430ac3a8b1d8
                   name: Marrara Indoor Stadium
                   state: NT
                   suburb: Marrara
                   address: 10 Abala Rd, Marrara NT 0812
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-12.399547,130.882141
-                - id: 6b09bb87-5d66-4ce4-b5cf-24c47e9215ee
+                - id: 77ec84e1-6028-4e9f-9de2-36caca3def92
                   name: Melbourne Badminton Centre
                   state: VIC
                   suburb: Blackburn North
                   address: 16 Joseph Street
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.799510,145.144072
-                - id: 57a62c43-3145-4711-a470-3e6225862e03
+                - id: 32c357f3-c75c-4b8b-ac6e-cb059a90f273
                   name: Melbourne Sports and Aquatic Centre@ MSAC
                   state: VIC
                   suburb: Albert Park
                   address: 30 Aughtie Dr, Albert Park
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
-                - id: c4ef391f-4df1-4862-b734-e4641b06eb12
+                - id: d4ac80b1-790b-492b-90c8-a421873a1285
                   name: Melbourne Unique Badminton Centre
                   state: VIC
                   suburb: Mount Waverley
                   address: Suite 1, Building 2/88 Ricketts Rd, Mount Waverley VIC 3149
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.896937,145.140831
-                - id: 68947138-f94c-46a8-988e-fbd1639941e3
+                - id: e17036dc-807e-4358-bb30-9f03f95eed42
                   name: Melbourne University Badminton Club
                   state: VIC
                   suburb: Parkville
                   address: 103 Tin Alley, Parkville VIC 3010
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.796360,144.960652
-                - id: 8b909e50-023d-404e-b0ef-9dfd6621b545
+                - id: 2155fcf4-ccd5-429f-8d3f-5dd26e8010c1
                   name: Mirboo North Badminton Association
                   state: VIC
                   suburb: Mirboo North
                   address: Castle Street, Mirboo North VIC 3871
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.400000,146.166700
-                - id: ba8ba0b6-aa76-49c3-acb9-9f51f5c91461
+                - id: ffbd2adb-64af-4c1f-9ca9-5e61083dbb34
                   name: Mitcham Badminton
                   state: VIC
                   suburb: Mitcham
                   address: Unit 1/613 Whitehorse Rd, Mitcham VIC 3132
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.815211,145.203752
-                - id: e604434d-b35e-4f06-9124-bca34561d317
+                - id: 2f8c8aad-39a6-4055-8985-3d81e55fbb8a
                   name: Monash Sport
                   state: VIC
                   suburb: Frankston
                   address: Monash Peninsula Activity & Recreation Centre, Frankston VIC 3199
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.153628,145.136240
-                - id: c2594235-9c83-413e-b499-9b34937ac62a
+                - id: 4b536032-99c0-4106-a4c8-563f53ed8891
                   name: Morayfield Sport & Events Centre
                   state: QLD
                   suburb: Morayfield
                   address: Morayfield Park Leisure Centre, 298 Morayfield Rd, Morayfield QLD 4506
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-27.116956,152.949576
-                - id: 6291eb90-9d5a-49ba-9188-82c84f11640f
+                - id: 0f3a13bf-7dce-4bc8-9dc8-d70c365f1627
                   name: Mornington Peninsula Badminton - Somerville Recreation Centre
                   state: VIC
                   suburb: Somerville
                   address: 14 Edward St, Somerville VIC 3912
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.225185,145.172675
-                - id: 828b34c4-d43e-4235-a5c1-b88d5201768f
+                - id: 731d0971-7721-4d82-a6ee-c89c662eac49
                   name: Mornington Peninsula Badminton Inc.
                   state: VIC
                   suburb: Frankston
                   address: 3/97 Foot St, Frankston VIC 3199
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.162321,145.130082
-                - id: 9f83d312-a813-4ec7-abde-96a219c7dd24
+                - id: 9f87ed3f-bb23-4a63-bfa7-52046128c37e
                   name: Mountain District Badminton Association
                   state: VIC
                   suburb: Kilsyth
                   address: 115 Liverpool Rd, Kilsyth VIC 3137
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.812022,145.316366
-                - id: 0cdeb196-00a1-4ab2-a171-de44d160b711
+                - id: bab53a53-4411-4462-8768-2c385302a673
                   name: Mt Waverley Badminton Centre (MWBC)
                   state: VIC
                   suburb: Mount Waverley
                   address: 59/170 Forster Rd, Mount Waverley VIC 3149
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.896752,145.133250
-                - id: 9a73644d-f3b6-4a3d-9a42-441d53c538d5
+                - id: 23b3246f-108f-4f7b-ab21-4813aad542fd
                   name: Narrandjeri Stadium
                   state: VIC
                   suburb: Thornbury
                   address: 281 Darebin Rd, Thornbury VIC 3071
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.763678,145.023912
-                - id: de7dae74-5f80-4688-8ce1-7664f336c2ae
+                - id: '078b47a4-1d0f-4439-a59a-09686fbb6e84'
                   name: NBC Alexandria
                   state: NSW
                   suburb: Alexandria
                   address: 8/190 Bourke Rd, Alexandria NSW 2015
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-33.917224,151.192216
-                - id: bb05c1bf-2fa1-4135-8c09-9ebb2d349ae7
+                - id: b1b8ffe0-e3de-4e47-af7e-4552134fc4a0
                   name: NBC Granville
                   state: NSW
                   suburb: South Granville
                   address: 3F/62 Ferndell St, South Granville NSW 2142
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-33.868900,151.007046
-                - id: 302db238-6127-43af-87f2-62a03035051a
+                - id: 5d3a90d3-e297-40d0-aedc-19eb85822153
                   name: NBC Seven Hills
                   state: NSW
                   suburb: Seven Hills
                   address: 3/17 Stanton Rd, Seven Hills NSW 2147
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-33.770613,150.953200
-                - id: a9631e54-f0f8-4654-93f4-a9fe5fcf4741
+                - id: 650a3729-eb20-4ca1-952c-7aeda5dd0ebd
                   name: Nunawading Community Hub
                   state: VIC
                   suburb: Nunawading
                   address: 96-106 Springvale Rd, Nunawading VIC 3131
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.814973,145.176134
-                - id: bf1d21e5-e21f-4676-b306-659feac756c5
+                - id: 14c746cb-cb60-4e12-855c-45cf0f557176
                   name: Ocean Grove Badminton
                   state: VIC
                   suburb: Ocean Grove
                   address: 123 The Avenue, Ocean Grove VIC 3226
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.266700,144.516700
-                - id: a8cef38b-0fba-40de-b043-f0e20a95f3bd
+                - id: b6242df2-1354-425d-80f9-9a384a5b40d5
                   name: Officer Community Hub
                   state: VIC
                   suburb: Officer
                   address: 2 Parker St, Officer VIC 3809
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.070968,145.411769
-                - id: 663c2eb9-a642-412c-a29d-3683a81e6255
+                - id: 3e6851c2-f0fc-4153-88ad-d7b4b7c50723
                   name: Panther Sports Centre
                   state: VIC
                   suburb: Clyde North
@@ -3717,200 +3717,187 @@ paths:
                   address: 103 Tin Alley, Parkville VIC 3010
                   mapsUrl: >-
                     https://www.google.com/maps/search/?api=1&query=Parkville+Community+Hall+dev,+103+Tin+Alley,+Parkville+VIC+3010
-                - id: d1008740-ec80-42d3-8e11-c587b68acc2d
+                - id: 295dea01-71b9-4b2b-a34e-64f6997e3ecc
                   name: PBC - PICKLEBALL & BADMINTON CENTRE
                   state: VIC
                   suburb: Reservoir
                   address: Unit 4/3B Newlands Rd, Reservoir VIC 3073
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.718297,144.980344
-                - id: fbd3b924-01be-42b2-a598-d4116ac79d27
+                - id: 467ece82-d272-4d8e-a42a-6b8ab7747057
                   name: Peak Play Badminton
                   state: VIC
                   suburb: Laverton
                   address: 50E Cherry Lane, Laverton North, VIC 3026
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.834703,144.800660
-                - id: 5d208ca4-c9c1-40d6-afc0-b4910c001b19
+                - id: de2f88e5-e3cd-442d-87c5-04ab7e2c8664
                   name: Perth Badminton Arena Canning Vale
                   state: WA
                   suburb: Canning Vale
                   address: 21 Bannister Rd, Canning Vale WA 6155
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-32.060930,115.929192
-                - id: 6751d3da-bc12-47b0-87e1-1eb0662477cf
-                  name: Pinned Hall 22409
-                  state: VIC
-                  suburb: Parkville
-                  address: 
-                  mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.790000,144.960000
-                - id: 5fd305ac-5d78-40b9-ab3d-674f6c8d0ae8
+                - id: 80d402a9-84c8-4040-bf83-e6b7de8fa13d
                   name: PlayPoint Seven Hills
                   state: NSW
                   suburb: Seven Hills
                   address: 2/6 Boden Rd, Seven Hills NSW 2147
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-33.773947,150.960008
-                - id: ff36abb8-6a28-42b9-9ca8-ebb3c0603ac7
+                - id: 5feff5a4-348c-4767-9482-f0b6f43d959f
                   name: Pro Fit Badminton
                   state: VIC
                   suburb: Clayton South
                   address: 86-102 Whiteside Road
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.939256,145.124524
-                - id: 1861e04c-c502-40ea-b13d-50427d2c69e1
-                  name: Queue Test Hall 8605
-                  state: VIC
-                  suburb: Parkville
-                  address: 103 Tin Alley, Parkville VIC 3010
-                  mapsUrl: >-
-                    https://www.google.com/maps/search/?api=1&query=Queue+Test+Hall+8605,+103+Tin+Alley,+Parkville+VIC+3010
-                - id: 5bb11fe4-d6b2-4c47-ae87-c120a0115c7f
+                - id: 2a231765-2c1b-4c83-afe8-089f91025272
                   name: RecWest Braybrook
                   state: VIC
                   suburb: Braybrook
                   address: 39 Lily St, Braybrook VIC 3019
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.783506,144.848527
-                - id: 916c8f86-09de-4e3e-aa9a-4bb29bdb6f41
+                - id: b3a138ee-82b5-4be2-82bc-9215daaa1849
                   name: Revolution Sports Park
                   state: NSW
                   suburb: Maryville
                   address: 55 The Avenue, Maryville NSW 2293
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-32.913447,151.755996
-                - id: 0e285457-7781-4f45-98a5-af4ab1036c96
+                - id: d89e96d5-ca95-4654-87bd-8adf0a20807e
                   name: Roketto Badminton
                   state: NSW
                   suburb: Lidcombe
                   address: 22 Carter St, Lidcombe NSW 2141
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-33.851210,151.057487
-                - id: 107b4428-4cf2-4333-a734-ed228446acac
+                - id: 0433f6d2-8ea0-417d-bc35-3d23d9c1bb3a
                   name: Sam's Indoor Sports Centre
                   state: QLD
                   suburb: Nundah
                   address: 137 Bage St, Nundah QLD 4012
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-27.408159,153.057037
-                - id: 9fcd3bbb-83fa-48fa-b773-9b74caccbb95
+                - id: 68d02e76-184b-4b9d-92c9-7e3e09f52eb4
                   name: Smashminton
                   state: QLD
                   suburb: Acacia Ridge
                   address: 2/26 Achievement Cres, Acacia Ridge QLD 4110
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-27.581787,153.011856
-                - id: d740bdfe-cae2-4fcb-b1f6-36632bb4015a
+                - id: dc63b6fc-169c-46a1-8ddb-ed336b755eb0
                   name: South Australia Badminton College
                   state: SA
                   suburb: Parafield Gardens
                   address: The Gdns, Parafield Gardens SA 5107
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-34.781848,138.601393
-                - id: b467dbed-ccff-4fef-a9f5-55ae4aae1317
+                - id: fd385c03-64dc-4499-93a7-69dedc8a3c67
                   name: South Australian Badminton Association
                   state: SA
                   suburb: Lockleys
                   address: 42 Rutland Ave, Lockleys SA 5032
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-34.930825,138.523569
-                - id: eb1a2e5c-4c12-4ef5-bf3a-454c9e7e2e98
+                - id: 9c845e24-835e-4951-8fb5-967554caadf2
                   name: Sports Arena Clyde North
                   state: VIC
                   suburb: Clyde North
                   address: 31 Palladium Cct, Clyde North VIC 3978
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.092401,145.337298
-                - id: c32d184d-63e6-4e2e-9b9a-e99e90a38762
+                - id: cb7a3ebd-6dd6-4a8e-8181-58d569234364
                   name: Sports Arena Pakenham
                   state: VIC
                   suburb: Pakenham
                   address: 14/99 Bald Hill Rd, Pakenham VIC 3810
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.088179,145.501170
-                - id: 2a68ec6d-bb01-4a39-a6cb-e1b918f8d756
+                - id: c9b659dd-04f8-419f-a3ba-da65434cd82a
                   name: Sportz Kingdom ( Coming Soon )
                   state: VIC
                   suburb: Cranbourne West
                   address: 7 Palomo Drive, Cranbourne West VIC 3977
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.083681,145.244055
-                - id: f9406457-a8a5-41bb-b778-11ed2f9c058e
+                - id: 739e0ad8-7b3e-435a-ab15-e806b6b11114
                   name: Springers Leisure Centre
                   state: VIC
                   suburb: Keysborough
                   address: 400 Cheltenham Rd, Keysborough VIC 3173
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.996154,145.154226
-                - id: 2fd5b6ca-71a2-46f0-ba6d-4061372a3ef1
+                - id: 866d19e8-89b3-4039-9c89-5587f60d45cf
                   name: Squash Logic
                   state: VIC
                   suburb: Melton
                   address: 63 Reserve Rd, Melton VIC 3337
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.687111,144.587922
-                - id: a07c4bcb-0cc9-4445-a43e-253c04a034c2
+                - id: 2fce2dd0-1ea1-4235-8d7b-c5e5db3c1afe
                   name: Star Badminton Centre
                   state: QLD
                   suburb: Southport
                   address: 6 Pinter Dr, Southport QLD 4215
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-27.974636,153.409838
-                - id: 477d0771-1df1-4600-9c63-1baf81981d36
+                - id: 17f61bcc-4cf0-4b75-91a0-012af52d1156
                   name: Stormers Badminton Center
                   state: VIC
                   suburb: Ravenhall
                   address: 11 Waigani Ave, Ravenhall VIC 3023
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.765503,144.754571
-                - id: f010b56a-edef-40e1-8b5a-a20678e1cb7c
+                - id: 2f5a8cac-a2a3-48cb-b5b9-362d4ce2cd3f
                   name: Striker Indoor Sports and Fitness
                   state: WA
                   suburb: Leeming
                   address: 55 Farrington Rd, Leeming WA 6149
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-32.077337,115.856094
-                - id: f43593c9-07cd-463e-a6b6-8ccca68a2d90
+                - id: f5a10f08-a676-4834-b182-9dcc61961894
                   name: Sunbury Recreation Stadium (Sunbury Badminton Club)
                   state: VIC
                   suburb: Sunbury
                   address: 47 Riddell Road,Sunbury VIC, 3429
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.572275,144.722984
-                - id: be9eae6d-c5ee-46f7-bb7e-c4c246bf8728
+                - id: a7179527-c830-4365-a7f9-1e70c5ead1df
                   name: Sunshine Badminton
                   state: VIC
                   suburb: Sunshine North
                   address: 45 Bunnett Street
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.761742,144.840531
-                - id: 63024e1c-5324-4d3d-94f9-f0a9c57e42bc
+                - id: 29f5c49b-ae9d-4e4c-a208-ac80e8cf37f7
                   name: Surf Coast Badminton Association
                   state: VIC
                   suburb: Torquay
                   address: Surfcoast Highway, Torquay VIC 3228
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.333300,144.316700
-                - id: 26b822b8-8f9a-4983-8c91-f4c6f3dd7b24
+                - id: dc062efe-beb0-444c-8b1c-eff05f2cfd95
                   name: Sydney Badminton
                   state: NSW
                   suburb: Hurstville
                   address: Kenwyn St, Hurstville NSW 2220
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-33.962277,151.110583
-                - id: 9d1c15d4-aa7a-4be5-ba58-192eb498a171
+                - id: 89bccb35-e47b-48a5-81e6-d52108a4f367
                   name: Sydney Olympic Park Sports Halls
                   state: NSW
                   suburb: Sydney Olympic Park
                   address: Grand Parade, Sydney Olympic Park NSW 2127
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-33.844704,151.064901
-                - id: 29a2edb2-43f6-4c4f-84e8-13243cc1fa0b
+                - id: e5598c8a-f8c5-4e1f-851f-461f5295ae46
                   name: Tennton
                   state: VIC
                   suburb: Craigieburn
                   address: 65a Yellowbox Dr, Craigieburn VIC 3064
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.615688,144.940811
-                - id: d0e45fd8-5d86-41ef-8f9a-90a282543628
+                - id: 194cac3e-4196-4819-99da-2aaf25b1f59f
                   name: Terang Badminton Club
                   state: VIC
                   suburb: Terang
                   address: 134 High Street, Terang VIC 3264
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.233300,142.916700
-                - id: e9cc9222-bacf-4381-b268-133fbd26f932
+                - id: 3daf58ca-d1b7-469f-b4ce-fd7aa64bd194
                   name: The Badminton Club Prestons.
                   state: NSW
                   suburb: Prestons
                   address: 276 Kurrajong Rd, Parking on, Kookaburra Rd N, Prestons NSW 2170
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-33.940554,150.858876
-                - id: 2b63bb80-d6d5-424e-b649-98da1e38df82
+                - id: e3d4857e-eae2-4a8b-ba84-e1b92810c562
                   name: The Badminton Club Wetherill Park
                   state: NSW
                   suburb: Wetherill Park
                   address: 196 Newton Rd, Wetherill Park NSW 2164
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-33.838056,150.882222
-                - id: 0470410e-115c-4f13-afcc-b7e085453b71
+                - id: f8a6d2a6-942a-4672-9771-8064ad952929
                   name: The RISE
                   state: WA
                   suburb: Maylands
                   address: 28 Eighth Ave, Maylands WA 6051
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-31.931044,115.894857
-                - id: 84a2e9b5-02f0-474e-a091-9ea0e9ae53e6
+                - id: f7b46139-d16a-4d76-a2db-4ae6838c8679
                   name: Timboon & District Badminton Association
                   state: VIC
                   suburb: Timboon
@@ -3922,73 +3909,73 @@ paths:
                   suburb: Footscray
                   address: Somewhere Rd
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=Unknown+Sports+Barn+dev,+Somewhere+Rd
-                - id: 4868a175-1b5e-4b3e-a61c-f38090441268
+                - id: 8c3130fd-beb2-4f8a-940f-b94b69035626
                   name: VBC / Vision Badminton Centre
                   state: QLD
                   suburb: Coorparoo
                   address: 37A Turbo Dr, Coorparoo QLD 4151
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-27.492432,153.049782
-                - id: 1ffdea89-d1b2-4223-8550-05723d0ecdf6
+                - id: 29de2bec-b15a-4639-b3d7-b5fc098467b0
                   name: VBVA Albury Wodonga
                   state: NSW
                   suburb: East Albury
                   address: 229 North Road, East Albury NSW 2640
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-36.083300,146.916700
-                - id: e50d015e-a761-4601-86b2-4d95a1cd24ea
+                - id: 77685687-24e9-4359-ab3b-77bb8ae58d52
                   name: VBVA Geelong
                   state: VIC
                   suburb: Bell Post Hill
                   address: 2 Anakie Road, Bell Post Hill VIC 3215
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.100000,144.333300
-                - id: 196ffd42-83c5-4913-97f5-4ee3212e397a
+                - id: c0fe20c6-6842-47b9-b662-87b9d62eb4cb
                   name: VBVA Sale Maffra
                   state: VIC
                   suburb: Sale
                   address: 116 Cobains Road, Sale VIC 3850
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.100000,147.066700
-                - id: 398edbe6-0786-4b8d-b5e2-168faaef611d
+                - id: d1d07157-5c05-4407-8e99-4caf56f165fd
                   name: VBVA Shepparton
                   state: VIC
                   suburb: Shepparton
                   address: Numurkah Rd, Shepparton VIC 3630
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-36.383300,145.400000
-                - id: e72fb717-9844-41a9-b955-183f9dbb94b8
+                - id: 39a8b672-8755-4563-8924-7ad39b087827
                   name: Vermont Badminton Centre
                   state: VIC
                   suburb: Vermont
                   address: 159 Rooks Rd, Vermont VIC 3133
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.833528,145.189166
-                - id: 17bfff29-fe1c-4e54-9d47-b745dffd945e
+                - id: 3c34ea40-d2c5-4294-a4a8-4873f4abe7c4
                   name: Victory Badminton Centre
                   state: VIC
                   suburb: Mulgrave
                   address: 11/13 Glenvale Cres, Mulgrave VIC 3170
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.921039,145.159918
-                - id: 617d0daa-f908-4611-97e5-a69fedf449db
+                - id: 6315ccb2-ca1f-44e5-98ba-927c1f057884
                   name: Wangaratta Badminton Club
                   state: VIC
                   suburb: Wangaratta
                   address: 344 Wangaratta-Whitfield Rd, Wangaratta VIC 3677
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-36.350000,146.316700
-                - id: c33a98e7-6061-41e3-9b0f-3f5df8446be1
+                - id: 995fca25-1b8a-47ec-9188-cad6eae3ff46
                   name: Warragul Badminton Club
                   state: VIC
                   suburb: Warragul
                   address: 19 Galloway St, Warragul VIC 3820
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.166700,145.933300
-                - id: 9a889c00-c94c-4512-a29f-0dafe54ca1db
+                - id: 88e39bbc-a648-4c7e-a44c-0b89a75cda26
                   name: Warrnambool Stadium
                   state: VIC
                   suburb: Warrnambool
                   address: 71-77 Caramut Rd, Warrnambool VIC 3280
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.353655,142.461124
-                - id: 0f2fa829-c3c8-4025-b79a-f781681d89c4
+                - id: 1809097a-d7cf-4ca7-8207-2362f2c330bf
                   name: Wonthaggi And District Badminton Association Inc.
                   state: VIC
                   suburb: Wonthaggi
                   address: 41 Wentworth Road, Wonthaggi VIC 3995
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-38.600000,145.583300
-                - id: 93e073ab-4f0b-4be1-9d72-99687bbffc34
+                - id: 55445495-0a02-4bae-8bff-36a7775af3b9
                   name: Yu Lin Badminton Club
                   state: VIC
                   suburb: Keysborough
@@ -4042,37 +4029,13 @@ paths:
                 items:
                   "$ref": "#/components/schemas/GameCard"
               example:
-              - id: a4e8bcc7-1c4f-49b9-ac4d-228040a219ae
-                date: Thu, 8 Oct
-                rank: Any Rank
-                time: 11:27 AM – 12:27 PM
-                style: Social
-                title: Badminton game
-                endsAt: '2026-10-08T01:27:12+00:00'
-                format: Singles
-                status: open
-                suburb: Carlton
-                mapsUrl: 
-                imageUrl: 
-                location: Carlton
-                myStatus: 
-                startsAt: '2026-10-08T00:27:12+00:00'
-                organiser:
-                  id: 326f480e-c508-4ff7-a63b-6ecd3b3589d9
-                  name: org_26314_404
-                  isClub: false
-                  initials: OR
-                  isBlocked: false
-                  isDeleted: false
-                maxPlayers: 2
-                playerCount: 1
               - id: 00000000-0000-0000-0000-00000000b001
-                date: Sat, 10 Oct
+                date: Sun, 11 Oct
                 rank: Intermediate
-                time: 7:00 PM – 8:30 PM
+                time: 4:00 AM – 5:30 AM
                 style: Social
                 title: Friday Night Doubles
-                endsAt: '2026-10-10T09:30:00+00:00'
+                endsAt: '2026-10-10T18:30:00+00:00'
                 format: Doubles
                 status: open
                 suburb: Albert Park
@@ -4080,7 +4043,7 @@ paths:
                 imageUrl: 
                 location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
                 myStatus: accepted
-                startsAt: '2026-10-10T08:00:00+00:00'
+                startsAt: '2026-10-10T17:00:00+00:00'
                 organiser:
                   id: 00000000-0000-0000-0000-00000000a001
                   name: alice
@@ -4090,6 +4053,30 @@ paths:
                   isDeleted: false
                 maxPlayers: 4
                 playerCount: 3
+              - id: 00000000-0000-0000-0000-00000000b002
+                date: Sun, 11 Oct
+                rank: Any Rank
+                time: 8:00 PM – 9:00 PM
+                style: Social
+                title: Badminton game
+                endsAt: '2026-10-11T10:00:00+00:00'
+                format: Singles
+                status: open
+                suburb: Blackburn North
+                mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.799510,145.144072
+                imageUrl: 
+                location: Melbourne Badminton Centre, Blackburn North
+                myStatus: 
+                startsAt: '2026-10-11T09:00:00+00:00'
+                organiser:
+                  id: 00000000-0000-0000-0000-00000000a002
+                  name: bob
+                  isClub: false
+                  initials: BO
+                  isBlocked: false
+                  isDeleted: false
+                maxPlayers: 2
+                playerCount: 1
         '401':
           "$ref": "#/components/responses/Unauthorized"
       requestBody:
@@ -4138,7 +4125,7 @@ paths:
                 "$ref": "#/components/schemas/GameDetails"
               example:
                 id: 00000000-0000-0000-0000-00000000b001
-                date: Sat, 10 Oct
+                date: Sun, 11 Oct
                 host:
                   id: 00000000-0000-0000-0000-00000000a001
                   name: alice
@@ -4151,17 +4138,17 @@ paths:
                   reliabilityBand: Very reliable
                   verifiedMatches: 4
                 rank: Intermediate
-                time: 7:00 PM – 8:30 PM
+                time: 4:00 AM – 5:30 AM
                 notes: Bring your own racquet. Shuttles provided.
                 style: Social
                 title: Friday Night Doubles
-                endsAt: '2026-10-10T09:30:00+00:00'
+                endsAt: '2026-10-10T18:30:00+00:00'
                 format: Doubles
                 status: open
                 suburb: Albert Park
                 address: 30 Aughtie Dr, Albert Park
                 mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
-                matchId: f245fcf5-5198-4b4e-bd97-fcedf7ee5d99
+                matchId: 8138cdc2-6e20-4702-9029-b4464c89b003
                 players:
                 - id: 00000000-0000-0000-0000-00000000a001
                   host: true
@@ -4181,12 +4168,12 @@ paths:
                   initials: ER
                   isBlocked: false
                   isDeleted: false
-                venueId: 57a62c43-3145-4711-a470-3e6225862e03
+                venueId: 32c357f3-c75c-4b8b-ac6e-cb059a90f273
                 duration: 90 mins
                 imageUrl: 
                 location: Melbourne Sports and Aquatic Centre@ MSAC
                 myStatus: pending
-                startsAt: '2026-10-10T08:00:00+00:00'
+                startsAt: '2026-10-10T17:00:00+00:00'
                 canManage: false
                 organiser:
                   id: 00000000-0000-0000-0000-00000000a001
@@ -4312,12 +4299,12 @@ paths:
               - id: 00000000-0000-0000-0000-00000000b001:00000000-0000-0000-0000-00000000a003
                 game:
                   id: 00000000-0000-0000-0000-00000000b001
-                  date: Sat, 10 Oct
+                  date: Sun, 11 Oct
                   rank: Intermediate
-                  time: 7:00 PM – 8:30 PM
+                  time: 4:00 AM – 5:30 AM
                   style: Social
                   title: Friday Night Doubles
-                  endsAt: '2026-10-10T09:30:00+00:00'
+                  endsAt: '2026-10-10T18:30:00+00:00'
                   format: Doubles
                   status: open
                   suburb: Albert Park
@@ -4325,7 +4312,7 @@ paths:
                   imageUrl: 
                   location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
                   myStatus: accepted
-                  startsAt: '2026-10-10T08:00:00+00:00'
+                  startsAt: '2026-10-10T17:00:00+00:00'
                   organiser:
                     id: 00000000-0000-0000-0000-00000000a001
                     name: alice
@@ -4357,16 +4344,16 @@ paths:
                   profileImageUrl: 
                   reliabilityBand: Very reliable
                   verifiedMatches: 2
-                requestedAt: '2026-10-04T14:26:20.064853+00:00'
+                requestedAt: '2026-10-04T23:00:36.386535+00:00'
               - id: 00000000-0000-0000-0000-00000000b001:00000000-0000-0000-0000-00000000a005
                 game:
                   id: 00000000-0000-0000-0000-00000000b001
-                  date: Sat, 10 Oct
+                  date: Sun, 11 Oct
                   rank: Intermediate
-                  time: 7:00 PM – 8:30 PM
+                  time: 4:00 AM – 5:30 AM
                   style: Social
                   title: Friday Night Doubles
-                  endsAt: '2026-10-10T09:30:00+00:00'
+                  endsAt: '2026-10-10T18:30:00+00:00'
                   format: Doubles
                   status: open
                   suburb: Albert Park
@@ -4374,7 +4361,7 @@ paths:
                   imageUrl: 
                   location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
                   myStatus: accepted
-                  startsAt: '2026-10-10T08:00:00+00:00'
+                  startsAt: '2026-10-10T17:00:00+00:00'
                   organiser:
                     id: 00000000-0000-0000-0000-00000000a001
                     name: alice
@@ -4406,7 +4393,7 @@ paths:
                   profileImageUrl: 
                   reliabilityBand: Reliable
                   verifiedMatches: 1
-                requestedAt: '2026-10-05T14:26:20.064853+00:00'
+                requestedAt: '2026-10-05T23:00:36.386535+00:00'
         '400':
           "$ref": "#/components/responses/RuleBroken"
         '401':
@@ -4594,19 +4581,19 @@ paths:
                 items:
                   "$ref": "#/components/schemas/PlayerCard"
               example:
-              - id: 7b95bcb6-0e99-4c52-972e-3c530709a051
-                name: ada_13797_922
+              - id: 00000000-0000-0000-0000-00000000a002
+                name: bob
                 rank: Beginner
-                initials: AD
-                location: 
+                initials: BO
+                location: Clayton
                 isBlocked: false
-                reliability: 100
-                reliabilityBand: New player
-              - id: 4719f6e3-12e4-4ba9-90b1-5bbdf67939a2
-                name: Alice_12180
-                rank: Beginner
-                initials: AL
-                location: 
+                reliability: 89
+                reliabilityBand: Reliable
+              - id: 00000000-0000-0000-0000-00000000a003
+                name: carol
+                rank: Upper Intermediate
+                initials: CA
+                location: Box Hill
                 isBlocked: false
                 reliability: 100
                 reliabilityBand: Very reliable
@@ -4710,7 +4697,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/HistoryEntry"
               example:
-              - date: Sat 3 Oct 2026
+              - date: Sun 4 Oct 2026
                 score: 17-21 21-23
                 format: Singles
                 gameId: 00000000-0000-0000-0000-00000000c106
@@ -4718,13 +4705,13 @@ paths:
                 matchId: 00000000-0000-0000-0000-00000000d106
                 partner: 
                 location: Albert Park
-                playedAt: '2026-10-03T08:00:00+00:00'
+                playedAt: '2026-10-03T17:00:00+00:00'
                 opponents:
                 - id: 00000000-0000-0000-0000-00000000a004
                   name: dan
                   initials: DA
                   isBlocked: false
-              - date: Mon 28 Sep 2026
+              - date: Tue 29 Sep 2026
                 score: 21-18 19-21 21-16
                 format: Doubles
                 gameId: 00000000-0000-0000-0000-00000000c102
@@ -4736,7 +4723,7 @@ paths:
                   initials: BO
                   isBlocked: false
                 location: Blackburn North
-                playedAt: '2026-09-28T09:00:00+00:00'
+                playedAt: '2026-09-28T18:00:00+00:00'
                 opponents:
                 - id: 00000000-0000-0000-0000-00000000a003
                   name: carol
@@ -4854,7 +4841,7 @@ paths:
                 reason: Kept messaging me after our game.
                 category: harassment
                 initials: FR
-                blockedAt: '2026-10-03T14:26:20.118858+00:00'
+                blockedAt: '2026-10-03T23:00:36.450736+00:00'
                 categoryLabel: Harassment
         '401':
           "$ref": "#/components/responses/Unauthorized"
@@ -5065,23 +5052,23 @@ paths:
                 items:
                   "$ref": "#/components/schemas/NotificationItem"
               example:
-              - id: 5fa6cef2-afd5-490a-8440-5c7bc8b57f8d
+              - id: c161ce62-31b6-4627-8318-5afdb43555d9
                 type: game_cancelled
-                title: 'Doubles game on Thu 15 Oct, 7:00 PM in Richmond was cancelled: the organiser closed
+                title: 'Doubles game on Fri 16 Oct, 4:00 AM in Richmond was cancelled: the organiser closed
                   their account.'
                 postId: 00000000-0000-0000-0000-00000000b008
                 unread: true
                 matchId: 
                 message: Find another game or post your own
-                createdAt: '2026-10-07T14:26:20.12919+00:00'
-              - id: febfcef1-5a81-4b47-884f-22b43eda1827
+                createdAt: '2026-10-07T23:00:36.463123+00:00'
+              - id: '09726d1f-f018-48d8-b1c0-e2595acdfbc0'
                 type: request_accepted
-                title: Your request to join Doubles game on Sat 10 Oct, 7:00 PM in Albert Park was accepted.
+                title: Your request to join Doubles game on Sun 11 Oct, 4:00 AM in Albert Park was accepted.
                 postId: 00000000-0000-0000-0000-00000000b001
                 unread: true
-                matchId: f245fcf5-5198-4b4e-bd97-fcedf7ee5d99
+                matchId: 8138cdc2-6e20-4702-9029-b4464c89b003
                 message: Tap to view match details
-                createdAt: '2026-10-07T14:26:20.064853+00:00'
+                createdAt: '2026-10-07T23:00:36.386535+00:00'
         '401':
           "$ref": "#/components/responses/Unauthorized"
       requestBody:
@@ -8517,7 +8504,6 @@ components:
                 type: string
               address:
                 type: string
-                nullable: true
               mapsUrl:
                 type: string
         formats:
@@ -8882,7 +8868,6 @@ components:
           type: string
         location:
           type: string
-          nullable: true
         isBlocked:
           type: boolean
         reliability:
@@ -9073,6 +9058,35 @@ components:
           description: Null in every sample (not built yet).
         confirmed_results:
           type: integer
+    ActivityLog:
+      type: object
+      properties:
+        logId:
+          type: string
+          format: uuid
+          description: Unique log entry id.
+        actorId:
+          type: string
+          format: uuid
+          description: Admin (or system) that performed the action.
+        action:
+          type: string
+          description: Action performed, e.g. suspend_account, hide_post.
+        targetType:
+          type: string
+          description: Type of the affected record, e.g. player, game_post, mini_league.
+        targetId:
+          type: string
+          description: Id of the affected record.
+        details:
+          type: string
+          description: Free-text or JSON-encoded detail of the action.
+        createdAt:
+          type: string
+          format: date-time
+          description: When the action was logged.
+      required:
+      - logId
     MatchMessage:
       type: object
       properties:
@@ -9121,35 +9135,6 @@ components:
           type: string
           format: date-time
           description: When the message was sent.
-    ActivityLog:
-      type: object
-      properties:
-        logId:
-          type: string
-          format: uuid
-          description: Unique log entry id.
-        actorId:
-          type: string
-          format: uuid
-          description: Admin (or system) that performed the action.
-        action:
-          type: string
-          description: Action performed, e.g. suspend_account, hide_post.
-        targetType:
-          type: string
-          description: Type of the affected record, e.g. player, game_post, mini_league.
-        targetId:
-          type: string
-          description: Id of the affected record.
-        details:
-          type: string
-          description: Free-text or JSON-encoded detail of the action.
-        createdAt:
-          type: string
-          format: date-time
-          description: When the action was logged.
-      required:
-      - logId
     Error:
       type: object
       description: PostgREST error. `code` is the Postgres error code; `message` is written to be shown
