@@ -455,3 +455,9 @@ enabled = true
 # its own shared secret (x-webhook-secret) instead of a user JWT.
 [functions.send-email-notification]
 verify_jwt = false
+
+# Venue pins from OpenStreetMap Nominatim. Called by the database (pg_cron +
+# pg_net), not by signed-in users, so it checks its own shared secret
+# (x-webhook-secret) instead of a user JWT.
+[functions.geocode-venues]
+verify_jwt = false

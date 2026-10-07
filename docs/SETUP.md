@@ -4,6 +4,8 @@ How to get Badminton Social Connect running on your machine.
 
 For how registration and sign-in work (flows, security settings, email templates, hosted dashboard configuration), see [M4: Registration and sign-in](features/M4-registration-and-sign-in.md).
 
+To deploy to the hosted Supabase project, see [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ## 1. Install
 
 - **Node.js 20+**
@@ -62,7 +64,7 @@ Useful commands (from the repo root):
 
 | Folder | What | Reaches the hosted project? |
 |---|---|---|
-| `supabase/seeds/production/` | Real reference data: states, all Australian suburbs and postcodes, badminton venues | Yes, through the CI deploy job. Files must be safe to run again (upserts) |
+| `supabase/seeds/production/` | Real reference data: states, all Australian suburbs and postcodes, 142 badminton venues with coordinates | Yes, through the CI deploy job. Files must be safe to run again (upserts) |
 | `supabase/seeds/dev/` | Dummy accounts, a club and upcoming games | **Never** |
 
 Dev accounts, all with the password `Passw0rd!`:
@@ -80,8 +82,60 @@ crediting GeoNames wherever the data is shown (for example an About or credits
 page). To refresh them, run `python3 supabase/seeds/scripts/generate_suburbs.py`
 and commit the regenerated `02_suburbs.sql`.
 
-The venue list in `03_venues.sql` is a starting list from public listings and
-must be confirmed with Badminton Victoria before launch.
+Venues come from [BadmintonHub](https://www.badmintonhub.com.au)'s published
+venue pages (name, address and coordinates), collected respecting its
+`robots.txt`. **Use in production needs BadmintonHub's permission** (team item
+8). Pins that are missing or wrong there are looked up with OpenStreetMap's free
+Nominatim geocoder (one request per second, kept only if within 10 km of the
+venue's suburb); those need the credit "© OpenStreetMap contributors"
+(`venue.coordinates_source = 'openstreetmap'`). To refresh them, run `python3 supabase/seeds/scripts/generate_venues.py`
+(about 3 minutes, one page per second) and commit the regenerated
+`03_venues.sql`. Then check every venue's Google Maps link and pin:
+
+```bash
+npx supabase db reset
+python3 supabase/tests/venue_maps_check.py   # about 2.5 minutes; --offline skips Google
+```
+
+### New venues get their pin automatically
+
+A venue saved without coordinates is queued (`venue_geocode_queue`). Every
+minute, `pg_cron` calls the `geocode-venues` Edge Function, which looks pins up
+with Nominatim at one request per second, writes them back
+(`coordinates_source = 'openstreetmap'`) and releases its lease. A venue it
+can't place after 3 tries is marked `failed` for an admin. Only one worker ever
+runs at a time.
+
+Off until configured, like email. To turn it on locally:
+
+```bash
+# supabase/functions/.env needs GEOCODE_WEBHOOK_SECRET (see .env.example)
+npx supabase functions serve --env-file supabase/functions/.env
+```
+
+and in Studio's SQL editor, with the same secret:
+
+```sql
+select vault.create_secret('http://host.docker.internal:54321/functions/v1/geocode-venues', 'geocode_function_url');
+select vault.create_secret('<GEOCODE_WEBHOOK_SECRET>', 'geocode_function_secret');
+```
+
+Hosted: set the secret with `npx supabase secrets set`, deploy with
+`npx supabase functions deploy geocode-venues`, and create the two vault
+secrets with the hosted URL
+(`https://<project-ref>.supabase.co/functions/v1/geocode-venues`). Tests:
+
+```bash
+npx deno test --no-check supabase/functions/geocode-venues/nominatim_test.ts
+```
+
+The generator's Nominatim look-ups have offline tests (no requests are sent;
+they use fake replies and a fake clock, including a burst of 20 requests that
+must go out one second apart):
+
+```bash
+python3 -m unittest supabase/seeds/scripts/test_generate_venues.py -v
+```
 
 ## 4. Supabase env (`supabase/.env`)
 
