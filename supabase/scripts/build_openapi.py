@@ -622,7 +622,7 @@ def main():
     # Old component schemas the planned endpoints still use. A generated
     # schema with the same name wins.
     old_schemas = old.get("components", {}).get("schemas", {})
-    pending = list(planned_refs)
+    pending = sorted(planned_refs)
     while pending:
         name = pending.pop()
         if name in components or name not in old_schemas:

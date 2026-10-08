@@ -3801,19 +3801,19 @@ paths:
                       status: scheduled
                       playedAt: 
                     players:
-                    - id: 00000000-0000-0000-0000-00000000a001
-                      host: false
-                      name: alice
-                      noShow: false
-                      initials: AL
-                      isBlocked: false
-                      isDeleted: false
-                      profileImageUrl: 
                     - id: 00000000-0000-0000-0000-00000000a005
                       host: false
                       name: erin
                       noShow: false
                       initials: ER
+                      isBlocked: false
+                      isDeleted: false
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-00000000a001
+                      host: false
+                      name: alice
+                      noShow: false
+                      initials: AL
                       isBlocked: false
                       isDeleted: false
                       profileImageUrl: 
@@ -9698,6 +9698,54 @@ components:
           description: Null in every sample (not built yet).
         confirmed_results:
           type: integer
+    MatchMessageCreate:
+      type: object
+      properties:
+        messageId:
+          type: string
+          format: uuid
+          description: Unique message id.
+        matchId:
+          type: string
+          format: uuid
+          description: Match this message belongs to (FK to match.matchId).
+        templateCode:
+          type: string
+          description: >-
+            One of a fixed set of preset messages, e.g. on_my_way | running_late_5 | running_late_15 |
+            cant_make_it | arrived | at_court | waiting_front_desk | thanks_for_game | rematch. No free
+            text — this is the light preset-message feature, not open chat.
+        sentAt:
+          type: string
+          format: date-time
+          description: When the message was sent.
+    MatchMessage:
+      type: object
+      properties:
+        messageId:
+          type: string
+          format: uuid
+          description: Unique message id.
+        matchId:
+          type: string
+          format: uuid
+          description: Match this message belongs to (FK to match.matchId).
+        senderId:
+          type: string
+          format: uuid
+          description: Player who sent it (FK to player.playerId).
+        templateCode:
+          type: string
+          description: >-
+            One of a fixed set of preset messages, e.g. on_my_way | running_late_5 | running_late_15 |
+            cant_make_it | arrived | at_court | waiting_front_desk | thanks_for_game | rematch. No free
+            text — this is the light preset-message feature, not open chat.
+        sentAt:
+          type: string
+          format: date-time
+          description: When the message was sent.
+      required:
+      - messageId
     ActivityLog:
       type: object
       properties:
@@ -9727,54 +9775,6 @@ components:
           description: When the action was logged.
       required:
       - logId
-    MatchMessage:
-      type: object
-      properties:
-        messageId:
-          type: string
-          format: uuid
-          description: Unique message id.
-        matchId:
-          type: string
-          format: uuid
-          description: Match this message belongs to (FK to match.matchId).
-        senderId:
-          type: string
-          format: uuid
-          description: Player who sent it (FK to player.playerId).
-        templateCode:
-          type: string
-          description: >-
-            One of a fixed set of preset messages, e.g. on_my_way | running_late_5 | running_late_15 |
-            cant_make_it | arrived | at_court | waiting_front_desk | thanks_for_game | rematch. No free
-            text — this is the light preset-message feature, not open chat.
-        sentAt:
-          type: string
-          format: date-time
-          description: When the message was sent.
-      required:
-      - messageId
-    MatchMessageCreate:
-      type: object
-      properties:
-        messageId:
-          type: string
-          format: uuid
-          description: Unique message id.
-        matchId:
-          type: string
-          format: uuid
-          description: Match this message belongs to (FK to match.matchId).
-        templateCode:
-          type: string
-          description: >-
-            One of a fixed set of preset messages, e.g. on_my_way | running_late_5 | running_late_15 |
-            cant_make_it | arrived | at_court | waiting_front_desk | thanks_for_game | rematch. No free
-            text — this is the light preset-message feature, not open chat.
-        sentAt:
-          type: string
-          format: date-time
-          description: When the message was sent.
     Error:
       type: object
       description: PostgREST error. `code` is the Postgres error code; `message` is written to be shown

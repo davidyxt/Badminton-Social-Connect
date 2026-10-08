@@ -82,6 +82,7 @@ erDiagram
         text self_rating_band
         boolean is_verified "service_role only"
         timestamptz joined_at
+        timestamptz deleted_at "set when the account is deleted: Deleted User"
         timestamptz updated_at
         uuid updated_by
     }
@@ -111,7 +112,13 @@ erDiagram
         numeric reliability_score "service_role only"
         int games_played "service_role only"
         int no_show_count "service_role only"
+        int late_withdrawal_count "service_role only"
+        int late_cancellation_count "service_role only"
         boolean is_discoverable
+        boolean email_notifications "email opt-out"
+        text_array availability "e.g. mon_evening, sat_morning"
+        text availability_note
+        text profile_image_url "public URL in the avatars bucket"
         timestamptz updated_at
         uuid updated_by
     }
@@ -122,6 +129,8 @@ erDiagram
         uuid match_id FK "nullable"
         text type
         text message
+        text detail "second line, e.g. the request message"
+        uuid post_id FK "the game to open"
         boolean is_read
         timestamptz created_at
         timestamptz updated_at
@@ -131,6 +140,8 @@ erDiagram
     BLOCKS {
         uuid blocker_id PK,FK
         uuid blocked_id PK,FK
+        text category "optional, report categories"
+        text reason "optional, blocker and admins only"
         timestamptz created_at
     }
 
@@ -166,6 +177,7 @@ erDiagram
         timestamptz deleted_at "hidden from players when set"
         uuid deleted_by
         text deletion_reason
+        uuid invited_player_id FK "Request Game: private to the two players"
         timestamptz created_at
         timestamptz updated_at
         uuid updated_by
@@ -191,9 +203,10 @@ erDiagram
     GAME_PARTICIPANT {
         uuid post_id PK,FK
         uuid player_id PK,FK
-        text status "requested/accepted/rejected/withdrawn"
+        text status "requested/invited/accepted/rejected/declined/withdrawn/no_show"
         timestamptz requested_at
         timestamptz responded_at
+        boolean late_withdrawal "gave up a place within 24 hours"
         timestamptz updated_at
         uuid updated_by
     }
@@ -278,6 +291,16 @@ erDiagram
         timestamptz created_at
         timestamptz updated_at
         uuid updated_by
+    }
+
+    VENUE_GEOCODE_QUEUE {
+        bigint queue_id PK
+        uuid venue_id FK
+        text status "pending/done/failed"
+        int attempts
+        text last_error
+        timestamptz created_at
+        timestamptz processed_at
     }
 
     LEAGUE_STANDING {
@@ -393,6 +416,8 @@ erDiagram
     VENUE ||--o{ MATCH : hosts
     STATE ||--o{ SUBURB : contains
     SUBURB ||--o{ VENUE : locates
+    VENUE ||--o{ VENUE_GEOCODE_QUEUE : waits_for_a_pin
+    PLAYER ||--o{ GAME_POST : invited_to
     MATCH ||--o{ NOTIFICATION : reminds
     MATCH ||--o{ CHECK_IN : verified_by
     MATCH ||--o{ MATCH_PARTICIPANT : includes

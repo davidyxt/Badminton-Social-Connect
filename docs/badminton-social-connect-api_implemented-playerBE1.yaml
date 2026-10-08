@@ -3797,19 +3797,19 @@ paths:
                       status: scheduled
                       playedAt: 
                     players:
-                    - id: 00000000-0000-0000-0000-00000000a001
-                      host: false
-                      name: alice
-                      noShow: false
-                      initials: AL
-                      isBlocked: false
-                      isDeleted: false
-                      profileImageUrl: 
                     - id: 00000000-0000-0000-0000-00000000a005
                       host: false
                       name: erin
                       noShow: false
                       initials: ER
+                      isBlocked: false
+                      isDeleted: false
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-00000000a001
+                      host: false
+                      name: alice
+                      noShow: false
+                      initials: AL
                       isBlocked: false
                       isDeleted: false
                       profileImageUrl: 

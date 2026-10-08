@@ -69,7 +69,7 @@ may need to sign out and back in.
 | `state`, `suburb` | Everyone, including signed-out visitors (the sign-up form needs them) |
 | `mini_league` | Any signed-in player |
 | `league_standing` | Any signed-in player |
-| `game_post` | Any signed-in player, except deleted posts (admins see those too) |
+| `game_post` | Any signed-in player, except deleted posts (admins see those too). An invitation (`invited_player_id` set, Request Game) only its organiser, the invited player and admins |
 | `game_request_message` | The requester and the game's organiser or group admins |
 | `game_participant_history` | The requester and the game's organiser or group admins |
 | `game_participant` | **Accepted** rows: any signed-in player, so the board can show places taken. **Pending or rejected** rows: only the player who asked, and the organiser |
@@ -94,20 +94,20 @@ Admins can read everything in every table.
 
 | Table | Insert | Update | Delete |
 |---|---|---|---|
-| `player` | Trigger only, on sign-up | Own row, and only `username` / `self_rating_band` | Cascades from `auth.users` |
-| `player_private` | Trigger only, on sign-up | Own row, and only `first_name` / `last_name` | Cascades |
-| `player_profile` | Trigger only, on sign-up | Own row, and only `bio` / `suburb` / `state` / `is_discoverable` / `preferred_format` | Cascades |
+| `player` | Trigger only, on sign-up | Own row, and only `username` / `self_rating_band` | Never. Deleting the auth user (`delete_my_account`, dashboard) keeps the row as "Deleted User" (`deleted_at`) so results and rankings stay |
+| `player_private` | Trigger only, on sign-up | Own row, and only `first_name` / `last_name` | Never; cleared when the account is deleted |
+| `player_profile` | Trigger only, on sign-up | Own row, and only `bio` / `suburb` / `state` / `is_discoverable` / `preferred_format` / `email_notifications`. `availability` and `availability_note` only through `update_my_profile`, `profile_image_url` only through `set_my_profile_picture` / `remove_my_profile_picture`, which check them | Never; cleared when the account is deleted |
 | `venue` | Admin | Admin | Admin |
 | `state`, `suburb` | Nobody (production seed files only) | Nobody | Nobody |
 | `mini_league` | Any player, as organiser | Organiser or admin | Organiser or admin |
 | `league_standing` | League organiser or admin | Same | Same |
 | `game_request_message`, `game_participant_history` | Nobody directly (`request_to_join` and a trigger) | Nobody | Nobody |
-| `game_post` | As yourself, or as a group you are an admin of | Organiser, group admin or admin. Cancelling and deleting only through the BL-013 functions | Nobody. Deleting hides the post (`delete_game_post`) |
-| `game_participant` | Request to join as yourself, `status` forced to `requested`. The organiser may add people directly | The organiser decides accept/reject; you may only move your own row to `withdrawn` | Yourself, or the organiser |
+| `game_post` | As yourself, or as a group you are an admin of. Invitations only through `invite_player` | Organiser, group admin or admin. Cancelling and deleting only through the BL-013 functions; `invited_player_id` never changes | Nobody. Deleting hides the post (`delete_game_post`) |
+| `game_participant` | Request to join as yourself, `status` forced to `requested`. The organiser may add people directly. `invited` and `declined` only through `invite_player`, `accept_invite`, `decline_invite`; nobody else can join an invitation game | The organiser decides accept/reject; you may only move your own row to `withdrawn` | Yourself, or the organiser |
 | `cancellation_record` | Organiser of the post (player or group admin), or admin | Admin | Admin |
 | `groups` | Any player, as themselves (they become its first group admin) | Group admins or platform admin (including `is_active`), and not `is_verified` | Nobody. Groups are deactivated, not deleted |
 | `group_member` | Request to join as yourself, forced to `pending` / `member`. Nobody can add someone else (team item 4) | Group admins approve requests and promote members; only `role` and `status`; never another admin's row | Yourself (leave or withdraw), group admins removing a non-admin, or platform admin. The last group admin cannot leave |
-| `match` | Anyone on the game's roster, or the league organiser for a fixture | Creator, game organiser, league organiser or admin | Same |
+| `match` | The game's host through `create_match` (sides checked against the roster and format); also anyone on the roster, or the league organiser for a fixture | Creator, game organiser, league organiser or admin | Same |
 | `match_participant` | Yourself, or the match manager adding you. Must be on the game's roster | Your own attendance, or the manager's | Yourself, or the manager |
 | `check_in` | Yourself, only if you are a participant, only unverified | Admin | Admin |
 | `match_result` | Participants, `status` forced to `pending` | Admin | Admin |
@@ -117,6 +117,10 @@ Admins can read everything in every table.
 | `report` | Nobody directly. Only `report_player` / `report_post` / `report_league` / `report_group`, which capture the evidence | Admin | Admin |
 | `blocks` | Nobody directly (`block_player`) | Nobody | Nobody directly (`unblock_player`) |
 | `admin_post` | Admin, as themselves | Admin | Admin |
+
+## Storage: profile pictures
+
+The `avatars` bucket (migration `..._my_games_availability_profile_pictures.sql`) is public, so pictures load from their URL without a token. Four policies on `storage.objects` let a signed-in player **insert, select, update and delete only inside `avatars/<their own id>/`**. Nobody can write to anyone else's folder. The API hands out a picture's URL (`profileImageUrl`) only where the profile itself may be seen. Bucket limits: 2 MB, JPEG, PNG or WebP.
 
 ## The age gate (BL-007)
 
