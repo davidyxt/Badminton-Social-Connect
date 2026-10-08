@@ -589,7 +589,9 @@ def main():
     planned_refs = set()
     # Built under other names, so the old design entries are dropped:
     # the design's /group became the club tables, which became groups.
-    superseded = {"/group", "/club", "/club_representative", "/rpc/report_club"}
+    # Built and then removed: matches are left to the teammate building results.
+    superseded = {"/group", "/club", "/club_representative", "/rpc/report_club",
+                  "/rpc/create_match", "/rpc/remove_match"}
     for path, ops in old.get("paths", {}).items():
         if path in paths or path in superseded:
             continue
