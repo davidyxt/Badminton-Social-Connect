@@ -3223,52 +3223,52 @@ paths:
                 items:
                   "$ref": "#/components/schemas/GameCard"
               example:
-              - id: 00000000-0000-0000-0000-00000000b001
-                date: Sun, 11 Oct
-                rank: Intermediate
-                time: 5:00 AM – 6:30 AM
-                style: Social
-                title: Friday Night Doubles
-                endsAt: '2026-10-10T19:30:00+00:00'
-                format: Doubles
-                status: open
-                suburb: Albert Park
-                mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
-                imageUrl: 
-                isInvite: false
-                location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
-                myStatus: accepted
-                startsAt: '2026-10-10T18:00:00+00:00'
-                organiser:
-                  id: 00000000-0000-0000-0000-00000000a001
-                  name: alice
-                  isGroup: false
-                  initials: AL
-                  isBlocked: false
-                  isDeleted: false
-                maxPlayers: 4
-                playerCount: 3
-              - id: 00000000-0000-0000-0000-00000000b002
-                date: Sun, 11 Oct
+              - id: 1410dd80-df6e-434f-91ce-3594d66e0579
+                date: Thu, 8 Oct
                 rank: Any Rank
-                time: 9:00 PM – 10:00 PM
+                time: 9:52 PM – 10:52 PM
                 style: Social
                 title: Badminton game
-                endsAt: '2026-10-11T11:00:00+00:00'
+                endsAt: '2026-10-08T11:52:45+00:00'
                 format: Singles
                 status: open
-                suburb: Blackburn North
-                mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.799510,145.144072
+                suburb: Carlton
+                mapsUrl: 
                 imageUrl: 
                 isInvite: false
-                location: Melbourne Badminton Centre, Blackburn North
+                location: Carlton
                 myStatus: 
-                startsAt: '2026-10-11T10:00:00+00:00'
+                startsAt: '2026-10-08T10:52:45+00:00'
                 organiser:
-                  id: 00000000-0000-0000-0000-00000000a002
-                  name: bob
+                  id: 36170765-e6ca-45c6-8c87-35fdfbf2fbe3
+                  name: org_11294_291
                   isGroup: false
-                  initials: BO
+                  initials: OR
+                  isBlocked: false
+                  isDeleted: false
+                maxPlayers: 2
+                playerCount: 1
+              - id: 76429cc6-7da6-40dd-8fa5-ed1a6e298d18
+                date: Thu, 8 Oct
+                rank: Any Rank
+                time: 11:45 PM – 12:45 AM
+                style: Social
+                title: Badminton game
+                endsAt: '2026-10-08T13:45:18+00:00'
+                format: Singles
+                status: open
+                suburb: Carlton
+                mapsUrl: 
+                imageUrl: 
+                isInvite: false
+                location: Carlton
+                myStatus: 
+                startsAt: '2026-10-08T12:45:18+00:00'
+                organiser:
+                  id: b1226fb4-cfe1-4dfd-b15a-7f10fd48578a
+                  name: org_2124_172
+                  isGroup: false
+                  initials: OR
                   isBlocked: false
                   isDeleted: false
                 maxPlayers: 2
@@ -3911,18 +3911,18 @@ paths:
                 items:
                   "$ref": "#/components/schemas/PlayerCard"
               example:
-              - id: 00000000-0000-0000-0000-00000000a002
-                name: bob
+              - id: bc599734-02a9-4720-b162-66de8e57039c
+                name: ada_13534_510
                 rank: Beginner
-                initials: BO
-                location: Clayton
+                initials: AD
+                location: 
                 isBlocked: false
-                reliability: 89
-              - id: 00000000-0000-0000-0000-00000000a003
-                name: carol
-                rank: Upper Intermediate
-                initials: CA
-                location: Box Hill
+                reliability: 100
+              - id: 1aa35525-adae-4776-864e-14b37a62cc59
+                name: ada_30772_264
+                rank: Beginner
+                initials: AD
+                location: 
                 isBlocked: false
                 reliability: 100
         '401':
@@ -8232,6 +8232,7 @@ components:
           type: string
         location:
           type: string
+          nullable: true
         isBlocked:
           type: boolean
         reliability:
@@ -8418,6 +8419,33 @@ components:
           description: Null in every sample (not built yet).
         confirmed_results:
           type: integer
+    MatchMessage:
+      type: object
+      properties:
+        messageId:
+          type: string
+          format: uuid
+          description: Unique message id.
+        matchId:
+          type: string
+          format: uuid
+          description: Match this message belongs to (FK to match.matchId).
+        senderId:
+          type: string
+          format: uuid
+          description: Player who sent it (FK to player.playerId).
+        templateCode:
+          type: string
+          description: >-
+            One of a fixed set of preset messages, e.g. on_my_way | running_late_5 | running_late_15 |
+            cant_make_it | arrived | at_court | waiting_front_desk | thanks_for_game | rematch. No free
+            text — this is the light preset-message feature, not open chat.
+        sentAt:
+          type: string
+          format: date-time
+          description: When the message was sent.
+      required:
+      - messageId
     MatchMessageCreate:
       type: object
       properties:
@@ -8468,33 +8496,6 @@ components:
           description: When the action was logged.
       required:
       - logId
-    MatchMessage:
-      type: object
-      properties:
-        messageId:
-          type: string
-          format: uuid
-          description: Unique message id.
-        matchId:
-          type: string
-          format: uuid
-          description: Match this message belongs to (FK to match.matchId).
-        senderId:
-          type: string
-          format: uuid
-          description: Player who sent it (FK to player.playerId).
-        templateCode:
-          type: string
-          description: >-
-            One of a fixed set of preset messages, e.g. on_my_way | running_late_5 | running_late_15 |
-            cant_make_it | arrived | at_court | waiting_front_desk | thanks_for_game | rematch. No free
-            text — this is the light preset-message feature, not open chat.
-        sentAt:
-          type: string
-          format: date-time
-          description: When the message was sent.
-      required:
-      - messageId
     Error:
       type: object
       description: PostgREST error. `code` is the Postgres error code; `message` is written to be shown

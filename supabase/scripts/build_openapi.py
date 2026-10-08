@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
-"""Rebuild the API spec (docs/badminton-social-connect-api_v1.2.yaml) from the
-running local stack, so it always matches what the frontend can call.
+"""Rebuild the API specs from the running local stack, so they always match
+what the frontend can call:
+  * docs/badminton-social-connect-api_v1.2.yaml, everything, with the
+    design's not-yet-built endpoints tagged Planned;
+  * docs/badminton-social-connect-api_implemented.yaml, only what is built.
 
     npx supabase db reset                      # migrations + dev seed
     python3 supabase/scripts/build_openapi.py
@@ -31,6 +34,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SPEC = ROOT / "docs" / "badminton-social-connect-api_v1.2.yaml"
+# The same, with only what has been built: no Planned endpoints.
+BUILT_SPEC = ROOT / "docs" / "badminton-social-connect-api_implemented.yaml"
 VERSION = "0.3.0"
 
 # ---------------------------------------------------------------------------
@@ -659,10 +664,50 @@ def main():
               "# hand: change the function COMMENT or the script, then run it again.\n"
               "# Open in https://editor.swagger.io or any OpenAPI 3.0 viewer.\n")
     SPEC.write_text(header + ruby_yaml_dump(spec).replace("---\n", "", 1))
+    write_built_only(spec, header)
     built = sum(1 for ops in paths.values() for op in ops.values() if isinstance(op, dict) and op.get("x-status") != "planned")
     planned = sum(1 for ops in paths.values() for op in ops.values() if isinstance(op, dict) and op.get("x-status") == "planned")
     print(f"Wrote {SPEC.relative_to(ROOT)}: {built} built operations, {planned} planned, "
           f"{len(components)} schemas.")
+
+
+def write_built_only(spec, header):
+    """The spec without Planned endpoints, and without the schemas only they use."""
+    built = json.loads(json.dumps(spec), object_pairs_hook=OrderedDict)
+    built["paths"] = OrderedDict(
+        (path, ops) for path, ops in built["paths"].items()
+        if not any(isinstance(op, dict) and op.get("x-status") == "planned" for op in ops.values()))
+
+    # Keep the schemas reachable from the remaining paths.
+    schemas = built["components"]["schemas"]
+    keep, pending = set(), re.findall(r"#/components/schemas/(\w+)", json.dumps(built["paths"]))
+    pending += ["Error"]
+    while pending:
+        name = pending.pop()
+        if name in keep or name not in schemas:
+            continue
+        keep.add(name)
+        pending += re.findall(r"#/components/schemas/(\w+)", json.dumps(schemas[name]))
+    built["components"]["schemas"] = OrderedDict((k, v) for k, v in schemas.items() if k in keep)
+    paths_text = json.dumps(built["paths"])
+    built["components"]["responses"] = OrderedDict(
+        (k, v) for k, v in built["components"]["responses"].items()
+        if f"#/components/responses/{k}" in paths_text)
+
+    used = {op["tags"][0] for ops in built["paths"].values() for op in ops.values()
+            if isinstance(op, dict) and op.get("tags")}
+    built["tags"] = [t for t in built["tags"] if t["name"] in used]
+    built["x-realtime-channels"] = [c for c in built["x-realtime-channels"] if c.get("status") == "built"]
+    built["info"]["title"] = built["info"]["title"] + " (implemented)"
+    built["info"]["description"] = built["info"]["description"].replace(
+        "Endpoints the original design describes\nbut nobody has built yet are tagged **Planned (not built yet)**.",
+        "This file has only what is built; the full spec, with the design's Planned\nendpoints, is "
+        "`badminton-social-connect-api_v1.2.yaml`.")
+    BUILT_SPEC.write_text(header.replace("API specification (OpenAPI 3.0)",
+                                         "API specification, implemented endpoints only (OpenAPI 3.0)")
+                          + ruby_yaml_dump(built).replace("---\n", "", 1))
+    n = sum(1 for ops in built["paths"].values() for op in ops.values() if isinstance(op, dict))
+    print(f"Wrote {BUILT_SPEC.relative_to(ROOT)}: {n} operations, {len(keep)} schemas.")
 
 
 DESCRIPTION = """\
