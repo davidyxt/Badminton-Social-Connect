@@ -1,6 +1,6 @@
 # Database Schema
 
-Implemented across forty-two migrations in `supabase/migrations/`:
+Implemented across forty-three migrations in `supabase/migrations/`:
 
 | Migration | What it adds |
 |---|---|
@@ -45,6 +45,7 @@ Implemented across forty-two migrations in `supabase/migrations/`:
 | `..._game_card_host_venue_duration.sql` | Game cards call the organiser `host` (as every screen does) and carry `venue`, `duration` and `durationMinutes` |
 | `..._my_games_availability_profile_pictures.sql` | `get_my_games` (Home's `nextGames` is its first 3); `player_profile.availability`, `availability_note`, `profile_image_url`; the `avatars` Storage bucket and its policies; `set_my_profile_picture`, `remove_my_profile_picture` |
 | `..._game_details_host_actions.sql` | Game Details' `hostActions` (when the host can cancel, delete and mark no-shows) and no-show players on the host's roster |
+| `..._games_hold_matches.sql` | A game holds several matches, each one contest between two sides: `create_match` / `remove_match` for the host, `matches[]` on Game Details; automatic matches only for 2-player singles games |
 | `..._venue_search_and_no_reliability_band.sql` | `search_venues` for the venue dropdown (trigram indexes on venue and suburb names); `get_game_form_options` no longer lists venues; no reliability band, the screens show a % |
 
 Access rules are documented separately in [rls-policies.md](./rls-policies.md),
@@ -518,6 +519,16 @@ twenty.
 
 ## Notes on the tables
 
+**A game holds several matches; a match is one contest between two sides.**
+
+| Term | Table | Meaning |
+|---|---|---|
+| Game | `game_post` | The session: time, venue, format, up to `player_limit` players |
+| Match | `match` (`post_id` → the game) | One contest, side `a` against side `b` (`match_participant.side`): one player per side for singles, two for doubles. A game holds any number of matches, and the same player can play several |
+| Result | `match_result` | The score of one match, e.g. `21-15 19-21 21-17` (the games within the match), and the winning side. At most one confirmed result per match |
+
+The host sets matches up with `create_match`. Only a 2-player singles game gets its match automatically, when the player is accepted. Badminton calls the parts of a match's score "games"; in this app "game" means the session, so the score's parts are written in the score string, not as rows.
+
 **Usernames are chosen by the player; real names are private.** `player.username`
 is the only name other players see: 3-20 letters, digits, `_` or `.`, unique
 ignoring case. First and last names live in `player_private`, which only the
@@ -725,7 +736,7 @@ supabase start                  # bring up the local stack (needs Docker running
 supabase db reset --local       # drop and rebuild from migrations + seeds/
 supabase db advisors --local    # security and performance lint
 ./supabase/tests/rls_test.sh    # 342 access-control and integrity checks
-python3 supabase/tests/api_test.py   # 294 API cases, writes docs/api-test-report.md
+python3 supabase/tests/api_test.py   # 311 API cases, writes docs/api-test-report.md
 
 supabase migration new <name>   # start a new change
 supabase db push                # apply pending migrations to the linked project

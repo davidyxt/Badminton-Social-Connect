@@ -38,6 +38,7 @@ const SUBJECTS: Record<string, string> = {
   match_invite: "You've been invited to a game",
   invite_accepted: "Your invitation was accepted",
   invite_declined: "Your invitation was declined",
+  match_scheduled: "Your match has been set up",
 };
 
 const json = (body: unknown, status = 200) =>

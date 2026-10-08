@@ -491,7 +491,7 @@ def main():
     d = r.body or {}
     check("returns the Game Details fields", has_keys(d, [
         "id", "title", "duration", "durationMinutes", "location", "locationDetail", "address", "venueId",
-        "mapsUrl", "notes", "abilityLevel", "host", "players", "canManage", "matchId", "myStatus"]), r)
+        "mapsUrl", "notes", "abilityLevel", "host", "players", "canManage", "matches", "myStatus"]), r)
     check("the host carries rating, matches and reliability",
           has_keys(d.get("host"), ["name", "rating", "verifiedMatches", "reliability"]), r)
     check("bob sees he has asked to join", d.get("myStatus") not in (None, ""), r, detail=str(d.get("myStatus")))
@@ -552,6 +552,69 @@ def main():
     check("and the host can undo it from the same page", r.status == 204, r)
     r = rpc("get_game_details", tc, p_post_id=ngid)
     check("the player is back to present", [p.get("noShow") for p in (r.body or {}).get("players", []) if p["id"] == nid] == [False], r)
+
+    endpoint(A, "matches: a game holds several matches")
+    dh, tdh, _ = new_player("dblhost")
+    dps = [new_player(f"dbl{k}") for k in range(4)]
+    dg = call("POST", "game_post", tdh, {"organiser_id": dh, "title": "Doubles night", "format": "doubles",
+                                         "suburb": "Carlton", "player_limit": 6, "proposed_time": future(9, 9)})
+    dgid = dg.body[0]["post_id"] if isinstance(dg.body, list) else None
+    for pid, ptok, _ in dps[:3]:
+        rpc("request_to_join", ptok, p_post_id=dgid)
+        rpc("accept_request", tdh, p_post_id=dgid, p_player_id=pid)
+    r = rpc("get_game_details", tdh, p_post_id=dgid)
+    check("accepting players into a doubles game no longer creates an empty match",
+          (r.body or {}).get("matches") == [], r)
+    check("the host can set up matches (hostActions.canSetUpMatches)",
+          ((r.body or {}).get("hostActions") or {}).get("canSetUpMatches") is True, r)
+    a1, a2, a3 = (x[0] for x in dps[:3])
+    r = rpc("create_match", tdh, p_post_id=dgid, p_side_a=[dh, a1], p_side_b=[a2, a3])
+    m1 = r.body if isinstance(r.body, str) else None
+    check("the host sets up match 1: two against two", m1 is not None, r)
+    r = rpc("create_match", tdh, p_post_id=dgid, p_side_a=[dh, a2], p_side_b=[a1, a3])
+    m2 = r.body if isinstance(r.body, str) else None
+    check("and match 2 with the same players (a second round)", m2 is not None, r)
+    r = rpc("get_game_details", dps[0][1], p_post_id=dgid)
+    ms = (r.body or {}).get("matches") or []
+    check("Game Details lists both matches in order, each with two sides of two",
+          [m["id"] for m in ms] == [m1, m2] and [m["number"] for m in ms] == [1, 2]
+          and all(len(m["sideA"]) == 2 and len(m["sideB"]) == 2 for m in ms), r)
+    check("each match has its status, and no result yet",
+          all(m["status"] == "scheduled" and m["result"] is None for m in ms), r)
+    r = call("GET", f"notification?type=eq.match_scheduled&match_id=eq.{m1}&select=message", dps[1][1])
+    check("the players are told about their match",
+          isinstance(r.body, list) and len(r.body) == 1 and " vs " in r.body[0]["message"], r)
+    r = rpc("create_match", tdh, p_post_id=dgid, p_side_a=[dh], p_side_b=[a1])
+    check("a doubles match needs two per side (23514)", r.code == "23514", r)
+    r = rpc("create_match", tdh, p_post_id=dgid, p_side_a=[dh, a1], p_side_b=[a1, a2])
+    check("nobody can be on both sides (23514)", r.code == "23514", r)
+    r = rpc("create_match", tdh, p_post_id=dgid, p_side_a=[dh, a1], p_side_b=[a2, dps[3][0]])
+    check("every player must have a place in the game (23514)", r.code == "23514", r)
+    r = rpc("create_match", dps[0][1], p_post_id=dgid, p_side_a=[dh, a1], p_side_b=[a2, a3])
+    check("only the host sets up matches (42501)", r.code == "42501", r)
+    r = rpc("remove_match", dps[0][1], p_match_id=m2)
+    check("only the host removes them (42501)", r.code == "42501", r)
+    r = rpc("remove_match", tdh, p_match_id=m2)
+    check("the host removes a match set up by mistake (204)", r.status == 204, r)
+    r = rpc("get_game_details", tdh, p_post_id=dgid)
+    check("one match left", [m["id"] for m in (r.body or {}).get("matches", [])] == [m1], r)
+    r = rpc("remove_match", T["carol"], p_match_id="00000000-0000-0000-0000-00000000d102")
+    check("a match with a confirmed result can't be removed by a player (42501 / 23514)",
+          r.code in ("42501", "23514"), r)
+    r = rpc("get_game_details", T["carol"], p_post_id=G["c102"])
+    ms = (r.body or {}).get("matches") or []
+    check("a played match shows its result and winning side",
+          ms and ms[0]["result"] == {"score": "21-18 19-21 21-16", "winningSide": "b", "status": "confirmed"}, r,
+          detail=json.dumps(ms[:1])[:200])
+    sg2 = call("POST", "game_post", tdh, {"organiser_id": dh, "format": "singles", "suburb": "Carlton",
+                                          "player_limit": 2, "proposed_time": future(9, 11)})
+    sgid = sg2.body[0]["post_id"] if isinstance(sg2.body, list) else None
+    rpc("request_to_join", dps[3][1], p_post_id=sgid)
+    rpc("accept_request", tdh, p_post_id=sgid, p_player_id=dps[3][0])
+    r = rpc("get_game_details", tdh, p_post_id=sgid)
+    ms = (r.body or {}).get("matches") or []
+    check("a 2-player singles game still gets its one match automatically, host against player",
+          len(ms) == 1 and [p["id"] for p in ms[0]["sideA"]] == [dh] and [p["id"] for p in ms[0]["sideB"]] == [dps[3][0]], r)
 
     endpoint(A, "rpc/request_to_join")
     jid, tj, _ = new_player("joiner")
@@ -846,7 +909,7 @@ def main():
     check("the invited player accepts (204)", r.status == 204, r)
     r = rpc("get_game_details", ti, p_post_id=inv)
     check("both are now on the roster, with a match",
-          len((r.body or {}).get("players", [])) == 2 and (r.body or {}).get("matchId"), r)
+          len((r.body or {}).get("players", [])) == 2 and len((r.body or {}).get("matches", [])) == 1, r)
     r = call("GET", f"notification?post_id=eq.{inv}&type=eq.invite_accepted&select=message,match_id", th)
     check("the organiser is notified, with the match to open",
           isinstance(r.body, list) and len(r.body) == 1 and r.body[0]["match_id"], r)

@@ -125,7 +125,7 @@ paths:
                   "$ref": "#/components/schemas/AdminPost"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_admin_post
+      operationId: select_admin_post_rows
     post:
       tags:
       - Announcements
@@ -161,7 +161,7 @@ paths:
           "$ref": "#/components/responses/RuleBroken"
         '403':
           "$ref": "#/components/responses/Forbidden"
-      operationId: create_admin_post
+      operationId: insert_admin_post_rows
     patch:
       tags:
       - Announcements
@@ -198,7 +198,7 @@ paths:
                   "$ref": "#/components/schemas/AdminPost"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: update_admin_post
+      operationId: update_admin_post_rows
     delete:
       tags:
       - Announcements
@@ -227,7 +227,7 @@ paths:
                   "$ref": "#/components/schemas/AdminPost"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: delete_admin_post
+      operationId: delete_admin_post_rows
   "/blocks":
     get:
       tags:
@@ -258,7 +258,7 @@ paths:
                   "$ref": "#/components/schemas/Blocks"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_blocks
+      operationId: select_blocks_rows
   "/cancellation_record":
     get:
       tags:
@@ -292,7 +292,7 @@ paths:
                   "$ref": "#/components/schemas/CancellationRecord"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_cancellation_record
+      operationId: select_cancellation_record_rows
     post:
       tags:
       - Games
@@ -329,7 +329,7 @@ paths:
           "$ref": "#/components/responses/RuleBroken"
         '403':
           "$ref": "#/components/responses/Forbidden"
-      operationId: create_cancellation_record
+      operationId: insert_cancellation_record_rows
     patch:
       tags:
       - Games
@@ -367,7 +367,7 @@ paths:
                   "$ref": "#/components/schemas/CancellationRecord"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: update_cancellation_record
+      operationId: update_cancellation_record_rows
     delete:
       tags:
       - Games
@@ -397,7 +397,7 @@ paths:
                   "$ref": "#/components/schemas/CancellationRecord"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: delete_cancellation_record
+      operationId: delete_cancellation_record_rows
   "/check_in":
     get:
       tags:
@@ -429,7 +429,7 @@ paths:
                   "$ref": "#/components/schemas/CheckIn"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_check_in
+      operationId: select_check_in_rows
     post:
       tags:
       - Results (tables)
@@ -464,7 +464,7 @@ paths:
           "$ref": "#/components/responses/RuleBroken"
         '403':
           "$ref": "#/components/responses/Forbidden"
-      operationId: create_check_in
+      operationId: insert_check_in_rows
     patch:
       tags:
       - Results (tables)
@@ -500,7 +500,7 @@ paths:
                   "$ref": "#/components/schemas/CheckIn"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: update_check_in
+      operationId: update_check_in_rows
     delete:
       tags:
       - Results (tables)
@@ -528,7 +528,7 @@ paths:
                   "$ref": "#/components/schemas/CheckIn"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: delete_check_in
+      operationId: delete_check_in_rows
   "/dispute":
     get:
       tags:
@@ -560,7 +560,7 @@ paths:
                   "$ref": "#/components/schemas/Dispute"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_dispute
+      operationId: select_dispute_rows
     post:
       tags:
       - Results (tables)
@@ -595,7 +595,7 @@ paths:
           "$ref": "#/components/responses/RuleBroken"
         '403':
           "$ref": "#/components/responses/Forbidden"
-      operationId: create_dispute
+      operationId: insert_dispute_rows
     patch:
       tags:
       - Results (tables)
@@ -631,7 +631,7 @@ paths:
                   "$ref": "#/components/schemas/Dispute"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: update_dispute
+      operationId: update_dispute_rows
     delete:
       tags:
       - Results (tables)
@@ -659,7 +659,7 @@ paths:
                   "$ref": "#/components/schemas/Dispute"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: delete_dispute
+      operationId: delete_dispute_rows
   "/game_participant":
     get:
       tags:
@@ -694,7 +694,7 @@ paths:
                   "$ref": "#/components/schemas/GameParticipant"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_game_participant
+      operationId: select_game_participant_rows
     post:
       tags:
       - Games
@@ -732,7 +732,7 @@ paths:
           "$ref": "#/components/responses/RuleBroken"
         '403':
           "$ref": "#/components/responses/Forbidden"
-      operationId: create_game_participant
+      operationId: insert_game_participant_rows
     patch:
       tags:
       - Games
@@ -771,7 +771,7 @@ paths:
                   "$ref": "#/components/schemas/GameParticipant"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: update_game_participant
+      operationId: update_game_participant_rows
     delete:
       tags:
       - Games
@@ -802,7 +802,7 @@ paths:
                   "$ref": "#/components/schemas/GameParticipant"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: delete_game_participant
+      operationId: delete_game_participant_rows
   "/game_participant_history":
     get:
       tags:
@@ -833,7 +833,7 @@ paths:
                   "$ref": "#/components/schemas/GameParticipantHistory"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_game_participant_history
+      operationId: select_game_participant_history_rows
   "/game_post":
     get:
       tags:
@@ -866,7 +866,7 @@ paths:
                   "$ref": "#/components/schemas/GamePost"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_game_post
+      operationId: select_game_post_rows
     post:
       tags:
       - Games
@@ -902,7 +902,7 @@ paths:
           "$ref": "#/components/responses/RuleBroken"
         '403':
           "$ref": "#/components/responses/Forbidden"
-      operationId: create_game_post
+      operationId: insert_game_post_rows
     patch:
       tags:
       - Games
@@ -939,7 +939,7 @@ paths:
                   "$ref": "#/components/schemas/GamePost"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: update_game_post
+      operationId: update_game_post_rows
   "/game_request_message":
     get:
       tags:
@@ -970,7 +970,7 @@ paths:
                   "$ref": "#/components/schemas/GameRequestMessage"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_game_request_message
+      operationId: select_game_request_message_rows
   "/group_member":
     get:
       tags:
@@ -1004,7 +1004,7 @@ paths:
                   "$ref": "#/components/schemas/GroupMember"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_group_member
+      operationId: select_group_member_rows
     post:
       tags:
       - Groups
@@ -1041,7 +1041,7 @@ paths:
           "$ref": "#/components/responses/RuleBroken"
         '403':
           "$ref": "#/components/responses/Forbidden"
-      operationId: create_group_member
+      operationId: insert_group_member_rows
     patch:
       tags:
       - Groups
@@ -1079,7 +1079,7 @@ paths:
                   "$ref": "#/components/schemas/GroupMember"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: update_group_member
+      operationId: update_group_member_rows
     delete:
       tags:
       - Groups
@@ -1109,7 +1109,7 @@ paths:
                   "$ref": "#/components/schemas/GroupMember"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: delete_group_member
+      operationId: delete_group_member_rows
   "/groups":
     get:
       tags:
@@ -1142,7 +1142,7 @@ paths:
                   "$ref": "#/components/schemas/Groups"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_groups
+      operationId: select_groups_rows
     post:
       tags:
       - Groups
@@ -1178,7 +1178,7 @@ paths:
           "$ref": "#/components/responses/RuleBroken"
         '403':
           "$ref": "#/components/responses/Forbidden"
-      operationId: create_groups
+      operationId: insert_groups_rows
     patch:
       tags:
       - Groups
@@ -1215,7 +1215,7 @@ paths:
                   "$ref": "#/components/schemas/Groups"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: update_groups
+      operationId: update_groups_rows
   "/league_standing":
     get:
       tags:
@@ -1249,7 +1249,7 @@ paths:
                   "$ref": "#/components/schemas/LeagueStanding"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_league_standing
+      operationId: select_league_standing_rows
     post:
       tags:
       - Rankings and leagues (tables)
@@ -1286,7 +1286,7 @@ paths:
           "$ref": "#/components/responses/RuleBroken"
         '403':
           "$ref": "#/components/responses/Forbidden"
-      operationId: create_league_standing
+      operationId: insert_league_standing_rows
     patch:
       tags:
       - Rankings and leagues (tables)
@@ -1324,7 +1324,7 @@ paths:
                   "$ref": "#/components/schemas/LeagueStanding"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: update_league_standing
+      operationId: update_league_standing_rows
     delete:
       tags:
       - Rankings and leagues (tables)
@@ -1354,7 +1354,7 @@ paths:
                   "$ref": "#/components/schemas/LeagueStanding"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: delete_league_standing
+      operationId: delete_league_standing_rows
   "/match":
     get:
       tags:
@@ -1362,6 +1362,8 @@ paths:
       x-implementation: supabase-postgrest
       summary: Read match rows
       description: |-
+        One contest between two sides (match_participant.side a and b): 1 v 1 for singles, 2 v 2 for doubles. A game (game_post) holds any number of matches, set up by its host with create_match; a 2-player singles game gets its one match automatically.
+
         Row Level Security decides which rows each player can see or change:
 
         - creator, league organiser or admin deletes [delete]
@@ -1386,13 +1388,15 @@ paths:
                   "$ref": "#/components/schemas/Match"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_match
+      operationId: select_match_rows
     post:
       tags:
       - Results (tables)
       x-implementation: supabase-postgrest
       summary: Create a match row
       description: |-
+        One contest between two sides (match_participant.side a and b): 1 v 1 for singles, 2 v 2 for doubles. A game (game_post) holds any number of matches, set up by its host with create_match; a 2-player singles game gets its one match automatically.
+
         Row Level Security decides which rows each player can see or change:
 
         - creator, league organiser or admin deletes [delete]
@@ -1421,13 +1425,15 @@ paths:
           "$ref": "#/components/responses/RuleBroken"
         '403':
           "$ref": "#/components/responses/Forbidden"
-      operationId: create_match
+      operationId: insert_match_rows
     patch:
       tags:
       - Results (tables)
       x-implementation: supabase-postgrest
       summary: Update match rows
       description: |-
+        One contest between two sides (match_participant.side a and b): 1 v 1 for singles, 2 v 2 for doubles. A game (game_post) holds any number of matches, set up by its host with create_match; a 2-player singles game gets its one match automatically.
+
         Row Level Security decides which rows each player can see or change:
 
         - creator, league organiser or admin deletes [delete]
@@ -1457,13 +1463,15 @@ paths:
                   "$ref": "#/components/schemas/Match"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: update_match
+      operationId: update_match_rows
     delete:
       tags:
       - Results (tables)
       x-implementation: supabase-postgrest
       summary: Delete match rows
       description: |-
+        One contest between two sides (match_participant.side a and b): 1 v 1 for singles, 2 v 2 for doubles. A game (game_post) holds any number of matches, set up by its host with create_match; a 2-player singles game gets its one match automatically.
+
         Row Level Security decides which rows each player can see or change:
 
         - creator, league organiser or admin deletes [delete]
@@ -1485,7 +1493,7 @@ paths:
                   "$ref": "#/components/schemas/Match"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: delete_match
+      operationId: delete_match_rows
   "/match_participant":
     get:
       tags:
@@ -1517,7 +1525,7 @@ paths:
                   "$ref": "#/components/schemas/MatchParticipant"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_match_participant
+      operationId: select_match_participant_rows
     post:
       tags:
       - Results (tables)
@@ -1552,7 +1560,7 @@ paths:
           "$ref": "#/components/responses/RuleBroken"
         '403':
           "$ref": "#/components/responses/Forbidden"
-      operationId: create_match_participant
+      operationId: insert_match_participant_rows
     patch:
       tags:
       - Results (tables)
@@ -1588,7 +1596,7 @@ paths:
                   "$ref": "#/components/schemas/MatchParticipant"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: update_match_participant
+      operationId: update_match_participant_rows
     delete:
       tags:
       - Results (tables)
@@ -1616,7 +1624,7 @@ paths:
                   "$ref": "#/components/schemas/MatchParticipant"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: delete_match_participant
+      operationId: delete_match_participant_rows
   "/match_result":
     get:
       tags:
@@ -1650,7 +1658,7 @@ paths:
                   "$ref": "#/components/schemas/MatchResult"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_match_result
+      operationId: select_match_result_rows
     post:
       tags:
       - Results (tables)
@@ -1687,7 +1695,7 @@ paths:
           "$ref": "#/components/responses/RuleBroken"
         '403':
           "$ref": "#/components/responses/Forbidden"
-      operationId: create_match_result
+      operationId: insert_match_result_rows
     patch:
       tags:
       - Results (tables)
@@ -1725,7 +1733,7 @@ paths:
                   "$ref": "#/components/schemas/MatchResult"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: update_match_result
+      operationId: update_match_result_rows
     delete:
       tags:
       - Results (tables)
@@ -1755,7 +1763,7 @@ paths:
                   "$ref": "#/components/schemas/MatchResult"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: delete_match_result
+      operationId: delete_match_result_rows
   "/mini_league":
     get:
       tags:
@@ -1787,7 +1795,7 @@ paths:
                   "$ref": "#/components/schemas/MiniLeague"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_mini_league
+      operationId: select_mini_league_rows
     post:
       tags:
       - Rankings and leagues (tables)
@@ -1822,7 +1830,7 @@ paths:
           "$ref": "#/components/responses/RuleBroken"
         '403':
           "$ref": "#/components/responses/Forbidden"
-      operationId: create_mini_league
+      operationId: insert_mini_league_rows
     patch:
       tags:
       - Rankings and leagues (tables)
@@ -1858,7 +1866,7 @@ paths:
                   "$ref": "#/components/schemas/MiniLeague"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: update_mini_league
+      operationId: update_mini_league_rows
     delete:
       tags:
       - Rankings and leagues (tables)
@@ -1886,7 +1894,7 @@ paths:
                   "$ref": "#/components/schemas/MiniLeague"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: delete_mini_league
+      operationId: delete_mini_league_rows
   "/notification":
     get:
       tags:
@@ -1917,7 +1925,7 @@ paths:
                   "$ref": "#/components/schemas/Notification"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_notification
+      operationId: select_notification_rows
     post:
       tags:
       - Notifications
@@ -1951,7 +1959,7 @@ paths:
           "$ref": "#/components/responses/RuleBroken"
         '403':
           "$ref": "#/components/responses/Forbidden"
-      operationId: create_notification
+      operationId: insert_notification_rows
     patch:
       tags:
       - Notifications
@@ -1986,7 +1994,7 @@ paths:
                   "$ref": "#/components/schemas/Notification"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: update_notification
+      operationId: update_notification_rows
     delete:
       tags:
       - Notifications
@@ -2013,7 +2021,7 @@ paths:
                   "$ref": "#/components/schemas/Notification"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: delete_notification
+      operationId: delete_notification_rows
   "/player":
     get:
       tags:
@@ -2046,7 +2054,7 @@ paths:
                   "$ref": "#/components/schemas/Player"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_player
+      operationId: select_player_rows
     post:
       tags:
       - Players
@@ -2082,7 +2090,7 @@ paths:
           "$ref": "#/components/responses/RuleBroken"
         '403':
           "$ref": "#/components/responses/Forbidden"
-      operationId: create_player
+      operationId: insert_player_rows
     patch:
       tags:
       - Players
@@ -2119,7 +2127,7 @@ paths:
                   "$ref": "#/components/schemas/Player"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: update_player
+      operationId: update_player_rows
     delete:
       tags:
       - Players
@@ -2148,7 +2156,7 @@ paths:
                   "$ref": "#/components/schemas/Player"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: delete_player
+      operationId: delete_player_rows
   "/player_private":
     get:
       tags:
@@ -2179,7 +2187,7 @@ paths:
                   "$ref": "#/components/schemas/PlayerPrivate"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_player_private
+      operationId: select_player_private_rows
     patch:
       tags:
       - Players
@@ -2214,7 +2222,7 @@ paths:
                   "$ref": "#/components/schemas/PlayerPrivate"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: update_player_private
+      operationId: update_player_private_rows
   "/player_profile":
     get:
       tags:
@@ -2247,7 +2255,7 @@ paths:
                   "$ref": "#/components/schemas/PlayerProfile"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_player_profile
+      operationId: select_player_profile_rows
     post:
       tags:
       - Players
@@ -2283,7 +2291,7 @@ paths:
           "$ref": "#/components/responses/RuleBroken"
         '403':
           "$ref": "#/components/responses/Forbidden"
-      operationId: create_player_profile
+      operationId: insert_player_profile_rows
     patch:
       tags:
       - Players
@@ -2320,7 +2328,7 @@ paths:
                   "$ref": "#/components/schemas/PlayerProfile"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: update_player_profile
+      operationId: update_player_profile_rows
     delete:
       tags:
       - Players
@@ -2349,7 +2357,7 @@ paths:
                   "$ref": "#/components/schemas/PlayerProfile"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: delete_player_profile
+      operationId: delete_player_profile_rows
   "/ranking":
     get:
       tags:
@@ -2381,7 +2389,7 @@ paths:
                   "$ref": "#/components/schemas/Ranking"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_ranking
+      operationId: select_ranking_rows
     post:
       tags:
       - Rankings and leagues (tables)
@@ -2416,7 +2424,7 @@ paths:
           "$ref": "#/components/responses/RuleBroken"
         '403':
           "$ref": "#/components/responses/Forbidden"
-      operationId: create_ranking
+      operationId: insert_ranking_rows
     patch:
       tags:
       - Rankings and leagues (tables)
@@ -2452,7 +2460,7 @@ paths:
                   "$ref": "#/components/schemas/Ranking"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: update_ranking
+      operationId: update_ranking_rows
     delete:
       tags:
       - Rankings and leagues (tables)
@@ -2480,7 +2488,7 @@ paths:
                   "$ref": "#/components/schemas/Ranking"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: delete_ranking
+      operationId: delete_ranking_rows
   "/report":
     get:
       tags:
@@ -2511,7 +2519,7 @@ paths:
                   "$ref": "#/components/schemas/Report"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_report
+      operationId: select_report_rows
     patch:
       tags:
       - Trust and safety
@@ -2546,7 +2554,7 @@ paths:
                   "$ref": "#/components/schemas/Report"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: update_report
+      operationId: update_report_rows
     delete:
       tags:
       - Trust and safety
@@ -2573,7 +2581,7 @@ paths:
                   "$ref": "#/components/schemas/Report"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: delete_report
+      operationId: delete_report_rows
   "/state":
     get:
       tags:
@@ -2603,7 +2611,7 @@ paths:
                   "$ref": "#/components/schemas/State"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_state
+      operationId: select_state_rows
   "/suburb":
     get:
       tags:
@@ -2633,7 +2641,7 @@ paths:
                   "$ref": "#/components/schemas/Suburb"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_suburb
+      operationId: select_suburb_rows
   "/venue":
     get:
       tags:
@@ -2666,7 +2674,7 @@ paths:
                   "$ref": "#/components/schemas/Venue"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_venue
+      operationId: select_venue_rows
     post:
       tags:
       - Reference data
@@ -2702,7 +2710,7 @@ paths:
           "$ref": "#/components/responses/RuleBroken"
         '403':
           "$ref": "#/components/responses/Forbidden"
-      operationId: create_venue
+      operationId: insert_venue_rows
     patch:
       tags:
       - Reference data
@@ -2739,7 +2747,7 @@ paths:
                   "$ref": "#/components/schemas/Venue"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: update_venue
+      operationId: update_venue_rows
     delete:
       tags:
       - Reference data
@@ -2768,7 +2776,7 @@ paths:
                   "$ref": "#/components/schemas/Venue"
         '400':
           "$ref": "#/components/responses/RuleBroken"
-      operationId: delete_venue
+      operationId: delete_venue_rows
   "/venue_geocode_queue":
     get:
       tags:
@@ -2798,7 +2806,7 @@ paths:
                   "$ref": "#/components/schemas/VenueGeocodeQueue"
         '401':
           "$ref": "#/components/responses/Unauthorized"
-      operationId: list_venue_geocode_queue
+      operationId: select_venue_geocode_queue_rows
   "/rpc/is_username_available":
     post:
       operationId: is_username_available
@@ -3669,10 +3677,10 @@ paths:
       summary: Game Details screen
       x-implementation: postgres-rpc
       description: >-
-        Game Details screen: the card plus duration, venue, address, Maps link, notes, host (rating, verified
-        matches, reliability %), accepted players, the caller's request status and whether they manage
-        the game. Null if the game is removed (admins excepted), hidden by a block, or the caller is not
-        registered.
+        Game Details screen: the card plus duration, venue, address, Maps link, notes, host, accepted
+        players, matches (every match in the game: number, sideA, sideB, status, result), the caller's
+        request status, canManage and, for the host, hostActions. Null if the game is removed (admins
+        excepted), hidden by a block, or the caller is not registered.
       responses:
         '200':
           description: OK.
@@ -3710,7 +3718,15 @@ paths:
                     suburb: Albert Park
                     address: 30 Aughtie Dr, Albert Park
                     mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
-                    matchId: b4529725-25df-4d20-a61b-e289a999d803
+                    matches:
+                    - id: b4529725-25df-4d20-a61b-e289a999d803
+                      sideA: []
+                      sideB: []
+                      format: Doubles
+                      number: 1
+                      result: 
+                      status: scheduled
+                      playedAt: 
                     players:
                     - id: 00000000-0000-0000-0000-00000000a001
                       host: true
@@ -3775,7 +3791,15 @@ paths:
                     suburb: Parkville
                     address: 103 Tin Alley, Parkville VIC 3010
                     mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.796360,144.960652
-                    matchId: 0b22d1a8-f113-4ca8-877b-1ac53acf5177
+                    matches:
+                    - id: 0b22d1a8-f113-4ca8-877b-1ac53acf5177
+                      sideA: []
+                      sideB: []
+                      format: Doubles
+                      number: 1
+                      result: 
+                      status: scheduled
+                      playedAt: 
                     players:
                     - id: 00000000-0000-0000-0000-00000000a001
                       host: false
@@ -3809,6 +3833,7 @@ paths:
                       canMarkNoShows: false
                       cancelClosesAt: '2026-10-14T04:00:00+00:00'
                       noShowsCloseAt: '2026-10-16T10:00:00+00:00'
+                      canSetUpMatches: true
                       cancelIsLateFrom: '2026-10-13T08:00:00+00:00'
                     playerCount: 2
                     abilityLevel: any
@@ -3848,7 +3873,7 @@ paths:
                     suburb: Blackburn North
                     address: 16 Joseph Street
                     mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.799510,145.144072
-                    matchId: 
+                    matches: []
                     players:
                     - id: 00000000-0000-0000-0000-00000000a003
                       host: true
@@ -3874,6 +3899,7 @@ paths:
                       canMarkNoShows: false
                       cancelClosesAt: '2026-10-13T03:00:00+00:00'
                       noShowsCloseAt: '2026-10-15T08:00:00+00:00'
+                      canSetUpMatches: true
                       cancelIsLateFrom: '2026-10-12T07:00:00+00:00'
                     playerCount: 1
                     abilityLevel: any
@@ -3913,7 +3939,7 @@ paths:
                     suburb: Blackburn North
                     address: 16 Joseph Street
                     mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.799510,145.144072
-                    matchId: 
+                    matches: []
                     players:
                     - id: 00000000-0000-0000-0000-00000000a003
                       host: true
@@ -3937,6 +3963,140 @@ paths:
                     abilityLevel: any
                     locationDetail: Blackburn North
                     durationMinutes: 60
+                playedGame:
+                  summary: >-
+                    A game that has happened, seen by its host: a match with sides and a confirmed result,
+                    a no-show, hostActions
+                  value:
+                    id: 00000000-0000-0000-0000-00000000c102
+                    date: Mon, 28 Sep
+                    host:
+                      id: 00000000-0000-0000-0000-00000000a002
+                      name: bob
+                      rating: 980
+                      isGroup: false
+                      initials: BO
+                      isBlocked: false
+                      isDeleted: false
+                      reliability: 89
+                      profileImageUrl: 
+                      verifiedMatches: 1
+                    rank: Any Rank
+                    time: 7:00 PM – 8:30 PM
+                    notes: 
+                    style: Social
+                    title: Clayton doubles
+                    venue: Melbourne Badminton Centre
+                    endsAt: '2026-09-28T10:30:00+00:00'
+                    format: Doubles
+                    invite: 
+                    status: completed
+                    suburb: Blackburn North
+                    address: 16 Joseph Street
+                    mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.799510,145.144072
+                    matches:
+                    - id: 00000000-0000-0000-0000-00000000d102
+                      sideA:
+                      - id: 00000000-0000-0000-0000-00000000a001
+                        name: alice
+                        noShow: false
+                        initials: AL
+                        isBlocked: false
+                        isDeleted: false
+                        profileImageUrl: 
+                      - id: 00000000-0000-0000-0000-00000000a002
+                        name: bob
+                        noShow: false
+                        initials: BO
+                        isBlocked: false
+                        isDeleted: false
+                        profileImageUrl: 
+                      sideB:
+                      - id: 00000000-0000-0000-0000-00000000a003
+                        name: carol
+                        noShow: false
+                        initials: CA
+                        isBlocked: false
+                        isDeleted: false
+                        profileImageUrl: 
+                      - id: 00000000-0000-0000-0000-00000000a005
+                        name: erin
+                        noShow: false
+                        initials: ER
+                        isBlocked: false
+                        isDeleted: false
+                        profileImageUrl: 
+                      format: Doubles
+                      number: 1
+                      result:
+                        score: 21-18 19-21 21-16
+                        status: confirmed
+                        winningSide: b
+                      status: completed
+                      playedAt: '2026-09-28T09:00:00+00:00'
+                    players:
+                    - id: 00000000-0000-0000-0000-00000000a002
+                      host: true
+                      name: bob
+                      noShow: false
+                      initials: BO
+                      isBlocked: false
+                      isDeleted: false
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-00000000a001
+                      host: false
+                      name: alice
+                      noShow: false
+                      initials: AL
+                      isBlocked: false
+                      isDeleted: false
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-00000000a003
+                      host: false
+                      name: carol
+                      noShow: false
+                      initials: CA
+                      isBlocked: false
+                      isDeleted: false
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-00000000a005
+                      host: false
+                      name: erin
+                      noShow: false
+                      initials: ER
+                      isBlocked: false
+                      isDeleted: false
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-00000000a004
+                      host: false
+                      name: dan
+                      noShow: true
+                      initials: DA
+                      isBlocked: false
+                      isDeleted: false
+                      profileImageUrl: 
+                    venueId: 93524291-92b8-4392-873e-60af5b5a1b0b
+                    duration: 90 mins
+                    imageUrl: 
+                    isInvite: false
+                    location: Melbourne Badminton Centre
+                    myStatus: accepted
+                    startsAt: '2026-09-28T09:00:00+00:00'
+                    canManage: true
+                    maxPlayers: 6
+                    hostActions:
+                      canCancel: false
+                      canDelete: false
+                      noShowsOpenAt: '2026-09-28T09:00:00+00:00'
+                      canMarkNoShows: false
+                      cancelClosesAt: '2026-09-28T05:00:00+00:00'
+                      noShowsCloseAt: '2026-09-30T10:30:00+00:00'
+                      canSetUpMatches: true
+                      cancelIsLateFrom: '2026-09-27T09:00:00+00:00'
+                    playerCount: 4
+                    abilityLevel: any
+                    locationDetail: Blackburn North
+                    durationMinutes: 90
         '401':
           "$ref": "#/components/responses/Unauthorized"
       requestBody:
@@ -4379,6 +4539,92 @@ paths:
                   format: uuid
               required:
               - p_post_id
+  "/rpc/create_match":
+    post:
+      operationId: create_match
+      tags:
+      - Games
+      summary: 'Host: set up a match (side a against side b) in a game'
+      x-implementation: postgres-rpc
+      description: |-
+        The host sets up a match in their game: supabase.rpc('create_match', { p_post_id, p_side_a: [playerIds], p_side_b: [playerIds] }) returns the match id. One player per side for singles, two for doubles; every player must have an accepted place in the game, and nobody can be on both sides. The same player can play several matches. The players are notified (match_scheduled).
+
+        **Errors** (`code`: message, safe to show to players):
+
+        - `42501` (not allowed): Only the game's host can set up its matches.
+        - `23514` (a rule was broken): This game was cancelled or removed.
+        - `23514` (a rule was broken): A % match is % against %: choose % player(s) for each side.
+        - `23514` (a rule was broken): A player can only be on one side of a match.
+        - `23514` (a rule was broken): Every player in a match must have a place in this game.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: string
+                format: uuid
+        '400':
+          "$ref": "#/components/responses/RuleBroken"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_post_id:
+                  type: string
+                  format: uuid
+                p_side_a:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                p_side_b:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+              required:
+              - p_post_id
+              - p_side_a
+              - p_side_b
+  "/rpc/remove_match":
+    post:
+      operationId: remove_match
+      tags:
+      - Games
+      summary: The host removes a match set up by mistake
+      x-implementation: postgres-rpc
+      description: |-
+        The host removes a match set up by mistake: supabase.rpc('remove_match', { p_match_id }). Refused once the match has a confirmed result.
+
+        **Errors** (`code`: message, safe to show to players):
+
+        - `42501` (not allowed): Only the game's host can remove its matches.
+        - `23514` (a rule was broken): This match has a confirmed result, so only an admin can remove it.
+      responses:
+        '204':
+          description: Done. No body.
+        '400':
+          "$ref": "#/components/responses/RuleBroken"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_match_id:
+                  type: string
+                  format: uuid
+              required:
+              - p_match_id
   "/rpc/cancel_game_post":
     post:
       operationId: cancel_game_post
@@ -6952,7 +7198,10 @@ components:
       - player_id
     Match:
       type: object
-      description: A row of match.
+      description: >-
+        One contest between two sides (match_participant.side a and b): 1 v 1 for singles, 2 v 2 for doubles.
+        A game (game_post) holds any number of matches, set up by its host with create_match; a 2-player
+        singles game gets its one match automatically.
       properties:
         match_id:
           type: string
@@ -7381,6 +7630,7 @@ components:
           - no_show
           - invite_accepted
           - invite_declined
+          - match_scheduled
         message:
           type: string
           description: >-
@@ -7445,6 +7695,7 @@ components:
           - no_show
           - invite_accepted
           - invite_declined
+          - match_scheduled
         message:
           type: string
           description: >-
@@ -8744,18 +8995,13 @@ components:
               type: string
             isBlocked:
               type: boolean
-              nullable: true
             isDeleted:
               type: boolean
-              nullable: true
             profileImageUrl:
               type: string
               format: uri
               nullable: true
               description: Public URL of the profile picture (avatars bucket); null when none.
-            isActive:
-              type: boolean
-              nullable: true
         rank:
           type: string
         time:
@@ -8900,10 +9146,80 @@ components:
         mapsUrl:
           type: string
           nullable: true
-        matchId:
-          type: string
-          format: uuid
-          nullable: true
+        matches:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              sideA:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+                    noShow:
+                      type: boolean
+                    initials:
+                      type: string
+                    isBlocked:
+                      type: boolean
+                    isDeleted:
+                      type: boolean
+                    profileImageUrl:
+                      type: string
+                      format: uri
+                      nullable: true
+                      description: Public URL of the profile picture (avatars bucket); null when none.
+              sideB:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+                    noShow:
+                      type: boolean
+                    initials:
+                      type: string
+                    isBlocked:
+                      type: boolean
+                    isDeleted:
+                      type: boolean
+                    profileImageUrl:
+                      type: string
+                      format: uri
+                      nullable: true
+                      description: Public URL of the profile picture (avatars bucket); null when none.
+              format:
+                type: string
+              number:
+                type: integer
+              result:
+                type: object
+                properties:
+                  score:
+                    type: string
+                  status:
+                    type: string
+                  winningSide:
+                    type: string
+                nullable: true
+              status:
+                type: string
+              playedAt:
+                type: string
+                format: date-time
+                nullable: true
         players:
           type: array
           items:
@@ -8980,6 +9296,8 @@ components:
             noShowsCloseAt:
               type: string
               format: date-time
+            canSetUpMatches:
+              type: boolean
             cancelIsLateFrom:
               type: string
               format: date-time

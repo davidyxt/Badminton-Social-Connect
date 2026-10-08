@@ -359,9 +359,11 @@ def table_paths(t, components):
                          "responses": {"200": {"description": "The rows that were deleted.",
                                                "content": {"application/json": {"schema": {"type": "array", "items": ref}}}},
                                        "400": {"$ref": "#/components/responses/RuleBroken"}}}
-    verbs = {"get": "list", "post": "create", "patch": "update", "delete": "delete"}
+    # Table operations end in _rows, so they never clash with a function's
+    # name (create_match the function, insert_match_rows the table).
+    verbs = {"get": "select", "post": "insert", "patch": "update", "delete": "delete"}
     for method, op in ops.items():
-        op["operationId"] = f"{verbs[method]}_{name}"
+        op["operationId"] = f"{verbs[method]}_{name}_rows"
     return ops
 
 
@@ -396,6 +398,7 @@ RPCS = OrderedDict([
         ("alice", {"p_post_id": G("b004")}, "groupGame|A group's game"),
         ("carol", {"p_post_id": G("b009")}, "inviteOrganiser|An invitation (Request Game), the organiser's view"),
         ("ivy", {"p_post_id": G("b009")}, "inviteInvitedPlayer|An invitation (Request Game), the invited player's view: myStatus is invited"),
+        ("bob", {"p_post_id": G("c102")}, "playedGame|A game that has happened, seen by its host: a match with sides and a confirmed result, a no-show, hostActions"),
         ("carol", {"p_post_id": G("b008")}), ("alice", {"p_post_id": G("b007")})])),
     ("request_to_join", ("Join requests", None, [])),
     ("withdraw_request", ("Join requests", None, [])),
@@ -406,6 +409,8 @@ RPCS = OrderedDict([
     ("invite_player", ("Request Game", None, [])),
     ("accept_invite", ("Request Game", None, [])),
     ("decline_invite", ("Request Game", None, [])),
+    ("create_match", ("Games", None, [])),
+    ("remove_match", ("Games", None, [])),
     ("cancel_game_post", ("Games", None, [])),
     ("delete_game_post", ("Games", None, [])),
     ("search_players", ("Players", "PlayerCard", [("alice", {"p_limit": 50})])),
@@ -549,6 +554,7 @@ SUMMARIES = {
     "invite_player": "Request Game: invite one player to a singles game",
     "get_my_games": "My games: everything I host or play in",
     "set_my_profile_picture": "Save an uploaded profile picture",
+    "create_match": "Host: set up a match (side a against side b) in a game",
     "geocode_claim_batch": "Geocoder: take the worker lease and a batch of venues",
     "geocode_complete": "Geocoder: save a venue's pin, or record a miss",
     "geocode_release": "Geocoder: release the worker lease",

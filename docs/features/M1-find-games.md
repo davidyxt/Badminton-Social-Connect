@@ -192,3 +192,17 @@ Built in `20261008101100_request_game_invitations.sql`. Tested in `supabase/test
 
 Times are Melbourne time. Level words also match games open to any level, as the level filter does. The `p_level` and `p_format` filters combine with it. Matching is done by `private.game_matches_search_word` (`20261008101300_find_games_one_search_bar.sql`). The test data now uses Melbourne clock times (6 pm, 7 pm), so time searches behave as you'd expect.
 
+## Games and matches, 2026-10-08
+
+A **game** (`game_post`, the session) holds several **matches**. A **match** is one contest between two sides: 1 v 1 for singles, 2 v 2 for doubles.
+
+- **The host sets up matches:** `supabase.rpc('create_match', { p_post_id, p_side_a, p_side_b })`.
+  - Every player must have an accepted place in the game, the side sizes must fit the format, and nobody can be on both sides.
+  - The same players can play several matches (rounds).
+  - The players are notified (`match_scheduled`).
+- **The host removes a match:** `remove_match(p_match_id)`, until it has a confirmed result.
+- **Game Details** lists `matches`: `number`, `sideA`, `sideB`, `status` and `result` for each. This replaces the single `matchId`.
+- **Automatic matches:** only a 2-player singles game gets its match automatically (host against player, including Request Game invitations). Other games start with none.
+
+Built in `20261008101700_games_hold_matches.sql`.
+

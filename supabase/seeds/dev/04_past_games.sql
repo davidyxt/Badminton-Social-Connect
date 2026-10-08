@@ -10,7 +10,8 @@
 --   ...c101  alice v carol singles, 14 days ago, Spring Singles Ladder match:
 --            alice won 21-15 21-17 (confirmed)
 --   ...c102  bob's doubles, 10 days ago: carol + erin beat bob + alice
---            21-18 19-21 21-16 (confirmed); dan was a no-show
+--            21-18 19-21 21-16 (confirmed); dan was a no-show, so he is on
+--            the game's roster as no_show but in no match
 --   ...c103  carol v bob singles, 7 days ago: carol says 21-19 21-19, bob
 --            disputes it
 --   ...c104  henry v alice singles, 20 days ago: alice won (henry's account is
@@ -144,7 +145,6 @@ values
   ('00000000-0000-0000-0000-00000000d102', '00000000-0000-0000-0000-00000000a001', 'a', 'playing'),
   ('00000000-0000-0000-0000-00000000d102', '00000000-0000-0000-0000-00000000a003', 'b', 'playing'),
   ('00000000-0000-0000-0000-00000000d102', '00000000-0000-0000-0000-00000000a005', 'b', 'playing'),
-  ('00000000-0000-0000-0000-00000000d102', '00000000-0000-0000-0000-00000000a004', 'a', 'no_show'),
   ('00000000-0000-0000-0000-00000000d103', '00000000-0000-0000-0000-00000000a003', 'a', 'playing'),
   ('00000000-0000-0000-0000-00000000d103', '00000000-0000-0000-0000-00000000a002', 'b', 'playing'),
   ('00000000-0000-0000-0000-00000000d104', '00000000-0000-0000-0000-00000000a008', 'a', 'playing'),
