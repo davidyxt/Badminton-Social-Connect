@@ -153,3 +153,29 @@ cannot be cancelled within 4 hours of the start time…". Useful `code` values:
   - Each row has a ready-made `label` and the `mapsUrl`.
 - **Deleted organisers** show as "Deleted User" with `isDeleted: true`.
 - Screen-by-screen wiring: [frontend-wiring-guide.md](../frontend-wiring-guide.md).
+
+## Request Game (invitations), 2026-10-08
+
+**Request Game** (player profile) and **Request to Play** (Find Games, Players tab) invite one player to a singles game. It is Post a Game for two, aimed at one player, who accepts or declines.
+
+| Step | Call | Notification |
+|---|---|---|
+| The organiser invites | `supabase.rpc('invite_player', { p_player_id, p_proposed_time, p_venue_id \| p_suburb, p_duration_minutes, p_style, p_ability_level, p_title, p_notes, p_message })`, which returns the game id | `match_invite` to the invited player, with the message |
+| The invited player accepts | `supabase.rpc('accept_invite', { p_post_id })`, which creates the match | `invite_accepted` to the organiser |
+| The invited player declines | `supabase.rpc('decline_invite', { p_post_id })` | `invite_declined` to the organiser |
+| The organiser cancels | `cancel_game_post`, as for any game | `game_cancelled` to the invited player |
+
+Rules:
+
+- **Who can see it:** the organiser, the invited player and admins. It is not in Find Games, and nobody else can open it or join it.
+- **Who answers:** only the invited player, and only through these functions. The organiser cannot accept on their behalf.
+- **Who can be invited:** not yourself, not someone either of you has blocked, not someone whose profile you can't see, and not a deleted or unregistered account.
+- **Limit:** at most 10 invitations waiting for an answer at a time.
+- **Reliability:** declining doesn't affect it. After accepting, leaving within 24 hours is a late withdrawal, as for any game.
+- **Deciding:** the invited player can open the organiser's profile.
+- **Blocking or deleting an account** closes any open invitation between the two players.
+
+Game Details has `isInvite` and `invite` (the invited player's name and status, and the message). `myStatus` is `invited` while waiting for an answer.
+
+Built in `20261008101100_request_game_invitations.sql`. Tested in `supabase/tests/api_test.py` ("Request Game").
+

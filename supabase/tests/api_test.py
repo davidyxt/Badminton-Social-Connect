@@ -669,6 +669,116 @@ def main():
     r = call("PATCH", f"player_profile?player_id=eq.{U['carol']}", tj, {"email_notifications": False})
     check("but not for someone else", r.body == [], r)
 
+    # ------------------------------------------------------------------ Request Game
+    A = "Request Game (invitations)"
+
+    endpoint(A, "rpc/invite_player")
+    hid, th, huname = new_player("inviter")
+    iid, ti, iuname = new_player("invitee")
+    msac = rpc("search_venues", th, p_query="msac").body[0]["id"]
+    base = dict(p_proposed_time=future(11, 9), p_venue_id=msac, p_title="Saturday singles?")
+    r = rpc("invite_player", th, p_player_id=iid, p_message="Fancy a hit on Saturday?", **base)
+    inv = r.body if isinstance(r.body, str) else None
+    check("invite a player to a singles game; returns the game id", inv is not None and len(inv) == 36, r)
+    r = rpc("get_game_details", th, p_post_id=inv)
+    d = r.body or {}
+    check("it is a singles game for 2, marked as an invitation",
+          (d.get("format"), d.get("maxPlayers"), d.get("isInvite")) == ("Singles", 2, True), r)
+    check("the organiser sees who is invited, the answer so far and the message",
+          (d.get("invite") or {}).get("status") == "invited"
+          and (d.get("invite") or {}).get("message") == "Fancy a hit on Saturday?", r)
+    r = rpc("invite_player", th, p_player_id=hid, **base)
+    check("nobody can invite themselves (23514)", r.code == "23514", r)
+    r = rpc("invite_player", T["frank"], p_player_id=U["alice"], **base)
+    check("a player who blocked you cannot be invited (42501)", r.code == "42501", r)
+    r = rpc("invite_player", T["alice"], p_player_id=U["frank"], **base)
+    check("nor someone you blocked (42501)", r.code == "42501", r)
+    r = rpc("invite_player", th, p_player_id=U["henry"], **base)
+    check("nor a deleted account (42501)", r.code == "42501", r)
+    r = rpc("invite_player", th, p_player_id=U["grace"], **base)
+    check("nor an unregistered player (42501)", r.code == "42501", r)
+    r = rpc("invite_player", th, p_player_id=iid, p_proposed_time="2020-01-01T08:00:00Z", p_suburb="Carlton")
+    check("the Post a Game rules apply: no start in the past (23514)", r.code == "23514", r)
+    r = rpc("invite_player", None, p_player_id=iid, **base)
+    check("signed out is refused", r.code == "42501", r)
+
+    endpoint(A, "invitation privacy")
+    r = rpc("search_games", T["carol"], p_limit=50)
+    check("other players do not find it in Find Games", inv not in ids(r.body), r)
+    r = rpc("get_game_details", T["carol"], p_post_id=inv)
+    check("nor open it", r.body is None, r)
+    r = call("GET", f"game_post?post_id=eq.{inv}&select=post_id", T["carol"])
+    check("nor read it from the table", r.body == [], r)
+    r = rpc("request_to_join", T["carol"], p_post_id=inv)
+    check("nor ask to join it (42501)", r.code == "42501", r)
+    r = call("GET", f"game_post?post_id=eq.{inv}&select=post_id", T["admin"])
+    check("admins can see it", isinstance(r.body, list) and len(r.body) == 1, r)
+    r = rpc("get_player_profile", ti, p_player_id=hid)
+    check("the invited player can open the organiser's profile to decide", isinstance(r.body, dict), r)
+
+    endpoint(A, "rpc/accept_invite / decline_invite")
+    r = call("GET", f"notification?post_id=eq.{inv}&type=eq.match_invite&select=message,detail", ti)
+    n = r.body[0] if isinstance(r.body, list) and r.body else {}
+    check("the invited player is notified, with the organiser's message",
+          n.get("message", "").startswith(f"{huname} invited you to") and n.get("detail") == "Fancy a hit on Saturday?",
+          r, detail=json.dumps(n))
+    r = rpc("get_game_details", ti, p_post_id=inv)
+    check("Game Details tells the invited player to answer (myStatus 'invited')",
+          (r.body or {}).get("myStatus") == "invited", r)
+    r = call("PATCH", f"game_participant?post_id=eq.{inv}&player_id=eq.{iid}", th, {"status": "accepted"})
+    check("the organiser cannot accept on the invited player's behalf", r.code == "42501", r)
+    r = call("PATCH", f"game_participant?post_id=eq.{inv}&player_id=eq.{iid}", ti, {"status": "accepted"})
+    check("the invited player cannot skip accept_invite either", r.code == "42501" or r.body == [], r)
+    r = rpc("accept_invite", T["carol"], p_post_id=inv)
+    check("only the invited player can answer (42501)", r.code == "42501", r)
+    r = rpc("accept_invite", ti, p_post_id=inv)
+    check("the invited player accepts (204)", r.status == 204, r)
+    r = rpc("get_game_details", ti, p_post_id=inv)
+    check("both are now on the roster, with a match",
+          len((r.body or {}).get("players", [])) == 2 and (r.body or {}).get("matchId"), r)
+    r = call("GET", f"notification?post_id=eq.{inv}&type=eq.invite_accepted&select=message,match_id", th)
+    check("the organiser is notified, with the match to open",
+          isinstance(r.body, list) and len(r.body) == 1 and r.body[0]["match_id"], r)
+    r = rpc("accept_invite", ti, p_post_id=inv)
+    check("answering twice is refused (23505)", r.code == "23505", r)
+
+    r = rpc("invite_player", th, p_player_id=iid, **{**base, "p_proposed_time": future(12, 9)})
+    inv2 = r.body
+    r = rpc("decline_invite", ti, p_post_id=inv2)
+    check("the invited player can decline (204)", r.status == 204, r)
+    r = call("GET", f"notification?post_id=eq.{inv2}&type=eq.invite_declined&select=message", th)
+    check("the organiser is told it was declined", isinstance(r.body, list) and len(r.body) == 1, r)
+    r = rpc("request_to_join", ti, p_post_id=inv2)
+    check("after declining, they cannot join by asking instead (23514)", r.code == "23514", r)
+    r = rpc("get_player_profile", T["alice"], p_player_id=iid)
+    rel = rpc("get_my_profile", ti).body or {}
+    check("declining does not affect reliability", rel.get("reliability") == 100, detail=str(rel.get("reliability")))
+
+    r = rpc("invite_player", th, p_player_id=iid, **{**base, "p_proposed_time": future(13, 9)})
+    inv3 = r.body
+    rpc("cancel_game_post", th, p_post_id=inv3, p_reason="Can't make it")
+    r = call("GET", f"notification?post_id=eq.{inv3}&type=eq.game_cancelled&select=message", ti)
+    check("if the organiser cancels, the invited player is told", isinstance(r.body, list) and len(r.body) == 1, r)
+    r = rpc("accept_invite", ti, p_post_id=inv3)
+    check("and can no longer accept (23514)", r.code == "23514", r)
+
+    endpoint(A, "invitation limits and blocking")
+    gid2, tg2, _ = new_player("guest")
+    r = rpc("invite_player", th, p_player_id=gid2, **{**base, "p_proposed_time": future(14, 9)})
+    inv4 = r.body
+    rpc("block_player", tg2, p_player_id=hid)
+    r = call("GET", f"game_participant?post_id=eq.{inv4}&player_id=eq.{gid2}&select=status", tg2)
+    check("blocking the organiser closes their invitation (declined)",
+          isinstance(r.body, list) and r.body and r.body[0]["status"] == "declined", r)
+    r = call("POST", "game_post", th, {"organiser_id": hid, "invited_player_id": iid, "format": "singles",
+                                       "suburb": "Carlton", "proposed_time": future(15)})
+    check("an invitation cannot be made by writing the table directly (42501)", r.code == "42501", r)
+    # The earlier invitations were all answered or cancelled: make 10 open ones.
+    for k in range(10):
+        rpc("invite_player", th, p_player_id=iid, **{**base, "p_proposed_time": future(16 + k, 9)})
+    r = rpc("invite_player", th, p_player_id=iid, **{**base, "p_proposed_time": future(30, 9)})
+    check("at most 10 unanswered invitations at a time (23514)", r.code == "23514", r)
+
     # ------------------------------------------------------------------ M6
     A = "M6 Groups"
 

@@ -356,6 +356,9 @@ RPCS = OrderedDict([
                                                              ("bob", {"p_post_id": G("b002")})])),
     ("accept_request", ("Join requests", None, [])),
     ("decline_request", ("Join requests", None, [])),
+    ("invite_player", ("Request Game", None, [])),
+    ("accept_invite", ("Request Game", None, [])),
+    ("decline_invite", ("Request Game", None, [])),
     ("cancel_game_post", ("Games", None, [])),
     ("delete_game_post", ("Games", None, [])),
     ("search_players", ("Players", "PlayerCard", [("alice", {"p_limit": 50})])),
@@ -488,6 +491,7 @@ SUMMARIES = {
     "report_player": "Report a player",
     "get_notifications": "Notifications screen",
     "mark_no_show": "Host marks an accepted player as a no-show",
+    "invite_player": "Request Game: invite one player to a singles game",
     "geocode_claim_batch": "Geocoder: take the worker lease and a batch of venues",
     "geocode_complete": "Geocoder: save a venue's pin, or record a miss",
     "geocode_release": "Geocoder: release the worker lease",
@@ -605,6 +609,8 @@ def main():
         ("Find games", "Post a Game form data, Find Games search and Game Details (BL-013, BL-015)."),
         ("Join requests", "Asking to join a game and the organiser's responses (BL-017)."),
         ("Games", "Cancelling and removing games, and the game tables (BL-013, BL-016)."),
+        ("Request Game", "Inviting one player to a singles game, and their answer. Same fields as Post a "
+                         "Game; only the two players and admins can see the game."),
         ("Players", "Other players: search, profiles, playing history (BL-019, BL-060)."),
         ("Trust and safety", "Blocking (one-sided, BL-027) and reporting (BL-028)."),
         ("Notifications", "In-app notifications (BL-050). New rows also arrive over Realtime: subscribe to "

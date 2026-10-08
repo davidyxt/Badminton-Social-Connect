@@ -54,6 +54,10 @@ tags:
   description: Asking to join a game and the organiser's responses (BL-017).
 - name: Games
   description: Cancelling and removing games, and the game tables (BL-013, BL-016).
+- name: Request Game
+  description: >-
+    Inviting one player to a singles game, and their answer. Same fields as Post a Game; only the two
+    players and admins can see the game.
 - name: Players
   description: 'Other players: search, profiles, playing history (BL-019, BL-060).'
 - name: Trust and safety
@@ -840,6 +844,7 @@ paths:
         Row Level Security decides which rows each player can see or change:
 
         - (restrictive) hidden from players blocked by an organiser or playe [read]
+        - (restrictive) invitations are private to the two players [read]
         - organiser, group rep or admin edits [update]
         - post as yourself or on behalf of your group [insert]
         - readable by signed-in players unless deleted [read]
@@ -871,6 +876,7 @@ paths:
         Row Level Security decides which rows each player can see or change:
 
         - (restrictive) hidden from players blocked by an organiser or playe [read]
+        - (restrictive) invitations are private to the two players [read]
         - organiser, group rep or admin edits [update]
         - post as yourself or on behalf of your group [insert]
         - readable by signed-in players unless deleted [read]
@@ -906,6 +912,7 @@ paths:
         Row Level Security decides which rows each player can see or change:
 
         - (restrictive) hidden from players blocked by an organiser or playe [read]
+        - (restrictive) invitations are private to the two players [read]
         - organiser, group rep or admin edits [update]
         - post as yourself or on behalf of your group [insert]
         - readable by signed-in players unless deleted [read]
@@ -2984,7 +2991,7 @@ paths:
                 suburb: Carlton
                 noShows: 0
                 initials: AN
-                joinedAt: '2026-07-10T00:16:44.75846+00:00'
+                joinedAt: '2026-07-10T00:33:03.485403+00:00'
                 lastName: Nguyen
                 location: Carlton area · VIC
                 username: alice
@@ -3162,7 +3169,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/VenueOption"
               example:
-              - id: 3ef5e9fd-360e-4404-b77c-4d26f7abf0c4
+              - id: f261b3c9-e43d-432f-8762-5d1e04755a5a
                 name: Badminton Court
                 label: Badminton Court — Wantirna VIC
                 state: VIC
@@ -3170,7 +3177,7 @@ paths:
                 address: Badminton Ct, Wantirna VIC 3152
                 mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.849473,145.230175
                 postcode: '3152'
-              - id: '08917471-b1fa-4de4-ba08-24b14ac6da88'
+              - id: dcb7247b-507f-4460-9714-6af3f1069659
                 name: Badminton Court
                 label: Badminton Court — Marshall VIC
                 state: VIC
@@ -3227,6 +3234,7 @@ paths:
                 suburb: Albert Park
                 mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
                 imageUrl: 
+                isInvite: false
                 location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
                 myStatus: accepted
                 startsAt: '2026-10-10T18:00:00+00:00'
@@ -3251,6 +3259,7 @@ paths:
                 suburb: Blackburn North
                 mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.799510,145.144072
                 imageUrl: 
+                isInvite: false
                 location: Melbourne Badminton Centre, Blackburn North
                 myStatus: 
                 startsAt: '2026-10-11T10:00:00+00:00'
@@ -3329,11 +3338,12 @@ paths:
                 title: Friday Night Doubles
                 endsAt: '2026-10-10T19:30:00+00:00'
                 format: Doubles
+                invite: 
                 status: open
                 suburb: Albert Park
                 address: 30 Aughtie Dr, Albert Park
                 mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
-                matchId: 717d271d-6567-4e16-bfbb-d5e7ffb1a3d5
+                matchId: d086c10f-971d-443a-887c-790ac144437d
                 players:
                 - id: 00000000-0000-0000-0000-00000000a001
                   host: true
@@ -3353,9 +3363,10 @@ paths:
                   initials: ER
                   isBlocked: false
                   isDeleted: false
-                venueId: 6e46bd90-0d0d-4bcc-adc4-29a8cb17d554
+                venueId: 1821acee-c484-4271-b754-34621f0bc460
                 duration: 90 mins
                 imageUrl: 
+                isInvite: false
                 location: Melbourne Sports and Aquatic Centre@ MSAC
                 myStatus: pending
                 startsAt: '2026-10-10T18:00:00+00:00'
@@ -3401,6 +3412,7 @@ paths:
         - `42501` (not allowed): Complete registration first.
         - `42501` (not allowed): Game not found.
         - `23514` (a rule was broken): You organise this game.
+        - `23514` (a rule was broken): You were invited to this game: answer with accept_invite or decline_invite.
         - `23505` (already done / taken): You have already asked to join this game.
         - `23514` (a rule was broken): The organiser has declined your request for this game.
       responses:
@@ -3495,6 +3507,7 @@ paths:
                   suburb: Albert Park
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
                   imageUrl: 
+                  isInvite: false
                   location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
                   myStatus: accepted
                   startsAt: '2026-10-10T18:00:00+00:00'
@@ -3528,7 +3541,7 @@ paths:
                   preferredFormat: Singles
                   profileImageUrl: 
                   verifiedMatches: 2
-                requestedAt: '2026-10-05T00:16:44.822556+00:00'
+                requestedAt: '2026-10-05T00:33:03.545098+00:00'
               - id: 00000000-0000-0000-0000-00000000b001:00000000-0000-0000-0000-00000000a005
                 game:
                   id: 00000000-0000-0000-0000-00000000b001
@@ -3543,6 +3556,7 @@ paths:
                   suburb: Albert Park
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
                   imageUrl: 
+                  isInvite: false
                   location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
                   myStatus: accepted
                   startsAt: '2026-10-10T18:00:00+00:00'
@@ -3576,7 +3590,7 @@ paths:
                   preferredFormat: Mixed Doubles
                   profileImageUrl: 
                   verifiedMatches: 1
-                requestedAt: '2026-10-06T00:16:44.822556+00:00'
+                requestedAt: '2026-10-06T00:33:03.545098+00:00'
         '400':
           "$ref": "#/components/responses/RuleBroken"
         '401':
@@ -3669,6 +3683,138 @@ paths:
               required:
               - p_post_id
               - p_player_id
+  "/rpc/invite_player":
+    post:
+      operationId: invite_player
+      tags:
+      - Request Game
+      summary: 'Request Game: invite one player to a singles game'
+      x-implementation: postgres-rpc
+      description: |-
+        Request Game: invite one player to a singles game. supabase.rpc('invite_player', { p_player_id, p_proposed_time, p_venue_id | p_suburb, p_duration_minutes, p_style, p_ability_level, p_title, p_notes, p_message }) returns the game id. Same fields as Post a Game, for two players. The invited player is notified (match_invite) and answers with accept_invite / decline_invite. Only the two players and admins can see the game. At most 10 unanswered invitations at a time.
+
+        **Errors** (`code`: message, safe to show to players):
+
+        - `42501` (not allowed): Complete registration first.
+        - `23514` (a rule was broken): You cannot invite yourself.
+        - `42501` (not allowed): This player is not available.
+        - `23514` (a rule was broken): Keep the message under 300 characters.
+        - `23514` (a rule was broken): You have 10 invitations waiting for an answer. Wait for some replies, or cancel one, before inviting anyone else.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: string
+                format: uuid
+        '400':
+          "$ref": "#/components/responses/RuleBroken"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_player_id:
+                  type: string
+                  format: uuid
+                p_proposed_time:
+                  type: string
+                  format: date-time
+                p_venue_id:
+                  type: string
+                  format: uuid
+                p_suburb:
+                  type: string
+                p_duration_minutes:
+                  type: integer
+                p_style:
+                  type: string
+                p_ability_level:
+                  type: string
+                p_title:
+                  type: string
+                p_notes:
+                  type: string
+                p_message:
+                  type: string
+              required:
+              - p_player_id
+              - p_proposed_time
+  "/rpc/accept_invite":
+    post:
+      operationId: accept_invite
+      tags:
+      - Request Game
+      summary: The invited player accepts a Request Game invitation
+      x-implementation: postgres-rpc
+      description: |-
+        The invited player accepts a Request Game invitation: supabase.rpc('accept_invite', { p_post_id }). They join the game, the match is created and the organiser is notified (invite_accepted).
+
+        **Errors** (`code`: message, safe to show to players):
+
+        - `42501` (not allowed): Complete registration first.
+        - `42501` (not allowed): Invitation not found.
+        - `23505` (already done / taken): You have already answered this invitation.
+        - `23514` (a rule was broken): This game has been cancelled or has already started.
+      responses:
+        '204':
+          description: Done. No body.
+        '400':
+          "$ref": "#/components/responses/RuleBroken"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_post_id:
+                  type: string
+                  format: uuid
+              required:
+              - p_post_id
+  "/rpc/decline_invite":
+    post:
+      operationId: decline_invite
+      tags:
+      - Request Game
+      summary: The invited player declines a Request Game invitation
+      x-implementation: postgres-rpc
+      description: |-
+        The invited player declines a Request Game invitation: supabase.rpc('decline_invite', { p_post_id }). The organiser is notified (invite_declined). Declining does not affect reliability.
+
+        **Errors** (`code`: message, safe to show to players):
+
+        - `42501` (not allowed): Complete registration first.
+        - `42501` (not allowed): Invitation not found.
+        - `23505` (already done / taken): You have already answered this invitation.
+        - `23514` (a rule was broken): This game has been cancelled or has already started.
+      responses:
+        '204':
+          description: Done. No body.
+        '400':
+          "$ref": "#/components/responses/RuleBroken"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_post_id:
+                  type: string
+                  format: uuid
+              required:
+              - p_post_id
   "/rpc/cancel_game_post":
     post:
       operationId: cancel_game_post
@@ -4021,7 +4167,7 @@ paths:
                 reason: Kept messaging me after our game.
                 category: harassment
                 initials: FR
-                blockedAt: '2026-10-04T00:16:44.869269+00:00'
+                blockedAt: '2026-10-04T00:33:03.616796+00:00'
                 categoryLabel: Harassment
         '401':
           "$ref": "#/components/responses/Unauthorized"
@@ -4232,7 +4378,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/NotificationItem"
               example:
-              - id: 5011873c-fce4-48f6-bb61-57b2f5093449
+              - id: df266b26-8c0c-4b10-8546-7f7cc8a4bb40
                 type: game_cancelled
                 title: 'Doubles game on Fri 16 Oct, 5:00 AM in Richmond was cancelled: the organiser closed
                   their account.'
@@ -4240,15 +4386,15 @@ paths:
                 unread: true
                 matchId: 
                 message: Find another game or post your own
-                createdAt: '2026-10-08T00:16:44.877611+00:00'
-              - id: f8849e6e-9461-4027-b8fd-e6e8068e9a7f
+                createdAt: '2026-10-08T00:33:03.628423+00:00'
+              - id: ba915362-35f9-47f0-a977-d7e2a2201484
                 type: request_accepted
                 title: Your request to join Doubles game on Sun 11 Oct, 5:00 AM in Albert Park was accepted.
                 postId: 00000000-0000-0000-0000-00000000b001
                 unread: true
-                matchId: 717d271d-6567-4e16-bfbb-d5e7ffb1a3d5
+                matchId: d086c10f-971d-443a-887c-790ac144437d
                 message: Tap to view match details
-                createdAt: '2026-10-08T00:16:44.822556+00:00'
+                createdAt: '2026-10-08T00:33:03.545098+00:00'
         '401':
           "$ref": "#/components/responses/Unauthorized"
       requestBody:
@@ -5591,10 +5737,15 @@ components:
           type: string
           enum:
           - requested
+          - invited
           - accepted
           - rejected
+          - declined
           - withdrawn
           - no_show
+          description: >-
+            requested (asked to join) or invited (asked by the organiser), then accepted, rejected (organiser
+            said no), declined (invited player said no), withdrawn or no_show.
         requested_at:
           type: string
           format: date-time
@@ -5631,10 +5782,15 @@ components:
           type: string
           enum:
           - requested
+          - invited
           - accepted
           - rejected
+          - declined
           - withdrawn
           - no_show
+          description: >-
+            requested (asked to join) or invited (asked by the organiser), then accepted, rejected (organiser
+            said no), declined (invited player said no), withdrawn or no_show.
         requested_at:
           type: string
           format: date-time
@@ -5794,6 +5950,13 @@ components:
           nullable: true
           description: Optional card title, e.g. "Friday Night Doubles". When empty, screens show "<Format>
             game".
+        invited_player_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: >-
+            Set when the game is an invitation to one player (invite_player). Only the organiser, this
+            player and admins can see the game.
     GamePostWrite:
       type: object
       properties:
@@ -5899,6 +6062,13 @@ components:
           nullable: true
           description: Optional card title, e.g. "Friday Night Doubles". When empty, screens show "<Format>
             game".
+        invited_player_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: >-
+            Set when the game is an invitation to one player (invite_player). Only the organiser, this
+            player and admins can see the game.
       required:
       - format
       - proposed_time
@@ -6638,6 +6808,8 @@ components:
           - request_declined
           - request_withdrawn
           - no_show
+          - invite_accepted
+          - invite_declined
         message:
           type: string
           description: >-
@@ -6700,6 +6872,8 @@ components:
           - request_declined
           - request_withdrawn
           - no_show
+          - invite_accepted
+          - invite_declined
         message:
           type: string
           description: >-
@@ -7742,6 +7916,8 @@ components:
           type: string
           nullable: true
           description: Null in every sample (not built yet).
+        isInvite:
+          type: boolean
         location:
           type: string
         myStatus:
@@ -7832,6 +8008,10 @@ components:
           format: date-time
         format:
           type: string
+        invite:
+          type: string
+          nullable: true
+          description: Null in every sample (not built yet).
         status:
           type: string
         suburb:
@@ -7874,6 +8054,8 @@ components:
           type: string
           nullable: true
           description: Null in every sample (not built yet).
+        isInvite:
+          type: boolean
         location:
           type: string
         myStatus:
@@ -7951,6 +8133,8 @@ components:
               type: string
               nullable: true
               description: Null in every sample (not built yet).
+            isInvite:
+              type: boolean
             location:
               type: string
             myStatus:
@@ -8260,27 +8444,6 @@ components:
           description: When the action was logged.
       required:
       - logId
-    MatchMessageCreate:
-      type: object
-      properties:
-        messageId:
-          type: string
-          format: uuid
-          description: Unique message id.
-        matchId:
-          type: string
-          format: uuid
-          description: Match this message belongs to (FK to match.matchId).
-        templateCode:
-          type: string
-          description: >-
-            One of a fixed set of preset messages, e.g. on_my_way | running_late_5 | running_late_15 |
-            cant_make_it | arrived | at_court | waiting_front_desk | thanks_for_game | rematch. No free
-            text — this is the light preset-message feature, not open chat.
-        sentAt:
-          type: string
-          format: date-time
-          description: When the message was sent.
     MatchMessage:
       type: object
       properties:
@@ -8308,6 +8471,27 @@ components:
           description: When the message was sent.
       required:
       - messageId
+    MatchMessageCreate:
+      type: object
+      properties:
+        messageId:
+          type: string
+          format: uuid
+          description: Unique message id.
+        matchId:
+          type: string
+          format: uuid
+          description: Match this message belongs to (FK to match.matchId).
+        templateCode:
+          type: string
+          description: >-
+            One of a fixed set of preset messages, e.g. on_my_way | running_late_5 | running_late_15 |
+            cant_make_it | arrived | at_court | waiting_front_desk | thanks_for_game | rematch. No free
+            text — this is the light preset-message feature, not open chat.
+        sentAt:
+          type: string
+          format: date-time
+          description: When the message was sent.
     Error:
       type: object
       description: PostgREST error. `code` is the Postgres error code; `message` is written to be shown

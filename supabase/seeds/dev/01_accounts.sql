@@ -16,13 +16,13 @@
 --   alice@example.com   organiser, Smash Group admin, runs the Spring Singles Ladder,
 --                       blocked frank
 --   bob@example.com     asked to join Smash Group (pending), one late cancellation
---   carol@example.com   Northside Shuttlers admin, has a disputed result
---   dan@example.com     profile hidden (is_discoverable = false), one no-show
+--   carol@example.com   Northside Shuttlers admin, has a disputed result, invited ivy
+--   dan@example.com     profile hidden (is_discoverable = false), one no-show, declined bob's invitation
 --   erin@example.com    Smash Group member, one late withdrawal
 --   frank@example.com   blocked by alice, reported by carol
 --   grace@example.com   signed up with Google: no username, has not passed the
 --                       age gate, so lands on /complete-registration
---   ivy@example.com     brand-new player: no games yet
+--   ivy@example.com     brand-new player: no games yet, an invitation from carol to answer
 --   henry@example.com   deleted in 06_deleted_account.sql; cannot sign in
 --
 -- Game times are relative to now(), so after any `db reset` the upcoming games

@@ -32,10 +32,10 @@ Sign in as any of these test accounts. Each one's password is `Passw0rd!`.
 | `alice@example.com` | An organiser with requests to answer, a group she admins (Smash Group) and a league. Alice blocked Frank. |
 | `bob@example.com` | A pending group join request and a late cancellation (89% reliable). |
 | `carol@example.com` | A disputed result, and a notification that a deleted player's game was cancelled. |
-| `dan@example.com` | A hidden profile and a no-show (80%). |
+| `dan@example.com` | A hidden profile, a no-show (80%), and an invitation from Bob he declined. |
 | `frank@example.com` | Being blocked: Alice and her games are invisible to him. |
 | `grace@example.com` | A Google-style account with no username that has not passed the age gate, so she lands on `/complete-registration`. |
-| `ivy@example.com` | A brand-new player with no games (100% reliable). |
+| `ivy@example.com` | A brand-new player with no games (100% reliable), and an invitation from Carol to accept or decline. |
 | `admin@example.com` | The platform admin. |
 
 The seed is described at the top of [`supabase/seeds/dev/01_accounts.sql`](../supabase/seeds/dev/01_accounts.sql).
@@ -131,14 +131,14 @@ Changes from the sample data:
 Call `rpc('search_players', { p_query, p_level })`. It returns `id`, `name`, `initials`, `rank`, `location`, `reliability` (a %) and `isBlocked`.
 
 - Show a **Blocked** badge when `isBlocked` is true.
-- **Request to Play** has no backend; see [screens with no backend](#screens-with-no-backend-yet).
+- **Request to Play** opens Post a Game in [invite mode](#request-game-invite-mode) for that player.
 
 **Frontend adjustments**
 
 - Replace the sample `players` array with `search_players`.
 - Show the **Blocked** badge from `isBlocked` (6).
 - Show reliability as it is now: `{reliability}% reliable` (7).
-- Remove or hide **Request to Play** until there's an invitations story.
+- Wire **Request to Play** to open Post a Game in invite mode: `navigate('/post-game', { state: { opponent: player } })` (10).
 
 ### Game Details (`GameDetailsPage`) ✅
 
@@ -147,7 +147,8 @@ Call `rpc('get_game_details', { p_post_id })`. Keep reading by id rather than re
 - **Venue:** `mapsUrl` (link "Open in Maps" to it), `address`, `notes`.
 - **Host:** `reliability` (%), `isBlocked` and `isDeleted`.
 - **Players:** each has `isBlocked` and `isDeleted`.
-- **The caller:** `myStatus` (pending, accepted, declined, withdrawn or null) and `canManage`.
+- **The caller:** `myStatus` (pending, invited, accepted, declined, withdrawn or null) and `canManage`.
+- **Invitations:** `isInvite` is true for a Request Game; `invite` has the invited player's `name`, `status` and the organiser's `message` (null for ordinary games).
 - **Match:** `matchId`.
 
 `null` means the game is gone or hidden from this player; show "This game is not available".
@@ -158,6 +159,7 @@ Buttons:
 |---|---|
 | Request to join | `rpc('request_to_join', { p_post_id, p_message })` |
 | Withdraw | `rpc('withdraw_request', { p_post_id })` |
+| Invited player: accept / decline | `rpc('accept_invite' \| 'decline_invite', { p_post_id })` |
 | Organiser: cancel | `rpc('cancel_game_post', { p_post_id, p_reason })` |
 | Organiser: delete | `rpc('delete_game_post', { p_post_id })` |
 
@@ -174,9 +176,10 @@ Cancelling and deleting are refused within 4 hours of the start, with a message 
   | null | Request to join |
   | pending | Withdraw request |
   | accepted | Leave game, with the late-withdrawal warning within 24 hours |
+  | invited | **Accept** and **Decline**, with the organiser's `invite.message` (10) |
   | declined | Nothing; the player can't ask again |
 
-- When `canManage` is true, show the organiser actions instead: **View requests** (opens `PlayRequestPage`), **Cancel game** with an optional reason, and **Delete game**.
+- When `canManage` is true, show the organiser actions instead: **View requests** (opens `PlayRequestPage`), **Cancel game** with an optional reason, and **Delete game**. For an invitation (`isInvite`), show "Invited: {invite.name} ({invite.status})" instead of View requests (10).
 - Badges on the host and the player list:
   - **Blocked** where `isBlocked` is true (6);
   - **"Deleted User"**, with no profile link, where `isDeleted` is true (4).
@@ -228,6 +231,39 @@ Replace `services/gameService.js`'s fake `createGame`. On success, go to `/post-
 - Combine the date and start time into one `proposed_time` with the Melbourne offset.
 - Show the error `message` if the insert is refused, e.g. a start time in the past.
 
+#### Request Game (invite mode)
+
+**Request Game** (player profile) and **Request to Play** (Find Games, Players tab) open this same form to invite one player. `PlayerProfilePage` already navigates here with `state: { opponent: player }`.
+
+In invite mode:
+
+- Show "Invite {opponent.name}" at the top.
+- Fix the format to **Singles** and the players to **2**, and hide those fields and **Post as**.
+- Keep everything else: date, time, duration, venue (`search_venues`), style, level, title and notes.
+- Add an optional **Message** to the invited player (up to 300 characters).
+
+Save with `rpc('invite_player', {...})` instead of the table insert:
+
+| Form | Parameter |
+|---|---|
+| the opponent | `p_player_id` = `opponent.id` |
+| date + startTime | `p_proposed_time` (Melbourne offset) |
+| venue / "Other" suburb | `p_venue_id` / `p_suburb` |
+| duration, style, level, title, notes | `p_duration_minutes`, `p_style`, `p_ability_level`, `p_title`, `p_notes` |
+| message | `p_message` |
+
+It returns the new game's id; go to its confirmation page.
+
+The invited player is notified (`match_invite`) and answers on Game Details. The organiser is notified of the answer (`invite_accepted` / `invite_declined`).
+
+Errors to show as they are:
+
+- the player can't be invited (blocked, private, deleted or not registered);
+- 10 invitations are already waiting for an answer;
+- the usual Post a Game rules, such as a start time in the past.
+
+Only the two players (and admins) can see the game, so it never appears in Find Games for anyone else.
+
 ### Play Request, the organiser's view (`PlayRequestPage`) ✅
 
 Call `rpc('get_join_requests', { p_post_id })`. Each item has `status`, `game` (the card), `host` and `requester`. The requester has:
@@ -263,7 +299,7 @@ Buttons:
 
 - **Block:** see [Block](#changes-the-frontend-must-make).
 - **Report (flag icon):** `rpc('report_player', { p_player_id, p_category, p_reason })`. The reason is required.
-- **Request Game:** no backend.
+- **Request Game:** opens Post a Game in [invite mode](#request-game-invite-mode).
 
 **Frontend adjustments**
 
@@ -273,7 +309,7 @@ Buttons:
   - swap the button for **Unblock** (`unblock_player`).
 - Wire the **Report** flag to a form with a category picker and a **required** reason (5).
 - Show reliability as `{reliability}%` (7). The counts behind it are optional.
-- Remove or hide **Request Game** until there's an invitations story.
+- Keep **Request Game**: it already navigates to `/post-game` with the player; the form switches to invite mode (10).
 - Add a match history list from `get_player_history`, if the design has room for it.
 
 ### Profile (`ProfilePage`) 🟡 menu screens needed
@@ -330,6 +366,7 @@ Call `rpc('get_notifications', { p_limit, p_offset })`. It returns `id`, `type`,
 | Sample `type` | Backend `type` |
 |---|---|
 | request | `join_request`, `request_accepted`, `request_declined`, `request_withdrawn` |
+| invitation (new) | `match_invite` (to the invited player; open the game to accept or decline), `invite_accepted`, `invite_declined` (to the organiser) |
 | cancelled | `game_cancelled`, `game_removed` |
 | result | `result_submitted`, `dispute_update` |
 | league | `league_update` |
@@ -436,6 +473,10 @@ From the team's decisions in items-to-confirm:
 8. **Email opt-out (item 15):** add a toggle in Notifications settings: `update_my_profile({ p_email_notifications })`.
 9. **Admin (item 18, report filter):**
    - the admin console needs a report queue filtered by category;
+10. **Request Game / Request to Play (item 17).** These buttons invite one player to a singles game. The invited player accepts or declines, and both sides are notified.
+    - Post a Game gets an [invite mode](#request-game-invite-mode) that calls `invite_player`.
+    - Game Details shows **Accept / Decline** when `myStatus` is `invited`.
+    - Notifications get an invitation icon for `match_invite`, `invite_accepted` and `invite_declined`.
 
 Report and block categories:
 
@@ -455,6 +496,7 @@ Report and block categories:
 |---|---|
 | Groups (create, join, approve, promote, leave, deactivate) | Tables `groups`, `group_member` |
 | Post a game as a group | `game_post.organiser_group_id`, `get_game_form_options().postAs` |
+| Request Game: invite a player, accept or decline | `invite_player`, `accept_invite`, `decline_invite` |
 | Withdraw from a game | `withdraw_request` |
 | Organiser cancels or deletes a game | `cancel_game_post`, `delete_game_post` |
 | Mark and undo no-shows | `mark_no_show`, `clear_no_show` |
@@ -477,7 +519,6 @@ These are outside the BE-1 stories, or need a team decision first.
 | Mini Leagues, Create League, League Details | League screens and functions. The `mini_league` table lacks format, style, rounds, skill level, venue, max players and description. |
 | Record Result, Result Submitted, Result Confirmed | Submitting and confirming results. Only admins can confirm today. |
 | Match Details "Message" | Messaging (planned `match_message`) |
-| "Request to Play" / "Request Game" (inviting a player directly) | No invitations story. Remove the buttons, or agree a story. |
 | Dashboard league and recent activity | No functions yet |
 | Notification types reminder, new game nearby, rating change | Not sent yet |
 | Profile pictures | `profileImageUrl` is always null; no storage yet |

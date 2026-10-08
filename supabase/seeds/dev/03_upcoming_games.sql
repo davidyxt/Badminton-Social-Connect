@@ -98,3 +98,36 @@ update public.game_post
 set deleted_at = now(), deleted_by = '00000000-0000-0000-0000-00000000a002',
     deletion_reason = 'Posted by mistake'
 where post_id = '00000000-0000-0000-0000-00000000b006';
+
+-- Request Game invitations (invite_player does this with the same checks):
+--   ...b009  carol invited ivy to singles in 5 days: waiting for ivy's answer
+--   ...b010  bob invited dan to singles in 6 days: dan declined
+insert into public.game_post (
+  post_id, organiser_id, invited_player_id, title, format, style, ability_level,
+  venue_id, suburb, proposed_time, duration_minutes, player_limit
+)
+values
+  ('00000000-0000-0000-0000-00000000b009', '00000000-0000-0000-0000-00000000a003',
+   '00000000-0000-0000-0000-00000000a009', 'Singles hit?', 'singles', 'social', 'any',
+   (select venue_id from public.venue where name = 'Melbourne Badminton Centre'), null,
+   date_trunc('hour', now()) + interval '5 days 18 hours', 60, 2),
+  ('00000000-0000-0000-0000-00000000b010', '00000000-0000-0000-0000-00000000a002',
+   '00000000-0000-0000-0000-00000000a004', null, 'singles', 'social', 'any',
+   null, 'Clayton',
+   date_trunc('hour', now()) + interval '6 days 10 hours', 60, 2);
+
+insert into public.game_participant (post_id, player_id, status, requested_at)
+values
+  ('00000000-0000-0000-0000-00000000b009', '00000000-0000-0000-0000-00000000a009', 'invited', now() - interval '3 hours'),
+  ('00000000-0000-0000-0000-00000000b010', '00000000-0000-0000-0000-00000000a004', 'invited', now() - interval '1 day');
+
+insert into public.game_request_message (post_id, player_id, message)
+values ('00000000-0000-0000-0000-00000000b009', '00000000-0000-0000-0000-00000000a009',
+        'Welcome to Melbourne! Keen for a friendly singles game?');
+
+update public.notification set detail = 'Welcome to Melbourne! Keen for a friendly singles game?'
+where post_id = '00000000-0000-0000-0000-00000000b009' and type = 'match_invite';
+
+update public.game_participant set status = 'declined', responded_at = now() - interval '2 hours'
+where post_id = '00000000-0000-0000-0000-00000000b010'
+  and player_id = '00000000-0000-0000-0000-00000000a004';
