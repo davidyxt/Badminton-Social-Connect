@@ -256,8 +256,10 @@ def main():
     endpoint(A, "rpc/get_my_home")
     r = rpc("get_my_home", T["alice"])
     check("returns the Home page fields", has_keys(r.body, [
-        "id", "username", "greetingName", "initials", "registered", "level", "ratingCard",
+        "id", "username", "firstName", "lastName", "greetingName", "initials", "registered", "level", "ratingCard",
         "unreadNotifications", "nextGame"]), r)
+    check("includes the player's own first and last name",
+          ((r.body or {}).get("firstName"), (r.body or {}).get("lastName")) == ("Alice", "Nguyen"), r)
     ng = (r.body or {}).get("nextGame") or {}
     check("next game is the soonest one alice is in, with title and Maps link",
           ng.get("id") == G["b001"] and ng.get("title") == "Friday Night Doubles" and ng.get("mapsUrl"),

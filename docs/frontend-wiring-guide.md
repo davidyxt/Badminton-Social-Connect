@@ -81,7 +81,7 @@ Call `rpc('get_my_home')`.
 
 | Sample data | API field |
 |---|---|
-| `user.firstName`, `user.lastName` | `greetingName` (the real name, or the username), `firstName` |
+| `user.firstName`, `user.lastName` | `firstName`, `lastName` (either can be null; `greetingName` is the full name, or the username when there's none) |
 | `user.initials` | `initials` |
 | `rating.value` | `ratingCard.rating` |
 | `rating.level` | `ratingCard.band`, `ratingCard.grade` |

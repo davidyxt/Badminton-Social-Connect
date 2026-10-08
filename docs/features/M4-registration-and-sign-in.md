@@ -115,7 +115,7 @@ The username is chosen by the player and unique (ignoring case). The sign-up for
 
 | Screen | Call | Returns |
 |---|---|---|
-| Home page, top-bar avatar and bell | `supabase.rpc('get_my_home')` | `greetingName` ("John Doe"), `initials` ("JD"), `level`, `ratingCard`, `nextGame` (null = "No game planned"), `unreadNotifications` |
+| Home page, top-bar avatar and bell | `supabase.rpc('get_my_home')` | `firstName`, `lastName`, `greetingName` ("John Doe"), `initials` ("JD"), `level`, `ratingCard`, `nextGame` (null = "No game planned"), `unreadNotifications` |
 | Profile page | `supabase.rpc('get_my_profile')` | `name`, `username`, `initials`, `level`, `reliability`, `location` ("Albert Park area · VIC"), `ratingCard`, plus every editable field |
 | Your Profile / Privacy Settings | `supabase.rpc('update_my_profile', { p_username, p_first_name, p_last_name, p_self_rating_band, p_bio, p_suburb, p_state, p_is_discoverable, p_preferred_format, p_email_notifications })` | The updated profile. Send only what changed |
 

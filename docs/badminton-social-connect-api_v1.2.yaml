@@ -2927,6 +2927,7 @@ paths:
                 id: 00000000-0000-0000-0000-00000000a001
                 level: Intermediate
                 initials: AN
+                lastName: Nguyen
                 nextGame:
                   id: 00000000-0000-0000-0000-00000000b001
                   date: Sun, 11 Oct
@@ -2991,7 +2992,7 @@ paths:
                 suburb: Carlton
                 noShows: 0
                 initials: AN
-                joinedAt: '2026-07-10T00:33:03.485403+00:00'
+                joinedAt: '2026-07-10T00:39:46.399363+00:00'
                 lastName: Nguyen
                 location: Carlton area · VIC
                 username: alice
@@ -3169,7 +3170,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/VenueOption"
               example:
-              - id: f261b3c9-e43d-432f-8762-5d1e04755a5a
+              - id: e0110238-42dd-4618-9a17-b81d529c2dcb
                 name: Badminton Court
                 label: Badminton Court — Wantirna VIC
                 state: VIC
@@ -3177,7 +3178,7 @@ paths:
                 address: Badminton Ct, Wantirna VIC 3152
                 mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.849473,145.230175
                 postcode: '3152'
-              - id: dcb7247b-507f-4460-9714-6af3f1069659
+              - id: 2aa1a979-be1b-43d3-8ddd-0f6a1fd9a60d
                 name: Badminton Court
                 label: Badminton Court — Marshall VIC
                 state: VIC
@@ -3343,7 +3344,7 @@ paths:
                 suburb: Albert Park
                 address: 30 Aughtie Dr, Albert Park
                 mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
-                matchId: d086c10f-971d-443a-887c-790ac144437d
+                matchId: fa8c22e5-5410-4a0c-851a-3107f01a90d5
                 players:
                 - id: 00000000-0000-0000-0000-00000000a001
                   host: true
@@ -3363,7 +3364,7 @@ paths:
                   initials: ER
                   isBlocked: false
                   isDeleted: false
-                venueId: 1821acee-c484-4271-b754-34621f0bc460
+                venueId: '0981df59-a40f-4fd0-9e86-351e662565af'
                 duration: 90 mins
                 imageUrl: 
                 isInvite: false
@@ -3541,7 +3542,7 @@ paths:
                   preferredFormat: Singles
                   profileImageUrl: 
                   verifiedMatches: 2
-                requestedAt: '2026-10-05T00:33:03.545098+00:00'
+                requestedAt: '2026-10-05T00:39:46.45359+00:00'
               - id: 00000000-0000-0000-0000-00000000b001:00000000-0000-0000-0000-00000000a005
                 game:
                   id: 00000000-0000-0000-0000-00000000b001
@@ -3590,7 +3591,7 @@ paths:
                   preferredFormat: Mixed Doubles
                   profileImageUrl: 
                   verifiedMatches: 1
-                requestedAt: '2026-10-06T00:33:03.545098+00:00'
+                requestedAt: '2026-10-06T00:39:46.45359+00:00'
         '400':
           "$ref": "#/components/responses/RuleBroken"
         '401':
@@ -4167,7 +4168,7 @@ paths:
                 reason: Kept messaging me after our game.
                 category: harassment
                 initials: FR
-                blockedAt: '2026-10-04T00:33:03.616796+00:00'
+                blockedAt: '2026-10-04T00:39:46.494265+00:00'
                 categoryLabel: Harassment
         '401':
           "$ref": "#/components/responses/Unauthorized"
@@ -4378,7 +4379,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/NotificationItem"
               example:
-              - id: df266b26-8c0c-4b10-8546-7f7cc8a4bb40
+              - id: fd9d474b-d553-4d77-9cee-ed900a45914d
                 type: game_cancelled
                 title: 'Doubles game on Fri 16 Oct, 5:00 AM in Richmond was cancelled: the organiser closed
                   their account.'
@@ -4386,15 +4387,15 @@ paths:
                 unread: true
                 matchId: 
                 message: Find another game or post your own
-                createdAt: '2026-10-08T00:33:03.628423+00:00'
-              - id: ba915362-35f9-47f0-a977-d7e2a2201484
+                createdAt: '2026-10-08T00:39:46.500796+00:00'
+              - id: e1ed6264-6227-41a4-91ad-985901276388
                 type: request_accepted
                 title: Your request to join Doubles game on Sun 11 Oct, 5:00 AM in Albert Park was accepted.
                 postId: 00000000-0000-0000-0000-00000000b001
                 unread: true
-                matchId: d086c10f-971d-443a-887c-790ac144437d
+                matchId: fa8c22e5-5410-4a0c-851a-3107f01a90d5
                 message: Tap to view match details
-                createdAt: '2026-10-08T00:33:03.545098+00:00'
+                createdAt: '2026-10-08T00:39:46.45359+00:00'
         '401':
           "$ref": "#/components/responses/Unauthorized"
       requestBody:
@@ -7630,6 +7631,8 @@ components:
           type: string
         initials:
           type: string
+        lastName:
+          type: string
         nextGame:
           type: object
           properties:
@@ -8415,6 +8418,27 @@ components:
           description: Null in every sample (not built yet).
         confirmed_results:
           type: integer
+    MatchMessageCreate:
+      type: object
+      properties:
+        messageId:
+          type: string
+          format: uuid
+          description: Unique message id.
+        matchId:
+          type: string
+          format: uuid
+          description: Match this message belongs to (FK to match.matchId).
+        templateCode:
+          type: string
+          description: >-
+            One of a fixed set of preset messages, e.g. on_my_way | running_late_5 | running_late_15 |
+            cant_make_it | arrived | at_court | waiting_front_desk | thanks_for_game | rematch. No free
+            text — this is the light preset-message feature, not open chat.
+        sentAt:
+          type: string
+          format: date-time
+          description: When the message was sent.
     ActivityLog:
       type: object
       properties:
@@ -8471,27 +8495,6 @@ components:
           description: When the message was sent.
       required:
       - messageId
-    MatchMessageCreate:
-      type: object
-      properties:
-        messageId:
-          type: string
-          format: uuid
-          description: Unique message id.
-        matchId:
-          type: string
-          format: uuid
-          description: Match this message belongs to (FK to match.matchId).
-        templateCode:
-          type: string
-          description: >-
-            One of a fixed set of preset messages, e.g. on_my_way | running_late_5 | running_late_15 |
-            cant_make_it | arrived | at_court | waiting_front_desk | thanks_for_game | rematch. No free
-            text — this is the light preset-message feature, not open chat.
-        sentAt:
-          type: string
-          format: date-time
-          description: When the message was sent.
     Error:
       type: object
       description: PostgREST error. `code` is the Postgres error code; `message` is written to be shown

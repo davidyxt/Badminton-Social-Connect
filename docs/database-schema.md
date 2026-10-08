@@ -1,6 +1,6 @@
 # Database Schema
 
-Implemented across thirty-seven migrations in `supabase/migrations/`:
+Implemented across thirty-eight migrations in `supabase/migrations/`:
 
 | Migration | What it adds |
 |---|---|
@@ -40,6 +40,7 @@ Implemented across thirty-seven migrations in `supabase/migrations/`:
 | `..._api_descriptions.sql` | Function descriptions used to build the API spec |
 | `..._clubs_are_groups.sql` | Clubs renamed groups everywhere: `club` → `groups` (`group` is an SQL keyword), `club_representative` → `group_member`, `club_id` → `group_id`, `organiser_club_id` → `organiser_group_id`, `report_club` → `report_group`, `isClub` → `isGroup`, and every function, policy, trigger and description |
 | `..._request_game_invitations.sql` | Request Game: `invite_player`, `accept_invite`, `decline_invite`; `game_post.invited_player_id`; `invited` and `declined` participant statuses; invitation games private to the two players |
+| `..._my_home_last_name.sql` | `get_my_home` also returns `lastName` |
 | `..._venue_search_and_no_reliability_band.sql` | `search_venues` for the venue dropdown (trigram indexes on venue and suburb names); `get_game_form_options` no longer lists venues; no reliability band, the screens show a % |
 
 Access rules are documented separately in [rls-policies.md](./rls-policies.md),
@@ -720,7 +721,7 @@ supabase start                  # bring up the local stack (needs Docker running
 supabase db reset --local       # drop and rebuild from migrations + seeds/
 supabase db advisors --local    # security and performance lint
 ./supabase/tests/rls_test.sh    # 340 access-control and integrity checks
-python3 supabase/tests/api_test.py   # 218 API cases, writes docs/api-test-report.md
+python3 supabase/tests/api_test.py   # 219 API cases, writes docs/api-test-report.md
 
 supabase migration new <name>   # start a new change
 supabase db push                # apply pending migrations to the linked project
