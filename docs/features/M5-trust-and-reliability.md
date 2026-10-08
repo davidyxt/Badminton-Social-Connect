@@ -158,6 +158,8 @@ a reset. Results of each call are in `net._http_response`.
 
 ### Turn it on in the hosted project
 
+Step by step, with checks and troubleshooting: [EMAIL-SETUP.md](../EMAIL-SETUP.md).
+
 1. Create a Resend account, verify the sending domain, and create an API key.
 2. Set the function's secrets: `npx supabase secrets set --env-file supabase/functions/.env` (with the real `RESEND_API_KEY`, `EMAIL_FROM` on the verified domain, and `APP_URL`).
 3. Deploy it: `npx supabase functions deploy send-email-notification`.

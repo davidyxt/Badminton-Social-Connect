@@ -101,7 +101,7 @@ Follow **Hosted project configuration** in
 [features/M4-registration-and-sign-in.md](features/M4-registration-and-sign-in.md#hosted-project-configuration):
 site URL and redirect URLs, email confirmation, password policy, email
 templates, **custom SMTP** (the built-in sender is limited to a few emails an
-hour), rate limits and sessions. Google sign-in is in
+hour; see [EMAIL-SETUP.md](EMAIL-SETUP.md#part-a-account-emails-custom-smtp)), rate limits and sessions. Google sign-in is in
 [SETUP.md](SETUP.md#6-google-oauth).
 
 Set these in the dashboard rather than with `npx supabase config push`:
@@ -143,7 +143,9 @@ them; each checks its own secret instead.
 
 **Resend** (for real email): create an account, verify the sending domain,
 create an API key. Without `RESEND_API_KEY` the email function does a dry run
-and sends nothing.
+and sends nothing. The full email walkthrough, account emails (SMTP) and
+notification emails, with checks and troubleshooting, is in
+[EMAIL-SETUP.md](EMAIL-SETUP.md).
 
 ## 7. Vault entries
 

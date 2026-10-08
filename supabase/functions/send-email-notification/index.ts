@@ -35,6 +35,9 @@ const SUBJECTS: Record<string, string> = {
   result_submitted: "A match result needs your confirmation",
   dispute_update: "Update on your result dispute",
   match_reminder: "Reminder: you have a game coming up",
+  match_invite: "You've been invited to a game",
+  invite_accepted: "Your invitation was accepted",
+  invite_declined: "Your invitation was declined",
 };
 
 const json = (body: unknown, status = 200) =>
