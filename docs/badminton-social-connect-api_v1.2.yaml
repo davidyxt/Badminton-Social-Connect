@@ -2930,15 +2930,15 @@ paths:
                 lastName: Nguyen
                 nextGame:
                   id: 00000000-0000-0000-0000-00000000b001
-                  date: Sun, 11 Oct
-                  time: 5:00 AM
+                  date: Sat, 10 Oct
+                  time: 6:00 PM
                   title: Friday Night Doubles
                   format: Doubles
                   isHost: true
                   suburb: Albert Park
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
                   location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
-                  startsAt: '2026-10-10T18:00:00+00:00'
+                  startsAt: '2026-10-10T07:00:00+00:00'
                   maxPlayers: 4
                   playerCount: 3
                 username: alice
@@ -2992,7 +2992,7 @@ paths:
                 suburb: Carlton
                 noShows: 0
                 initials: AN
-                joinedAt: '2026-07-10T00:39:46.399363+00:00'
+                joinedAt: '2026-07-10T08:39:36.601912+00:00'
                 lastName: Nguyen
                 location: Carlton area · VIC
                 username: alice
@@ -3170,7 +3170,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/VenueOption"
               example:
-              - id: e0110238-42dd-4618-9a17-b81d529c2dcb
+              - id: 6aecb6a9-6140-4d43-912f-433f8e6e94cc
                 name: Badminton Court
                 label: Badminton Court — Wantirna VIC
                 state: VIC
@@ -3178,7 +3178,7 @@ paths:
                 address: Badminton Ct, Wantirna VIC 3152
                 mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.849473,145.230175
                 postcode: '3152'
-              - id: 2aa1a979-be1b-43d3-8ddd-0f6a1fd9a60d
+              - id: 294b4023-82ed-42c7-a3bd-7c0b5033605e
                 name: Badminton Court
                 label: Badminton Court — Marshall VIC
                 state: VIC
@@ -3211,8 +3211,10 @@ paths:
       description: >-
         BL-015. Upcoming open or full games, soonest first, as Find Games cards: supabase.rpc('search_games',
         { p_query, p_level, p_format, p_suburb, p_from, p_to, p_limit, p_offset }). Every filter is optional.
-        p_query matches title, suburb, venue and level. p_level: beginner | intermediate | advanced (games
-        open to any level always match). p_format: singles | doubles. Pages of up to 50.
+        p_query is the search bar, one thing at a time: a location (suburb, venue, address, postcode),
+        a time (today, tonight, tomorrow, weekend, sat, oct, morning, evening, 6pm, 18:00, 10/10), a level,
+        a format, a style or words of the title. p_level: beginner | intermediate | advanced (games open
+        to any level always match). p_format: singles | doubles. Pages of up to 50.
       responses:
         '200':
           description: OK.
@@ -3223,52 +3225,52 @@ paths:
                 items:
                   "$ref": "#/components/schemas/GameCard"
               example:
-              - id: 1410dd80-df6e-434f-91ce-3594d66e0579
-                date: Thu, 8 Oct
-                rank: Any Rank
-                time: 9:52 PM – 10:52 PM
+              - id: 00000000-0000-0000-0000-00000000b001
+                date: Sat, 10 Oct
+                rank: Intermediate
+                time: 6:00 PM – 7:30 PM
                 style: Social
-                title: Badminton game
-                endsAt: '2026-10-08T11:52:45+00:00'
-                format: Singles
+                title: Friday Night Doubles
+                endsAt: '2026-10-10T08:30:00+00:00'
+                format: Doubles
                 status: open
-                suburb: Carlton
-                mapsUrl: 
+                suburb: Albert Park
+                mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
                 imageUrl: 
                 isInvite: false
-                location: Carlton
-                myStatus: 
-                startsAt: '2026-10-08T10:52:45+00:00'
+                location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
+                myStatus: accepted
+                startsAt: '2026-10-10T07:00:00+00:00'
                 organiser:
-                  id: 36170765-e6ca-45c6-8c87-35fdfbf2fbe3
-                  name: org_11294_291
+                  id: 00000000-0000-0000-0000-00000000a001
+                  name: alice
                   isGroup: false
-                  initials: OR
+                  initials: AL
                   isBlocked: false
                   isDeleted: false
-                maxPlayers: 2
-                playerCount: 1
-              - id: 76429cc6-7da6-40dd-8fa5-ed1a6e298d18
-                date: Thu, 8 Oct
+                maxPlayers: 4
+                playerCount: 3
+              - id: 00000000-0000-0000-0000-00000000b002
+                date: Sun, 11 Oct
                 rank: Any Rank
-                time: 11:45 PM – 12:45 AM
+                time: 10:00 AM – 11:00 AM
                 style: Social
                 title: Badminton game
-                endsAt: '2026-10-08T13:45:18+00:00'
+                endsAt: '2026-10-11T00:00:00+00:00'
                 format: Singles
                 status: open
-                suburb: Carlton
-                mapsUrl: 
+                suburb: Blackburn North
+                mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.799510,145.144072
                 imageUrl: 
                 isInvite: false
-                location: Carlton
+                location: Melbourne Badminton Centre, Blackburn North
                 myStatus: 
-                startsAt: '2026-10-08T12:45:18+00:00'
+                startsAt: '2026-10-10T23:00:00+00:00'
                 organiser:
-                  id: b1226fb4-cfe1-4dfd-b15a-7f10fd48578a
-                  name: org_2124_172
+                  id: 00000000-0000-0000-0000-00000000a002
+                  name: bob
                   isGroup: false
-                  initials: OR
+                  initials: BO
                   isBlocked: false
                   isDeleted: false
                 maxPlayers: 2
@@ -3321,7 +3323,7 @@ paths:
                 "$ref": "#/components/schemas/GameDetails"
               example:
                 id: 00000000-0000-0000-0000-00000000b001
-                date: Sun, 11 Oct
+                date: Sat, 10 Oct
                 host:
                   id: 00000000-0000-0000-0000-00000000a001
                   name: alice
@@ -3333,18 +3335,18 @@ paths:
                   reliability: 100
                   verifiedMatches: 4
                 rank: Intermediate
-                time: 5:00 AM – 6:30 AM
+                time: 6:00 PM – 7:30 PM
                 notes: Bring your own racquet. Shuttles provided.
                 style: Social
                 title: Friday Night Doubles
-                endsAt: '2026-10-10T19:30:00+00:00'
+                endsAt: '2026-10-10T08:30:00+00:00'
                 format: Doubles
                 invite: 
                 status: open
                 suburb: Albert Park
                 address: 30 Aughtie Dr, Albert Park
                 mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
-                matchId: fa8c22e5-5410-4a0c-851a-3107f01a90d5
+                matchId: b4529725-25df-4d20-a61b-e289a999d803
                 players:
                 - id: 00000000-0000-0000-0000-00000000a001
                   host: true
@@ -3364,13 +3366,13 @@ paths:
                   initials: ER
                   isBlocked: false
                   isDeleted: false
-                venueId: '0981df59-a40f-4fd0-9e86-351e662565af'
+                venueId: 3b46eece-7f3b-4743-ba25-2cee4ad9181e
                 duration: 90 mins
                 imageUrl: 
                 isInvite: false
                 location: Melbourne Sports and Aquatic Centre@ MSAC
                 myStatus: pending
-                startsAt: '2026-10-10T18:00:00+00:00'
+                startsAt: '2026-10-10T07:00:00+00:00'
                 canManage: false
                 organiser:
                   id: 00000000-0000-0000-0000-00000000a001
@@ -3497,12 +3499,12 @@ paths:
               - id: 00000000-0000-0000-0000-00000000b001:00000000-0000-0000-0000-00000000a003
                 game:
                   id: 00000000-0000-0000-0000-00000000b001
-                  date: Sun, 11 Oct
+                  date: Sat, 10 Oct
                   rank: Intermediate
-                  time: 5:00 AM – 6:30 AM
+                  time: 6:00 PM – 7:30 PM
                   style: Social
                   title: Friday Night Doubles
-                  endsAt: '2026-10-10T19:30:00+00:00'
+                  endsAt: '2026-10-10T08:30:00+00:00'
                   format: Doubles
                   status: open
                   suburb: Albert Park
@@ -3511,7 +3513,7 @@ paths:
                   isInvite: false
                   location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
                   myStatus: accepted
-                  startsAt: '2026-10-10T18:00:00+00:00'
+                  startsAt: '2026-10-10T07:00:00+00:00'
                   organiser:
                     id: 00000000-0000-0000-0000-00000000a001
                     name: alice
@@ -3542,16 +3544,16 @@ paths:
                   preferredFormat: Singles
                   profileImageUrl: 
                   verifiedMatches: 2
-                requestedAt: '2026-10-05T00:39:46.45359+00:00'
+                requestedAt: '2026-10-05T08:39:36.661807+00:00'
               - id: 00000000-0000-0000-0000-00000000b001:00000000-0000-0000-0000-00000000a005
                 game:
                   id: 00000000-0000-0000-0000-00000000b001
-                  date: Sun, 11 Oct
+                  date: Sat, 10 Oct
                   rank: Intermediate
-                  time: 5:00 AM – 6:30 AM
+                  time: 6:00 PM – 7:30 PM
                   style: Social
                   title: Friday Night Doubles
-                  endsAt: '2026-10-10T19:30:00+00:00'
+                  endsAt: '2026-10-10T08:30:00+00:00'
                   format: Doubles
                   status: open
                   suburb: Albert Park
@@ -3560,7 +3562,7 @@ paths:
                   isInvite: false
                   location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
                   myStatus: accepted
-                  startsAt: '2026-10-10T18:00:00+00:00'
+                  startsAt: '2026-10-10T07:00:00+00:00'
                   organiser:
                     id: 00000000-0000-0000-0000-00000000a001
                     name: alice
@@ -3591,7 +3593,7 @@ paths:
                   preferredFormat: Mixed Doubles
                   profileImageUrl: 
                   verifiedMatches: 1
-                requestedAt: '2026-10-06T00:39:46.45359+00:00'
+                requestedAt: '2026-10-06T08:39:36.661807+00:00'
         '400':
           "$ref": "#/components/responses/RuleBroken"
         '401':
@@ -3911,18 +3913,18 @@ paths:
                 items:
                   "$ref": "#/components/schemas/PlayerCard"
               example:
-              - id: bc599734-02a9-4720-b162-66de8e57039c
-                name: ada_13534_510
+              - id: 00000000-0000-0000-0000-00000000a002
+                name: bob
                 rank: Beginner
-                initials: AD
-                location: 
+                initials: BO
+                location: Clayton
                 isBlocked: false
-                reliability: 100
-              - id: 1aa35525-adae-4776-864e-14b37a62cc59
-                name: ada_30772_264
-                rank: Beginner
-                initials: AD
-                location: 
+                reliability: 89
+              - id: 00000000-0000-0000-0000-00000000a003
+                name: carol
+                rank: Upper Intermediate
+                initials: CA
+                location: Box Hill
                 isBlocked: false
                 reliability: 100
         '401':
@@ -4024,7 +4026,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/HistoryEntry"
               example:
-              - date: Sun 4 Oct 2026
+              - date: Sat 3 Oct 2026
                 score: 17-21 21-23
                 format: Singles
                 gameId: 00000000-0000-0000-0000-00000000c106
@@ -4032,13 +4034,13 @@ paths:
                 matchId: 00000000-0000-0000-0000-00000000d106
                 partner: 
                 location: Albert Park
-                playedAt: '2026-10-03T18:00:00+00:00'
+                playedAt: '2026-10-03T08:00:00+00:00'
                 opponents:
                 - id: 00000000-0000-0000-0000-00000000a004
                   name: dan
                   initials: DA
                   isBlocked: false
-              - date: Tue 29 Sep 2026
+              - date: Mon 28 Sep 2026
                 score: 21-18 19-21 21-16
                 format: Doubles
                 gameId: 00000000-0000-0000-0000-00000000c102
@@ -4050,7 +4052,7 @@ paths:
                   initials: BO
                   isBlocked: false
                 location: Blackburn North
-                playedAt: '2026-09-28T19:00:00+00:00'
+                playedAt: '2026-09-28T09:00:00+00:00'
                 opponents:
                 - id: 00000000-0000-0000-0000-00000000a003
                   name: carol
@@ -4168,7 +4170,7 @@ paths:
                 reason: Kept messaging me after our game.
                 category: harassment
                 initials: FR
-                blockedAt: '2026-10-04T00:39:46.494265+00:00'
+                blockedAt: '2026-10-04T08:39:36.769414+00:00'
                 categoryLabel: Harassment
         '401':
           "$ref": "#/components/responses/Unauthorized"
@@ -4379,23 +4381,23 @@ paths:
                 items:
                   "$ref": "#/components/schemas/NotificationItem"
               example:
-              - id: fd9d474b-d553-4d77-9cee-ed900a45914d
+              - id: 3fdc7255-00eb-47ca-9c01-5dee3ecf86d4
                 type: game_cancelled
-                title: 'Doubles game on Fri 16 Oct, 5:00 AM in Richmond was cancelled: the organiser closed
+                title: 'Doubles game on Thu 15 Oct, 6:00 PM in Richmond was cancelled: the organiser closed
                   their account.'
                 postId: 00000000-0000-0000-0000-00000000b008
                 unread: true
                 matchId: 
                 message: Find another game or post your own
-                createdAt: '2026-10-08T00:39:46.500796+00:00'
-              - id: e1ed6264-6227-41a4-91ad-985901276388
+                createdAt: '2026-10-08T08:39:36.781802+00:00'
+              - id: e962ba6c-e8da-43b9-92c5-d85cfccbeb09
                 type: request_accepted
-                title: Your request to join Doubles game on Sun 11 Oct, 5:00 AM in Albert Park was accepted.
+                title: Your request to join Doubles game on Sat 10 Oct, 6:00 PM in Albert Park was accepted.
                 postId: 00000000-0000-0000-0000-00000000b001
                 unread: true
-                matchId: fa8c22e5-5410-4a0c-851a-3107f01a90d5
+                matchId: b4529725-25df-4d20-a61b-e289a999d803
                 message: Tap to view match details
-                createdAt: '2026-10-08T00:39:46.45359+00:00'
+                createdAt: '2026-10-08T08:39:36.661807+00:00'
         '401':
           "$ref": "#/components/responses/Unauthorized"
       requestBody:
@@ -8232,7 +8234,6 @@ components:
           type: string
         location:
           type: string
-          nullable: true
         isBlocked:
           type: boolean
         reliability:
@@ -8419,33 +8420,6 @@ components:
           description: Null in every sample (not built yet).
         confirmed_results:
           type: integer
-    MatchMessage:
-      type: object
-      properties:
-        messageId:
-          type: string
-          format: uuid
-          description: Unique message id.
-        matchId:
-          type: string
-          format: uuid
-          description: Match this message belongs to (FK to match.matchId).
-        senderId:
-          type: string
-          format: uuid
-          description: Player who sent it (FK to player.playerId).
-        templateCode:
-          type: string
-          description: >-
-            One of a fixed set of preset messages, e.g. on_my_way | running_late_5 | running_late_15 |
-            cant_make_it | arrived | at_court | waiting_front_desk | thanks_for_game | rematch. No free
-            text — this is the light preset-message feature, not open chat.
-        sentAt:
-          type: string
-          format: date-time
-          description: When the message was sent.
-      required:
-      - messageId
     MatchMessageCreate:
       type: object
       properties:
@@ -8496,6 +8470,33 @@ components:
           description: When the action was logged.
       required:
       - logId
+    MatchMessage:
+      type: object
+      properties:
+        messageId:
+          type: string
+          format: uuid
+          description: Unique message id.
+        matchId:
+          type: string
+          format: uuid
+          description: Match this message belongs to (FK to match.matchId).
+        senderId:
+          type: string
+          format: uuid
+          description: Player who sent it (FK to player.playerId).
+        templateCode:
+          type: string
+          description: >-
+            One of a fixed set of preset messages, e.g. on_my_way | running_late_5 | running_late_15 |
+            cant_make_it | arrived | at_court | waiting_front_desk | thanks_for_game | rematch. No free
+            text — this is the light preset-message feature, not open chat.
+        sentAt:
+          type: string
+          format: date-time
+          description: When the message was sent.
+      required:
+      - messageId
     Error:
       type: object
       description: PostgREST error. `code` is the Postgres error code; `message` is written to be shown

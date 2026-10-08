@@ -179,3 +179,16 @@ Game Details has `isInvite` and `invite` (the invited player's name and status, 
 
 Built in `20261008101100_request_game_invitations.sql`. Tested in `supabase/tests/api_test.py` ("Request Game").
 
+## Find Games search bar, 2026-10-08
+
+`search_games`' `p_query` takes one thing at a time:
+
+- **a location:** suburb, venue name, address or postcode;
+- **a day:** today, tonight, tomorrow, weekend, weekday, a day name;
+- **a time:** morning, afternoon or evening, or a start time like `6pm` or `18:30`;
+- **a date or month:** `10/10`, `oct`;
+- **a level, format or style;**
+- **words from the title.**
+
+Times are Melbourne time. Level words also match games open to any level, as the level filter does. The `p_level` and `p_format` filters combine with it. Matching is done by `private.game_matches_search_word` (`20261008101300_find_games_one_search_bar.sql`). The test data now uses Melbourne clock times (6 pm, 7 pm), so time searches behave as you'd expect.
+

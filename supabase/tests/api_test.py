@@ -425,6 +425,36 @@ def main():
     avg = (time.perf_counter() - t0) * 100
     check(f"10 calls in a row average under 200 ms ({avg:.0f} ms)", avg < 200)
 
+    endpoint(A, "rpc/search_games: the search bar")
+    # A game tomorrow at 6:30 pm Melbourne time at MSAC, made for these checks.
+    from zoneinfo import ZoneInfo
+    mel = ZoneInfo("Australia/Melbourne")
+    when = (dt.datetime.now(mel) + dt.timedelta(days=1)).replace(hour=18, minute=30, second=0, microsecond=0)
+    sid, ts, _ = new_player("searchhost")
+    msac_id = rpc("search_venues", ts, p_query="msac").body[0]["id"]
+    r = call("POST", "game_post", ts, {"organiser_id": sid, "title": f"Search check {RUN}", "format": "doubles",
+                                       "style": "competitive", "ability_level": "advanced", "venue_id": msac_id,
+                                       "proposed_time": when.isoformat(), "player_limit": 4})
+    sg = r.body[0]["post_id"] if isinstance(r.body, list) else None
+    day = when.strftime("%A").lower()
+    cases = [("venue name", "msac"), ("suburb", "Albert Park"), ("postcode", "3206"),
+             ("tomorrow", "tomorrow"), ("day name", day), ("short day name", day[:3]),
+             ("time 6:30pm", "6:30pm"), ("time 6:30 pm", "6:30 pm"), ("time 18:30", "18:30"),
+             ("evening", "evening"), ("date", f"{when.day}/{when.month}"),
+             ("month", when.strftime("%b").lower()), ("level", "advanced"), ("format", "doubles"),
+             ("style", "competitive"), ("title", f"check {RUN}")]
+    for label, q in cases:
+        r = rpc("search_games", T["bob"], p_query=q, p_limit=50)
+        check(f"finds it by {label} ('{q}')", sg in ids(r.body), r, detail=f"{len(r.body or [])} results")
+    for label, q in [("morning", "morning"), ("another time", "7am"), ("another suburb", "Clayton"),
+                     ("another level", "beginner"), ("another format", "singles"), ("social", "friendly")]:
+        r = rpc("search_games", T["bob"], p_query=q, p_limit=50)
+        check(f"does not find it by {label} ('{q}')", sg not in ids(r.body), r)
+    r = rpc("search_games", T["bob"], p_query="evening", p_format="doubles", p_level="advanced", p_limit=50)
+    check("the search bar combines with the level and format filters", sg in ids(r.body), r)
+    r = rpc("search_games", T["bob"], p_query="evening", p_format="singles", p_limit=50)
+    check("and a filter that does not fit leaves it out", sg not in ids(r.body), r)
+
     endpoint(A, "rpc/get_game_details")
     r = rpc("get_game_details", T["bob"], p_post_id=G["b001"])
     d = r.body or {}

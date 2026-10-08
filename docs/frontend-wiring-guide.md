@@ -111,15 +111,34 @@ Each card has the same keys as the sample `games` array: `id`, `title`, `format`
 - `organiser`, with `isGroup`, `isBlocked` and `isDeleted`
 - `myStatus`
 
+**The search bar** (`p_query`) takes one thing at a time. Times are Melbourne time, as on the cards.
+
+| Search for | Examples |
+|---|---|
+| A location: suburb, venue, address or postcode | `carlton`, `albert park`, `msac`, `3206` |
+| A day | `today`, `tonight`, `tomorrow`, `weekend`, `weekday`, `saturday`, `sat` |
+| A time of day or start time | `morning`, `afternoon`, `evening`, `6pm`, `6:30 pm`, `18:30` |
+| A date or month | `10/10`, `10/10/2026`, `10` (day of the month), `oct` |
+| A level | `beginner`, `intermediate`, `advanced`; games open to any level match too |
+| A format or style | `doubles`, `singles`, `competitive`, `social` (or `friendly`) |
+| The title | any part of it |
+
+Combinations such as "msac saturday 6pm" aren't supported; the input is matched as one search.
+
+**The filters** combine with the search bar:
+
+- **Level dropdown:** `rankFilter` values `beginner | intermediate | advanced` go in `p_level`. Games open to any level always match.
+- **Format dropdown:** `formatFilter` `singles | doubles` goes in `p_format`. Doubles includes mixed doubles.
+- Send `null` for "All".
+
 Changes from the sample data:
 
 - **Style:** the backend says "Social", the sample says "Friendly". Use "Social".
-- **Levels:** `rankFilter` values `beginner | intermediate | advanced` go in `p_level`.
-- **Formats:** `formatFilter` `singles | doubles` goes in `p_format`.
 
 **Frontend adjustments**
 
-- Replace the sample `games` array with `search_games`. Pass the search box and filters as parameters rather than filtering in the browser.
+- Replace the sample `games` array with `search_games`. Pass the search box as `p_query` and the dropdowns as `p_level` / `p_format`, rather than filtering in the browser. Debounce typing (about 250 ms).
+- Update the search placeholder to say what works, e.g. "Search suburb, venue, day, time or level".
 - Change the "Friendly" label and filter value to **"Social"** (2).
 - Show a **Blocked** badge on the organiser when `organiser.isBlocked` is true (6).
 - When `organiser.isDeleted` is true, show "Deleted User" with no link (4).

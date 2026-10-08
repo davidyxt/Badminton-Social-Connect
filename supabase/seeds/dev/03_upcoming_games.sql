@@ -24,37 +24,37 @@ values
   ('00000000-0000-0000-0000-00000000b001', '00000000-0000-0000-0000-00000000a001', null,
    'Friday Night Doubles', 'doubles', 'social', 'intermediate',
    (select venue_id from public.venue where name = 'Melbourne Sports and Aquatic Centre@ MSAC'), null,
-   date_trunc('hour', now()) + interval '2 days 18 hours', 90, 4,
+   (date_trunc('day', now() at time zone 'Australia/Melbourne') + interval '2 days 18 hours') at time zone 'Australia/Melbourne', 90, 4,
    'Bring your own racquet. Shuttles provided.'),
   ('00000000-0000-0000-0000-00000000b002', '00000000-0000-0000-0000-00000000a002', null,
    null, 'singles', 'social', 'any',
    (select venue_id from public.venue where name = 'Melbourne Badminton Centre'), null,
-   date_trunc('hour', now()) + interval '3 days 10 hours', 60, 2, null),
+   (date_trunc('day', now() at time zone 'Australia/Melbourne') + interval '3 days 10 hours') at time zone 'Australia/Melbourne', 60, 2, null),
   ('00000000-0000-0000-0000-00000000b003', '00000000-0000-0000-0000-00000000a003', null,
    'Competitive singles', 'singles', 'competitive', 'upper_intermediate',
    null, 'Box Hill South',
-   date_trunc('hour', now()) + interval '5 days 19 hours', 60, 2,
+   (date_trunc('day', now() at time zone 'Australia/Melbourne') + interval '5 days 19 hours') at time zone 'Australia/Melbourne', 60, 2,
    'School hall on Station St. Text me on arrival.'),
   ('00000000-0000-0000-0000-00000000b004', null, '00000000-0000-0000-0000-00000000c001',
    'Smash Group social night', 'doubles', 'social', 'any',
    (select venue_id from public.venue where name = 'Melbourne University Badminton Club'), null,
-   date_trunc('hour', now()) + interval '6 days 19 hours', 120, 8, 'All levels welcome.'),
+   (date_trunc('day', now() at time zone 'Australia/Melbourne') + interval '6 days 19 hours') at time zone 'Australia/Melbourne', 120, 8, 'All levels welcome.'),
   ('00000000-0000-0000-0000-00000000b005', '00000000-0000-0000-0000-00000000a001', null,
    'Sunday hit', 'doubles', 'social', 'any',
    (select venue_id from public.venue where name = 'Melbourne Sports and Aquatic Centre@ MSAC'), null,
-   date_trunc('hour', now()) + interval '8 days 10 hours', 60, 4, null),
+   (date_trunc('day', now() at time zone 'Australia/Melbourne') + interval '8 days 10 hours') at time zone 'Australia/Melbourne', 60, 4, null),
   ('00000000-0000-0000-0000-00000000b006', '00000000-0000-0000-0000-00000000a002', null,
    'Removed post', 'singles', 'social', 'any',
    null, 'Clayton',
-   date_trunc('hour', now()) + interval '9 days 18 hours', 60, 2, null),
+   (date_trunc('day', now() at time zone 'Australia/Melbourne') + interval '9 days 18 hours') at time zone 'Australia/Melbourne', 60, 2, null),
   ('00000000-0000-0000-0000-00000000b007', '00000000-0000-0000-0000-00000000a006', null,
    'Lunchtime singles', 'singles', 'social', 'intermediate',
    (select venue_id from public.venue where name = 'Melbourne Unique Badminton Centre'), null,
-   date_trunc('hour', now()) + interval '4 days 12 hours', 45, 2, null),
+   (date_trunc('day', now() at time zone 'Australia/Melbourne') + interval '4 days 12 hours') at time zone 'Australia/Melbourne', 45, 2, null),
   ('00000000-0000-0000-0000-00000000b008', '00000000-0000-0000-0000-00000000a008', null,
    'Richmond doubles', 'doubles', 'social', 'any',
    null, 'Richmond',
-   date_trunc('hour', now()) + interval '7 days 18 hours', 60, 4, null);
+   (date_trunc('day', now() at time zone 'Australia/Melbourne') + interval '7 days 18 hours') at time zone 'Australia/Melbourne', 60, 4, null);
 
 -- Requests and places. Inserting as accepted is what accept_request does.
 insert into public.game_participant (post_id, player_id, status, requested_at)
@@ -110,11 +110,11 @@ values
   ('00000000-0000-0000-0000-00000000b009', '00000000-0000-0000-0000-00000000a003',
    '00000000-0000-0000-0000-00000000a009', 'Singles hit?', 'singles', 'social', 'any',
    (select venue_id from public.venue where name = 'Melbourne Badminton Centre'), null,
-   date_trunc('hour', now()) + interval '5 days 18 hours', 60, 2),
+   (date_trunc('day', now() at time zone 'Australia/Melbourne') + interval '5 days 18 hours') at time zone 'Australia/Melbourne', 60, 2),
   ('00000000-0000-0000-0000-00000000b010', '00000000-0000-0000-0000-00000000a002',
    '00000000-0000-0000-0000-00000000a004', null, 'singles', 'social', 'any',
    null, 'Clayton',
-   date_trunc('hour', now()) + interval '6 days 10 hours', 60, 2);
+   (date_trunc('day', now() at time zone 'Australia/Melbourne') + interval '6 days 10 hours') at time zone 'Australia/Melbourne', 60, 2);
 
 insert into public.game_participant (post_id, player_id, status, requested_at)
 values

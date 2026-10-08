@@ -25,7 +25,7 @@
 --   ivy@example.com     brand-new player: no games yet, an invitation from carol to answer
 --   henry@example.com   deleted in 06_deleted_account.sql; cannot sign in
 --
--- Game times are relative to now(), so after any `db reset` the upcoming games
+-- Game times are relative to today, at Melbourne clock times (6 pm, 7 pm), so after any `db reset` the upcoming games
 -- are always upcoming and the past ones always past.
 
 -- ---------------------------------------------------------------------------
