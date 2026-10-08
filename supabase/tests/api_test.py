@@ -162,6 +162,14 @@ def new_player(tag, **meta):
     return body["id"], sign_in(f"{username}@example.com"), username
 
 
+def around(starts_at, minutes=30):
+    """Search parameters for the window around a start time, so a check finds its
+    game however many other games earlier runs left behind (no db reset)."""
+    t = dt.datetime.fromisoformat(str(starts_at).replace("Z", "+00:00"))
+    return {"p_from": (t - dt.timedelta(minutes=minutes)).isoformat(),
+            "p_to": (t + dt.timedelta(minutes=minutes)).isoformat(), "p_limit": 50}
+
+
 def future(days, hour=8):
     d = dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=days)
     return d.strftime(f"%Y-%m-%dT{hour:02d}:00:00Z")
@@ -431,23 +439,27 @@ def main():
         "duration", "durationMinutes", "playerCount", "maxPlayers", "host", "myStatus"]) for g in lst), r)
     check("cards call the person or group running the game 'host' (no 'organiser')",
           lst and all("organiser" not in g and has_keys(g["host"], ["id", "name", "initials", "isGroup"]) for g in lst), r)
-    fnd = [g for g in lst if g["id"] == G["b001"]]
+    # Start times of the seeded games these checks look for, to search near them.
+    at = {k: (rpc("get_game_details", T["alice"], p_post_id=G[k]).body or {}).get("startsAt")
+          for k in ("b001", "b002", "b004", "b007")}
+    near = lambda k, tok="alice", **kw: rpc("search_games", T[tok], **{**around(at[k]), **kw}).body or []
+    fnd = [g for g in near("b001") if g["id"] == G["b001"]]
     check("cards carry the venue name and the duration",
           fnd and (fnd[0]["venue"], fnd[0]["duration"], fnd[0]["durationMinutes"])
           == ("Melbourne Sports and Aquatic Centre@ MSAC", "90 mins", 90), r, detail=json.dumps(fnd[0] if fnd else None)[:200])
     check("cancelled and removed games are not listed", not ({G["b005"], G["b006"]} & ids(lst)), r)
-    untitled = [g for g in lst if g["id"] == G["b002"]]
+    untitled = [g for g in near("b002") if g["id"] == G["b002"]]
     check("an untitled game is called 'Badminton game'", untitled and untitled[0]["title"] == "Badminton game", r)
-    fr = [g for g in lst if g["id"] == G["b007"]]
+    fr = [g for g in near("b007") if g["id"] == G["b007"]]
     check("alice still sees frank's game, with a Blocked badge (one-sided block)",
           fr and fr[0]["host"].get("isBlocked") is True, r)
     r = rpc("search_games", T["alice"], p_format="singles", p_limit=50)
     check("the format filter works", r.body and all(g["format"] == "Singles" for g in r.body), r)
-    r = rpc("search_games", T["alice"], p_query="Smash", p_limit=50)
-    check("search finds the group game by name", G["b004"] in ids(r.body), r)
-    r = rpc("search_games", T["frank"], p_limit=50)
+    check("search finds the group game by name", G["b004"] in ids(near("b004", p_query="Smash")))
     check("frank (blocked by alice) cannot see games alice runs or plays in",
-          not ({G["b001"], G["b004"]} & ids(r.body)), r)
+          G["b001"] not in ids(near("b001", "frank")) and G["b004"] not in ids(near("b004", "frank")))
+    check("(while bob, in the same search, does see them)",
+          G["b001"] in ids(near("b001", "bob")) and G["b004"] in ids(near("b004", "bob")))
     r = rpc("search_games", T["grace"], p_limit=50)
     check("unregistered players get an empty list", r.body == [], r)
     t0 = time.perf_counter()
@@ -475,15 +487,15 @@ def main():
              ("month", when.strftime("%b").lower()), ("level", "advanced"), ("format", "doubles"),
              ("style", "competitive"), ("title", f"check {RUN}")]
     for label, q in cases:
-        r = rpc("search_games", T["bob"], p_query=q, p_limit=50)
+        r = rpc("search_games", T["bob"], p_query=q, **around(when))
         check(f"finds it by {label} ('{q}')", sg in ids(r.body), r, detail=f"{len(r.body or [])} results")
     for label, q in [("morning", "morning"), ("another time", "7am"), ("another suburb", "Clayton"),
                      ("another level", "beginner"), ("another format", "singles"), ("social", "friendly")]:
-        r = rpc("search_games", T["bob"], p_query=q, p_limit=50)
+        r = rpc("search_games", T["bob"], p_query=q, **around(when))
         check(f"does not find it by {label} ('{q}')", sg not in ids(r.body), r)
-    r = rpc("search_games", T["bob"], p_query="evening", p_format="doubles", p_level="advanced", p_limit=50)
+    r = rpc("search_games", T["bob"], p_query="evening", p_format="doubles", p_level="advanced", **around(when))
     check("the search bar combines with the level and format filters", sg in ids(r.body), r)
-    r = rpc("search_games", T["bob"], p_query="evening", p_format="singles", p_limit=50)
+    r = rpc("search_games", T["bob"], p_query="evening", p_format="singles", **around(when))
     check("and a filter that does not fit leaves it out", sg not in ids(r.body), r)
 
     endpoint(A, "rpc/get_game_details")
@@ -877,8 +889,10 @@ def main():
     check("signed out is refused", r.code == "42501", r)
 
     endpoint(A, "invitation privacy")
-    r = rpc("search_games", T["carol"], p_limit=50)
+    inv_at = (rpc("get_game_details", th, p_post_id=inv).body or {}).get("startsAt")
+    r = rpc("search_games", T["carol"], **around(inv_at))
     check("other players do not find it in Find Games", inv not in ids(r.body), r)
+    check("(the organiser, in the same search, does)", inv in ids(rpc("search_games", th, **around(inv_at)).body))
     r = rpc("get_game_details", T["carol"], p_post_id=inv)
     check("nor open it", r.body is None, r)
     r = call("GET", f"game_post?post_id=eq.{inv}&select=post_id", T["carol"])
