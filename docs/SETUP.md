@@ -89,7 +89,7 @@ The full story is at the top of `supabase/seeds/dev/01_accounts.sql`.
 ```bash
 npx supabase db reset
 ./supabase/tests/rls_test.sh > /tmp/rls.log       # 343 access-control checks
-python3 supabase/tests/api_test.py --rls-log /tmp/rls.log   # 302 API cases, writes docs/api-test-report.md
+python3 supabase/tests/api_test.py --rls-log /tmp/rls.log   # 302 API cases, writes docs/api-test-report.md (not in Git)
 python3 supabase/scripts/build_openapi.py         # rebuilds both API specs (full, and implemented only)
 ```
 

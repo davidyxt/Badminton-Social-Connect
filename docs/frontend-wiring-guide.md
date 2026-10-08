@@ -29,7 +29,7 @@ Sign in as any of these test accounts. Each one's password is `Passw0rd!`.
 
 | Account | Use it to see |
 |---|---|
-| `alice@example.com` | An organiser with requests to answer, a group she admins (Smash Group) and a league. Alice blocked Frank. |
+| `alice@example.com` | An organiser with requests to answer, upcoming games for the Home card and My games, a group she admins (Smash Group), a league and availability set. Alice blocked Frank. |
 | `bob@example.com` | A pending group join request and a late cancellation (89% reliable). |
 | `carol@example.com` | A disputed result, and a notification that a deleted player's game was cancelled. |
 | `dan@example.com` | A hidden profile, a no-show (80%), and an invitation from Bob he declined. |
@@ -68,7 +68,7 @@ Each screen ends with **Frontend adjustments**: what has to change in the existi
 
 The sign-up form, `/complete-registration`, idle sign-out and the auth routes are already wired on this branch.
 
-The age gate now saves the username together with the date of birth: `registerPlayer({ dateOfBirth, stateCode, username })`.
+The age gate now saves the username together with the date of birth: `registerPlayer({ dateOfBirth, stateCode, username })` in `services/playerService.js`, which calls `rpc('register_player', { p_date_of_birth, p_age_declared, p_terms_version, p_privacy_version, p_state, p_username })`.
 
 **Frontend adjustments**
 
@@ -89,17 +89,69 @@ Call `rpc('get_my_home')`.
 | `rating.winRate` | `ratingCard.winRate` |
 | `rating.victoriaRank` | `ratingCard.stateRank`, `ratingCard.rankState` |
 | `rating.monthlyChange` | `ratingCard.ratingChangeThisMonth` |
-| `upcomingMatch` | `nextGame` (`null` means "No game planned"), with title, date, time, location and `mapsUrl` |
+| `upcomingMatch` | `nextGames`: the next 3 confirmed games (hosting or playing), as game cards with `myRole`; `[]` means "No game planned" |
+| (avatar) | `profileImageUrl` (null: show the initials) |
 | `league`, `recentActivity` | Nothing yet |
 
 `registered: false` means the player has to go to `/complete-registration`.
 
 Admin announcements for the home page come from `from('admin_post').select('title,body,image_url').order('display_order')`. Players get the published ones only.
 
+#### Next games and My games
+
+The Home page shows the player's **next 3 games**, and links to a full **My games** list. Both come from the same list, so they always agree.
+
+| | Call | What it returns |
+|---|---|---|
+| **Next games** (Home card) | `get_my_home().nextGames` | The next 3 **confirmed** upcoming games: ones the player hosts (themselves or as a group admin) or is accepted into. `[]` means "No game planned" |
+| **My games** (full list) | `rpc('get_my_games', { p_filter, p_when, p_include_pending, p_limit, p_offset })` | Every game the player hosts or plays in |
+
+`get_my_games` parameters:
+
+| Parameter | Values |
+|---|---|
+| `p_filter` | `all` (default) or `organised` (games I host, including my groups' games) |
+| `p_when` | `upcoming` (default, soonest first) or `past` (latest first; cancelled games left out) |
+| `p_include_pending` | `true` (default) also lists games I asked to join or was invited to (`myStatus` pending or invited); `false` shows confirmed games only, which is what `nextGames` uses |
+| `p_limit` / `p_offset` | Pages, up to 50 |
+
+Each game in both is a game card (the same fields as Find Games), plus:
+
+- `myRole`: `host` or `player`;
+- `myStatus`: `accepted`, `pending` or `invited` (on My games), or null for a game hosted by a group I admin.
+
+For example, one entry of `nextGames`:
+
+```json
+{
+  "id": "00000000-0000-0000-0000-00000000b001",
+  "title": "Friday Night Doubles",
+  "date": "Sat, 10 Oct",
+  "time": "6:00 PM – 7:30 PM",
+  "location": "Melbourne Sports and Aquatic Centre@ MSAC, Albert Park",
+  "venue": "Melbourne Sports and Aquatic Centre@ MSAC",
+  "mapsUrl": "https://www.google.com/maps/search/?api=1&query=…",
+  "format": "Doubles",
+  "playerCount": 3,
+  "maxPlayers": 4,
+  "host": { "id": "…", "name": "alice", "initials": "AL", "profileImageUrl": null, "isGroup": false },
+  "myRole": "host",
+  "myStatus": "accepted"
+}
+```
+
 **Frontend adjustments**
 
 - Replace the `dashboardData` sample with `get_my_home`.
-- Show `nextGame` in the "upcoming match" card: title, date, time, location, and an "Open in Maps" link from `mapsUrl`.
+- Show the player's picture from `profileImageUrl`, or the initials when it's null.
+- **Next games card:** it's only a placeholder comment today (`upcomingMatch` in `DashboardPage`). Build it:
+  - show up to 3 games from `nextGames`, each with title, date, time, location, a "Hosting" tag when `myRole` is `host`, and an "Open in Maps" link from `mapsUrl`;
+  - tapping a game opens Game Details by its `id`;
+  - when `nextGames` is `[]`, keep today's "No game planned" card with its Find a Match / Post a Game buttons.
+- **See all** on that card opens a new **My games** screen:
+  - tabs **All games** / **Organised by me** (`p_filter`), and **Upcoming** / **Past** (`p_when`);
+  - label pending requests and invitations from `myStatus`;
+  - also reachable from the Profile menu.
 
 ### Find Games, Matches tab (`FindGamesPage`) ✅
 
@@ -108,7 +160,8 @@ Call `rpc('search_games', { p_query, p_level, p_format, p_suburb, p_from, p_to, 
 Each card has the same keys as the sample `games` array: `id`, `title`, `format`, `style`, `rank`, `date`, `time`, `location`, `playerCount`, `maxPlayers` and `imageUrl`. It also has:
 
 - `mapsUrl`
-- `organiser`, with `isGroup`, `isBlocked` and `isDeleted`
+- `host` (who runs the game, a player or a group), with `isGroup`, `isBlocked` and `isDeleted`. The pages already read `game.host`
+- `venue` (the venue's name) and `duration` ("90 mins") / `durationMinutes`
 - `myStatus`
 
 **The search bar** (`p_query`) takes one thing at a time. Times are Melbourne time, as on the cards.
@@ -140,9 +193,10 @@ Changes from the sample data:
 - Replace the sample `games` array with `search_games`. Pass the search box as `p_query` and the dropdowns as `p_level` / `p_format`, rather than filtering in the browser. Debounce typing (about 250 ms).
 - Update the search placeholder to say what works, e.g. "Search suburb, venue, day, time or level".
 - Change the "Friendly" label and filter value to **"Social"** (2).
-- Show a **Blocked** badge on the organiser when `organiser.isBlocked` is true (6).
-- When `organiser.isDeleted` is true, show "Deleted User" with no link (4).
-- When `organiser.isGroup` is true, show the group as the host. If `organiser.isActive` is false, mark it inactive (3).
+- **Request to Play** on a game card must call `rpc('request_to_join', { p_post_id: game.id })` and only go to the request-confirmation page if it succeeds. Today it navigates without sending anything ([FindGamesPage.jsx:439](../frontend/src/pages/FindGamesPage.jsx#L439)). Show the error `message` if it's refused.
+- Show a **Blocked** badge on the host when `host.isBlocked` is true (6).
+- When `host.isDeleted` is true, show "Deleted User" with no link (4).
+- When `host.isGroup` is true, the host is a group. If `host.isActive` is false, mark it inactive (3).
 - Optional: an "Open in Maps" link from `mapsUrl`.
 
 ### Find Games, Players tab ✅
@@ -168,7 +222,7 @@ Call `rpc('get_game_details', { p_post_id })`. Keep reading by id rather than re
 - **Players:** each has `isBlocked` and `isDeleted`.
 - **The caller:** `myStatus` (pending, invited, accepted, declined, withdrawn or null) and `canManage`.
 - **Invitations:** `isInvite` is true for a Request Game; `invite` has the invited player's `name`, `status` and the organiser's `message` (null for ordinary games).
-- **Match:** `matchId`.
+- **Matches:** `matches` is always `[]` for now. Matches within a game are being built separately, with results and rankings.
 
 `null` means the game is gone or hidden from this player; show "This game is not available".
 
@@ -179,15 +233,30 @@ Buttons:
 | Request to join | `rpc('request_to_join', { p_post_id, p_message })` |
 | Withdraw | `rpc('withdraw_request', { p_post_id })` |
 | Invited player: accept / decline | `rpc('accept_invite' \| 'decline_invite', { p_post_id })` |
-| Organiser: cancel | `rpc('cancel_game_post', { p_post_id, p_reason })` |
-| Organiser: delete | `rpc('delete_game_post', { p_post_id })` |
+| Host: cancel game | `rpc('cancel_game_post', { p_post_id, p_reason })` |
+| Host: delete game | `rpc('delete_game_post', { p_post_id })` |
+| Host: mark a player as a no-show / undo | `rpc('mark_no_show' \| 'clear_no_show', { p_post_id, p_player_id })` |
 
-Cancelling and deleting are refused within 4 hours of the start, with a message to show.
+**The host's actions live on this page:** cancelling, deleting and marking no-shows all work on the game.
+
+`hostActions` says what the host can do right now. It's `null` for everyone else.
+
+| Field | Meaning |
+|---|---|
+| `canCancel` | Show **Cancel game**: true until 4 hours before the start |
+| `cancelClosesAt` | When cancelling stops (start − 4 hours) |
+| `cancelIsLateFrom` | From this time (start − 24 hours), cancelling counts against the host's reliability: warn before confirming |
+| `canDelete` | Show **Delete game**: nobody else has asked to join, been invited or been accepted; the game hasn't happened; and either it's cancelled or the start is more than 4 hours away. Once anyone has asked to join, the host cancels instead |
+| `canMarkNoShows` | Show **No-show** next to each player: from the start until 48 hours after the end |
+| `noShowsOpenAt` / `noShowsCloseAt` | When that window opens and closes, e.g. "You can mark no-shows until Mon 6:00 PM" |
+
+For the host, `players` also lists players already marked absent, with `noShow: true`, so the mark can be undone. Other players don't see them. If a call is refused anyway (the times passed while the page was open), show the error `message`.
 
 **Frontend adjustments**
 
 - Load the game with `get_game_details(gameId)`, not from `location.state`, so links and refreshes work. If it returns `null`, show "This game is not available".
 - Add an **"Open in Maps"** link on the venue from `mapsUrl`.
+- The **Request to Play** button must call `rpc('request_to_join', { p_post_id })` before going to the request-confirmation page. Today it only navigates ([GameDetailsPage.jsx:518](../frontend/src/pages/GameDetailsPage.jsx#L518)).
 - Drive the main button from `myStatus`:
 
   | `myStatus` | Button |
@@ -198,7 +267,11 @@ Cancelling and deleting are refused within 4 hours of the start, with a message 
   | invited | **Accept** and **Decline**, with the organiser's `invite.message` (10) |
   | declined | Nothing; the player can't ask again |
 
-- When `canManage` is true, show the organiser actions instead: **View requests** (opens `PlayRequestPage`), **Cancel game** with an optional reason, and **Delete game**. For an invitation (`isInvite`), show "Invited: {invite.name} ({invite.status})" instead of View requests (10).
+- When `canManage` is true, show the host's actions instead of the player's button. Drive them from `hostActions`:
+  - **View requests** (opens `PlayRequestPage`). For an invitation (`isInvite`), show "Invited: {invite.name} ({invite.status})" instead (10);
+  - **Cancel game**, with an optional reason, while `canCancel` is true. After `cancelIsLateFrom`, warn that a late cancellation lowers their reliability;
+  - **Delete game** while `canDelete` is true. Once players have asked to join it's false: offer **Cancel game** instead. If deleting is refused anyway, show the error `message` ("Players have asked to join this game, so it can't be deleted. Cancel it instead.");
+  - while `canMarkNoShows` is true, a **No-show** toggle on each player except the host. It calls `mark_no_show`, or `clear_no_show` when `noShow` is true; show absent players greyed with "No-show". Outside the window, hide the toggles and show when it opens or closed (`noShowsOpenAt` / `noShowsCloseAt`).
 - Badges on the host and the player list:
   - **Blocked** where `isBlocked` is true (6);
   - **"Deleted User"**, with no profile link, where `isDeleted` is true (4).
@@ -237,6 +310,8 @@ Save with `from('game_post').insert({...}).select()`:
 | players | `player_limit` (2–64) |
 
 Replace `services/gameService.js`'s fake `createGame`. On success, go to `/post-game/confirmation/:gameId` with the returned `post_id`.
+
+The confirmation page shows the form's own fields (`date`, `startTime`, `durationMinutes`, `venue`, lowercase `format`/`style`), not the database row. `PostGamePage` already passes `{ ...formData, id }` to it. Once the venue is a `search_venues` dropdown, keep the chosen venue's **name** (or `label`) in the form data as `venue`, and its id separately for `venue_id`.
 
 **Frontend adjustments**
 
@@ -300,7 +375,7 @@ To respond, call `rpc('accept_request' | 'decline_request', { p_post_id, p_playe
 
 - Replace `fallbackRequest` with the `get_join_requests` list. The page currently shows one request; show every pending one, or open one by id.
 - Show reliability as `{reliability}%` (7). Optionally add the no-shows and late withdrawals under it.
-- Use `game.location`, `game.date` and `game.time` from the card. The sample's `venueDetail` distance ("2.4 km") has no backend; drop it.
+- The card in each request has what the page shows: `game.venue` (venue name), `game.duration` ("90 mins"), `game.date`, `game.time` and `game.location`. The sample's `venueDetail` distance ("2.4 km") has no backend; drop it, or show `game.suburb`.
 - After accepting or declining, reload the list. Show the error `message` when the game is full.
 
 ### Another player's profile (`PlayerProfilePage`) ✅
@@ -309,6 +384,8 @@ Call `rpc('get_player_profile', { p_player_id })`. It has the same keys as `fall
 
 - `isBlocked`
 - `gamesPlayed`, `noShows`, `lateWithdrawals`, `lateCancellations`
+- `profileImageUrl` (null: show the initials)
+- `availability` (e.g. `["mon_evening", "sat_morning"]`) and `availabilityNote`
 
 `null` means the profile is private or not available; show that rather than an error.
 
@@ -330,6 +407,8 @@ Buttons:
 - Show reliability as `{reliability}%` (7). The counts behind it are optional.
 - Keep **Request Game**: it already navigates to `/post-game` with the player; the form switches to invite mode (10).
 - Add a match history list from `get_player_history`, if the design has room for it.
+- Show the picture from `profileImageUrl` in place of the "JK" initials circle (13).
+- Add an **Availability** row ("Usually plays: Mon evening, Sat morning", plus the note) under "Usually plays near" (12).
 
 ### Profile (`ProfilePage`) 🟡 menu screens needed
 
@@ -346,7 +425,8 @@ Menu items:
 
 | Menu item | Backend |
 |---|---|
-| Your Profile, Playing Preferences | `rpc('update_my_profile', {...})`: username, first and last name, level, bio, suburb, state, preferred format |
+| Your Profile, Playing Preferences | `rpc('update_my_profile', {...})`: username, first and last name, level, bio, suburb, state, preferred format, **availability** (`p_availability`, e.g. `['mon_evening','sat_morning']`; days `mon`–`sun` × `morning`, `afternoon`, `evening`) and an availability note (`p_availability_note`) |
+| Profile picture (in Your Profile) | Upload to Storage, then `rpc('set_my_profile_picture', { p_url })`; remove with `rpc('remove_my_profile_picture')`. See [Profile picture](#profile-picture) |
 | Match History | `rpc('get_player_history', { p_player_id: myId })` |
 | Reliability | `get_my_profile`: `reliability` (%), `gamesPlayed`, `noShows`, `lateWithdrawals`, `lateCancellations` |
 | Privacy Settings | `update_my_profile({ p_is_discoverable })` |
@@ -361,7 +441,8 @@ Menu items:
 
 - Replace the `profile` sample with `get_my_profile`.
 - Build the menu screens that don't exist yet:
-  - **Your Profile** and **Playing Preferences**: an edit form calling `update_my_profile` with only the changed fields;
+  - **Your Profile** and **Playing Preferences**: an edit form calling `update_my_profile` with only the changed fields. Availability is a grid of the 7 days × morning, afternoon and evening, plus an optional note;
+  - **profile picture** on Your Profile: choose, upload, change, remove (see below);
   - **Match History**;
   - **Reliability**: the % and the counts (7);
   - **Privacy Settings**: the discoverable toggle;
@@ -373,11 +454,34 @@ Menu items:
 - Add **Delete account**, behind a clear warning that it can't be undone. Call `delete_my_account`, then sign out (4).
 - Make **Sign Out** go to `/signout`.
 
+#### Profile picture
+
+Pictures are stored in the public `avatars` bucket in Supabase Storage. Setup and checks are in [DEPLOYMENT.md](DEPLOYMENT.md#9-storage-for-profile-pictures).
+
+```js
+// Upload into the player's own folder (any other folder is refused).
+const path = `${user.id}/${crypto.randomUUID()}.jpg`;
+await supabase.storage.from('avatars').upload(path, file, { contentType: file.type });
+const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
+
+// Save it, then delete the picture it replaces.
+const { data } = await supabase.rpc('set_my_profile_picture', { p_url: publicUrl });
+if (data.previousPath) await supabase.storage.from('avatars').remove([data.previousPath]);
+
+// Remove the picture.
+const { data: removed } = await supabase.rpc('remove_my_profile_picture');
+if (removed.previousPath) await supabase.storage.from('avatars').remove([removed.previousPath]);
+```
+
+- **Limits:** JPEG, PNG or WebP, up to 2 MB. Resize to about 512 × 512 before uploading.
+- **Where it shows:** every screen gets it as `profileImageUrl`, with initials when it's null: profiles, Home, game hosts and players, join requests, player search, Blocked Users.
+- **Before `delete_my_account`:** remove the player's files (`list` their folder, then `remove`). The database can't delete storage files.
+
 ### Notifications (`NotificationsPage`) ✅
 
 Call `rpc('get_notifications', { p_limit, p_offset })`. It returns `id`, `type`, `title`, `message`, `unread`, `createdAt`, `postId` and `matchId`.
 
-- **Tap target:** build it from `postId` → `/games/:postId` and `matchId` → `/matches/:matchId`. The sample's `target` field doesn't exist.
+- **Tap target:** open the game, `/games/:postId`. `matchId` is for results and rankings, which are being built separately. The sample's `target` field doesn't exist.
 - **Time:** format "2 min ago" from `createdAt`.
 - **Mark all read:** `rpc('mark_all_notifications_read')`.
 - **Mark one read:** `from('notification').update({ is_read: true }).eq('notification_id', id)`.
@@ -396,31 +500,9 @@ Call `rpc('get_notifications', { p_limit, p_offset })`. It returns `id`, `type`,
 
 - Replace `initialNotifications` with `get_notifications`.
 - Map the backend `type` values to the existing icons using the table above.
-- Build each notification's link from `postId` / `matchId`, since there's no `target` field.
+- Build each notification's link from `postId`, since there's no `target` field.
 - Wire **Mark all as read**.
 - Update the unread badge in the top bar from `unreadNotifications` (in `get_my_home` and `get_my_profile`), or live over Realtime.
-
-### Match Details (`MatchDetailsPage`) 🟡
-
-There's no screen function yet. Read the tables directly:
-
-- `from('match').select('*, match_participant(player_id, side, status), match_result(score, status, winning_side)').eq('match_id', id)`
-- Or start from the game with `get_game_details`, which includes `matchId`.
-
-Buttons:
-
-- **Cancel Match:** that's the game's `cancel_game_post`. The page says 24 hours, but the rule is: refused within **4 hours**, and within 24 hours it counts as a late cancellation.
-- **Host marks a no-show:** `rpc('mark_no_show' | 'clear_no_show', { p_post_id, p_player_id })`. Allowed from the start until 48 hours after the game.
-- **Message:** no backend.
-
-**Frontend adjustments**
-
-- Replace `fallbackMatch` with the match tables (or `get_game_details` plus `matchId`).
-- Change the cancellation text from "24 hours" to the real rule:
-  - cancelling isn't possible within **4 hours** of the start;
-  - cancelling within 24 hours counts against reliability.
-- Add **Mark as no-show** and **Undo** for the host after the start, using `mark_no_show` / `clear_no_show`.
-- Hide **Message** until messaging has a backend.
 
 ### Groups (new screens) ✅ backend, ❌ no screens yet
 
@@ -438,13 +520,11 @@ Groups use the `groups` and `group_member` tables (see item 3 in [Changes the fr
 - Don't build an "add member" button. Players must ask, and admins approve (3).
 - Show inactive groups as inactive. A group with upcoming games can't be deactivated; show the error `message`.
 
-### Rankings, Mini Leagues, Record Result, Result Submitted and Confirmed ❌
+### Rankings, Mini Leagues, Match Details and results ❌
 
-See [Screens with no backend yet](#screens-with-no-backend-yet).
+Matches, results, rankings and leagues are being built by a teammate, so they aren't covered in this guide. See [Screens with no backend yet](#screens-with-no-backend-yet).
 
 ## Changes the frontend must make
-
-From the team's decisions in items-to-confirm:
 
 1. **Username on sign-up (item 9).** Done on this branch. Usernames are never made up any more:
    - an email sign-up without one fails;
@@ -457,7 +537,6 @@ From the team's decisions in items-to-confirm:
    - add "post as me / as a group" (`postAs`).
 3. **Groups (item 4, Nick's request):**
    - players **ask** to join, and a group admin approves;
-   - there's no "add member" button for admins.
 
    Screens to build:
    - create a group;
@@ -477,14 +556,14 @@ From the team's decisions in items-to-confirm:
    | Leave or decline | `delete()` |
    | Deactivate the group | `from('groups').update({ is_active: false })` |
 
-   An inactive group shows as inactive on its old games (`organiser.isActive`).
+   An inactive group shows as inactive on its old games (`host.isActive`).
 4. **Deleted accounts (item 5):** deleted players appear as **"Deleted User"**, with `isDeleted: true` on hosts and rosters.
    - Don't link to their profile; `get_player_profile` returns null.
    - Add a "Delete account" option with a clear warning.
 5. **Reports (item 12):** a reason is required for **every** report. Use the category picker from the table below.
 6. **Blocking (item 13, notes 4 and 6):**
    - Ask for an optional category (same list as reports) and reason: `rpc('block_player', { p_player_id, p_category, p_reason })`.
-   - Show a **Blocked** badge wherever `isBlocked` is true: player search, profile, Game Details host and players, Find Games organiser.
+   - Show a **Blocked** badge wherever `isBlocked` is true: player search, profile, Game Details host and players, Find Games host.
    - The blocker can still open the blocked player's profile, so show the badge and an **Unblock** button there.
    - Add a **Blocked Users** page from `get_blocked_players` (shows category and reason).
    - Rankings will stay visible both ways, without a picture or click-through, when the leaderboard is built.
@@ -496,6 +575,11 @@ From the team's decisions in items-to-confirm:
     - Post a Game gets an [invite mode](#request-game-invite-mode) that calls `invite_player`.
     - Game Details shows **Accept / Decline** when `myStatus` is `invited`.
     - Notifications get an invitation icon for `match_invite`, `invite_accepted` and `invite_declined`.
+11. **Next games and My games.** Home shows the next 3 games from `get_my_home().nextGames`, with **See all** opening a new My games screen (`get_my_games`, tabs All / Organised by me, Upcoming / Past). See [Next games and My games](#next-games-and-my-games).
+12. **Availability.** The player can say when they usually play: a grid of the 7 days × morning, afternoon and evening, plus a note (`update_my_profile`'s `p_availability`, `p_availability_note`). It's shown on both profiles.
+13. **Profile pictures.** Upload, change and remove on Your Profile, through Supabase Storage. Show `profileImageUrl` wherever a player's initials circle appears today. See [Profile picture](#profile-picture).
+14. **Find Games search bar** takes a location, a day, a time or a level ("msac", "saturday", "6pm", "intermediate"); the level and format dropdowns combine with it.
+15. **Deleting a game** is only possible while nobody else has asked to join, been invited or been accepted. After that, the host cancels it.
 
 Report and block categories:
 
@@ -516,12 +600,16 @@ Report and block categories:
 | Groups (create, join, approve, promote, leave, deactivate) | Tables `groups`, `group_member` |
 | Post a game as a group | `game_post.organiser_group_id`, `get_game_form_options().postAs` |
 | Request Game: invite a player, accept or decline | `invite_player`, `accept_invite`, `decline_invite` |
+| Next games on Home, My games list | `get_my_home().nextGames`, `get_my_games` |
+| Availability | `update_my_profile` (`p_availability`, `p_availability_note`); read on both profiles |
+| Profile pictures | Storage bucket `avatars`, `set_my_profile_picture`, `remove_my_profile_picture` |
+| Venue search for the Post a Game dropdown | `search_venues` |
 | Withdraw from a game | `withdraw_request` |
 | Organiser cancels or deletes a game | `cancel_game_post`, `delete_game_post` |
 | Mark and undo no-shows | `mark_no_show`, `clear_no_show` |
 | Block with a reason, Blocked Users list, unblock | `block_player`, `get_blocked_players`, `unblock_player` |
 | Report a player, post, group or league | `report_*` |
-| Edit profile, preferred format, privacy, email opt-out | `update_my_profile` |
+| Edit profile, preferred format, availability, privacy, email opt-out | `update_my_profile` |
 | Playing history | `get_player_history` |
 | Delete account | `delete_my_account` |
 | Live notifications | Realtime on `notification` |
@@ -536,9 +624,7 @@ These are outside the BE-1 stories, or need a team decision first.
 |---|---|
 | Rankings (`RankingsPage`) | Leaderboards by state, nearby and league; rating history; weekly change. The `ranking` table is readable, but nothing calculates ratings yet (BL-024/025). |
 | Mini Leagues, Create League, League Details | League screens and functions. The `mini_league` table lacks format, style, rounds, skill level, venue, max players and description. |
-| Record Result, Result Submitted, Result Confirmed | Submitting and confirming results. Only admins can confirm today. |
-| Match Details "Message" | Messaging (planned `match_message`) |
+| Match Details, Record Result, Result Submitted, Result Confirmed | Matches within a game and their results: being built by a teammate. `get_game_details` returns `matches: []` until then |
 | Dashboard league and recent activity | No functions yet |
 | Notification types reminder, new game nearby, rating change | Not sent yet |
-| Profile pictures | `profileImageUrl` is always null; no storage yet |
 | Terms and privacy pages | The documents and their version labels (item 11) |

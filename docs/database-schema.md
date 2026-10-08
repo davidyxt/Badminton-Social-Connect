@@ -753,7 +753,7 @@ supabase start                  # bring up the local stack (needs Docker running
 supabase db reset --local       # drop and rebuild from migrations + seeds/
 supabase db advisors --local    # security and performance lint
 ./supabase/tests/rls_test.sh    # 343 access-control and integrity checks
-python3 supabase/tests/api_test.py   # 302 API cases, writes docs/api-test-report.md
+python3 supabase/tests/api_test.py   # 302 API cases, writes docs/api-test-report.md (not in Git)
 
 supabase migration new <name>   # start a new change
 supabase db push                # apply pending migrations to the linked project
