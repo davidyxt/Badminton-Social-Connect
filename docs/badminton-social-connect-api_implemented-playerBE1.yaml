@@ -3223,54 +3223,60 @@ paths:
               example:
               - id: 4d007657-bd7c-4fae-8a85-a1ecbc21d935
                 date: Thu, 8 Oct
-                rank: Any Rank
-                time: 9:40 PM – 10:40 PM
-                style: Social
-                title: Badminton game
-                endsAt: '2026-10-08T11:40:06+00:00'
-                format: Singles
-                status: open
-                suburb: Carlton
-                mapsUrl: 
-                imageUrl: 
-                isInvite: false
-                location: Carlton
-                myStatus: 
-                startsAt: '2026-10-08T10:40:06+00:00'
-                organiser:
+                host:
                   id: c0cb3520-6038-4ca5-b1c4-f1e3586dd8d9
                   name: Alice_28115
                   isGroup: false
                   initials: AL
                   isBlocked: false
                   isDeleted: false
-                maxPlayers: 4
-                playerCount: 1
-              - id: dd91a180-fe08-405a-8c38-74aec48f5f2a
-                date: Thu, 8 Oct
                 rank: Any Rank
                 time: 9:40 PM – 10:40 PM
                 style: Social
                 title: Badminton game
-                endsAt: '2026-10-08T11:40:50.120911+00:00'
+                venue: 
+                endsAt: '2026-10-08T11:40:06+00:00'
                 format: Singles
                 status: open
                 suburb: Carlton
                 mapsUrl: 
+                duration: 60 mins
                 imageUrl: 
                 isInvite: false
                 location: Carlton
                 myStatus: 
-                startsAt: '2026-10-08T10:40:50.120911+00:00'
-                organiser:
+                startsAt: '2026-10-08T10:40:06+00:00'
+                maxPlayers: 4
+                playerCount: 1
+                durationMinutes: 60
+              - id: dd91a180-fe08-405a-8c38-74aec48f5f2a
+                date: Thu, 8 Oct
+                host:
                   id: 39d39d10-2b6f-4000-8754-2829cf80f0a4
                   name: t7221_host
                   isGroup: false
                   initials: TH
                   isBlocked: false
                   isDeleted: false
+                rank: Any Rank
+                time: 9:40 PM – 10:40 PM
+                style: Social
+                title: Badminton game
+                venue: 
+                endsAt: '2026-10-08T11:40:50.120911+00:00'
+                format: Singles
+                status: open
+                suburb: Carlton
+                mapsUrl: 
+                duration: 60 mins
+                imageUrl: 
+                isInvite: false
+                location: Carlton
+                myStatus: 
+                startsAt: '2026-10-08T10:40:50.120911+00:00'
                 maxPlayers: 4
                 playerCount: 1
+                durationMinutes: 60
         '401':
           "$ref": "#/components/responses/Unauthorized"
       requestBody:
@@ -3338,6 +3344,7 @@ paths:
                     notes: Bring your own racquet. Shuttles provided.
                     style: Social
                     title: Friday Night Doubles
+                    venue: Melbourne Sports and Aquatic Centre@ MSAC
                     endsAt: '2026-10-10T08:30:00+00:00'
                     format: Doubles
                     invite: 
@@ -3373,13 +3380,6 @@ paths:
                     myStatus: pending
                     startsAt: '2026-10-10T07:00:00+00:00'
                     canManage: false
-                    organiser:
-                      id: 00000000-0000-0000-0000-00000000a001
-                      name: alice
-                      isGroup: false
-                      initials: AL
-                      isBlocked: false
-                      isDeleted: false
                     maxPlayers: 4
                     playerCount: 3
                     abilityLevel: intermediate
@@ -3402,6 +3402,7 @@ paths:
                     notes: All levels welcome.
                     style: Social
                     title: Smash Group social night
+                    venue: Melbourne University Badminton Club
                     endsAt: '2026-10-14T10:00:00+00:00'
                     format: Doubles
                     invite: 
@@ -3431,12 +3432,6 @@ paths:
                     myStatus: accepted
                     startsAt: '2026-10-14T08:00:00+00:00'
                     canManage: true
-                    organiser:
-                      id: 00000000-0000-0000-0000-00000000c001
-                      name: Smash Group
-                      isGroup: true
-                      initials: SG
-                      isActive: true
                     maxPlayers: 8
                     playerCount: 2
                     abilityLevel: any
@@ -3462,6 +3457,7 @@ paths:
                     notes: 
                     style: Social
                     title: Singles hit?
+                    venue: Melbourne Badminton Centre
                     endsAt: '2026-10-13T08:00:00+00:00'
                     format: Singles
                     invite:
@@ -3490,13 +3486,6 @@ paths:
                     myStatus: accepted
                     startsAt: '2026-10-13T07:00:00+00:00'
                     canManage: true
-                    organiser:
-                      id: 00000000-0000-0000-0000-00000000a003
-                      name: carol
-                      isGroup: false
-                      initials: CA
-                      isBlocked: false
-                      isDeleted: false
                     maxPlayers: 2
                     playerCount: 1
                     abilityLevel: any
@@ -3522,6 +3511,7 @@ paths:
                     notes: 
                     style: Social
                     title: Singles hit?
+                    venue: Melbourne Badminton Centre
                     endsAt: '2026-10-13T08:00:00+00:00'
                     format: Singles
                     invite:
@@ -3550,13 +3540,6 @@ paths:
                     myStatus: invited
                     startsAt: '2026-10-13T07:00:00+00:00'
                     canManage: false
-                    organiser:
-                      id: 00000000-0000-0000-0000-00000000a003
-                      name: carol
-                      isGroup: false
-                      initials: CA
-                      isBlocked: false
-                      isDeleted: false
                     maxPlayers: 2
                     playerCount: 1
                     abilityLevel: any
@@ -3676,29 +3659,32 @@ paths:
                 game:
                   id: 00000000-0000-0000-0000-00000000b001
                   date: Sat, 10 Oct
-                  rank: Intermediate
-                  time: 6:00 PM – 7:30 PM
-                  style: Social
-                  title: Friday Night Doubles
-                  endsAt: '2026-10-10T08:30:00+00:00'
-                  format: Doubles
-                  status: open
-                  suburb: Albert Park
-                  mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
-                  imageUrl: 
-                  isInvite: false
-                  location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
-                  myStatus: accepted
-                  startsAt: '2026-10-10T07:00:00+00:00'
-                  organiser:
+                  host:
                     id: 00000000-0000-0000-0000-00000000a001
                     name: alice
                     isGroup: false
                     initials: AL
                     isBlocked: false
                     isDeleted: false
+                  rank: Intermediate
+                  time: 6:00 PM – 7:30 PM
+                  style: Social
+                  title: Friday Night Doubles
+                  venue: Melbourne Sports and Aquatic Centre@ MSAC
+                  endsAt: '2026-10-10T08:30:00+00:00'
+                  format: Doubles
+                  status: open
+                  suburb: Albert Park
+                  mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
+                  duration: 90 mins
+                  imageUrl: 
+                  isInvite: false
+                  location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
+                  myStatus: accepted
+                  startsAt: '2026-10-10T07:00:00+00:00'
                   maxPlayers: 4
                   playerCount: 3
+                  durationMinutes: 90
                 host:
                   id: 00000000-0000-0000-0000-00000000a001
                   name: alice
@@ -3725,29 +3711,32 @@ paths:
                 game:
                   id: 00000000-0000-0000-0000-00000000b001
                   date: Sat, 10 Oct
-                  rank: Intermediate
-                  time: 6:00 PM – 7:30 PM
-                  style: Social
-                  title: Friday Night Doubles
-                  endsAt: '2026-10-10T08:30:00+00:00'
-                  format: Doubles
-                  status: open
-                  suburb: Albert Park
-                  mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
-                  imageUrl: 
-                  isInvite: false
-                  location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
-                  myStatus: accepted
-                  startsAt: '2026-10-10T07:00:00+00:00'
-                  organiser:
+                  host:
                     id: 00000000-0000-0000-0000-00000000a001
                     name: alice
                     isGroup: false
                     initials: AL
                     isBlocked: false
                     isDeleted: false
+                  rank: Intermediate
+                  time: 6:00 PM – 7:30 PM
+                  style: Social
+                  title: Friday Night Doubles
+                  venue: Melbourne Sports and Aquatic Centre@ MSAC
+                  endsAt: '2026-10-10T08:30:00+00:00'
+                  format: Doubles
+                  status: open
+                  suburb: Albert Park
+                  mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
+                  duration: 90 mins
+                  imageUrl: 
+                  isInvite: false
+                  location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
+                  myStatus: accepted
+                  startsAt: '2026-10-10T07:00:00+00:00'
                   maxPlayers: 4
                   playerCount: 3
+                  durationMinutes: 90
                 host:
                   id: 00000000-0000-0000-0000-00000000a001
                   name: alice
@@ -4096,10 +4085,10 @@ paths:
                 location: 
                 isBlocked: false
                 reliability: 100
-              - id: c0cb3520-6038-4ca5-b1c4-f1e3586dd8d9
-                name: Alice_28115
+              - id: a3520a20-9d37-4f1f-b2c2-ba6bb771b965
+                name: ada_6622_660
                 rank: Beginner
-                initials: AL
+                initials: AD
                 location: 
                 isBlocked: false
                 reliability: 100
@@ -7443,41 +7432,7 @@ components:
           format: uuid
         date:
           type: string
-        rank:
-          type: string
-        time:
-          type: string
-        style:
-          type: string
-        title:
-          type: string
-        endsAt:
-          type: string
-          format: date-time
-        format:
-          type: string
-        status:
-          type: string
-        suburb:
-          type: string
-        mapsUrl:
-          type: string
-          nullable: true
-        imageUrl:
-          type: string
-          nullable: true
-          description: Null in every sample (not built yet).
-        isInvite:
-          type: boolean
-        location:
-          type: string
-        myStatus:
-          type: string
-          nullable: true
-        startsAt:
-          type: string
-          format: date-time
-        organiser:
+        host:
           type: object
           properties:
             id:
@@ -7498,9 +7453,50 @@ components:
             isActive:
               type: boolean
               nullable: true
+        rank:
+          type: string
+        time:
+          type: string
+        style:
+          type: string
+        title:
+          type: string
+        venue:
+          type: string
+          nullable: true
+        endsAt:
+          type: string
+          format: date-time
+        format:
+          type: string
+        status:
+          type: string
+        suburb:
+          type: string
+        mapsUrl:
+          type: string
+          nullable: true
+        duration:
+          type: string
+        imageUrl:
+          type: string
+          nullable: true
+          description: Null in every sample (not built yet).
+        isInvite:
+          type: boolean
+        location:
+          type: string
+        myStatus:
+          type: string
+          nullable: true
+        startsAt:
+          type: string
+          format: date-time
         maxPlayers:
           type: integer
         playerCount:
+          type: integer
+        durationMinutes:
           type: integer
     GameDetails:
       type: object
@@ -7554,6 +7550,9 @@ components:
           type: string
         title:
           type: string
+        venue:
+          type: string
+          nullable: true
         endsAt:
           type: string
           format: date-time
@@ -7628,27 +7627,6 @@ components:
           format: date-time
         canManage:
           type: boolean
-        organiser:
-          type: object
-          properties:
-            id:
-              type: string
-              format: uuid
-            name:
-              type: string
-            isGroup:
-              type: boolean
-            initials:
-              type: string
-            isBlocked:
-              type: boolean
-              nullable: true
-            isDeleted:
-              type: boolean
-              nullable: true
-            isActive:
-              type: boolean
-              nullable: true
         maxPlayers:
           type: integer
         playerCount:
@@ -7672,39 +7650,7 @@ components:
               format: uuid
             date:
               type: string
-            rank:
-              type: string
-            time:
-              type: string
-            style:
-              type: string
-            title:
-              type: string
-            endsAt:
-              type: string
-              format: date-time
-            format:
-              type: string
-            status:
-              type: string
-            suburb:
-              type: string
-            mapsUrl:
-              type: string
-            imageUrl:
-              type: string
-              nullable: true
-              description: Null in every sample (not built yet).
-            isInvite:
-              type: boolean
-            location:
-              type: string
-            myStatus:
-              type: string
-            startsAt:
-              type: string
-              format: date-time
-            organiser:
+            host:
               type: object
               properties:
                 id:
@@ -7720,9 +7666,47 @@ components:
                   type: boolean
                 isDeleted:
                   type: boolean
+            rank:
+              type: string
+            time:
+              type: string
+            style:
+              type: string
+            title:
+              type: string
+            venue:
+              type: string
+            endsAt:
+              type: string
+              format: date-time
+            format:
+              type: string
+            status:
+              type: string
+            suburb:
+              type: string
+            mapsUrl:
+              type: string
+            duration:
+              type: string
+            imageUrl:
+              type: string
+              nullable: true
+              description: Null in every sample (not built yet).
+            isInvite:
+              type: boolean
+            location:
+              type: string
+            myStatus:
+              type: string
+            startsAt:
+              type: string
+              format: date-time
             maxPlayers:
               type: integer
             playerCount:
+              type: integer
+            durationMinutes:
               type: integer
         host:
           type: object

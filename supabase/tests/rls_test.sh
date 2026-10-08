@@ -867,7 +867,15 @@ echo "== 21. find games and players (BL-015) =="
 G5=$(as "$TA" POST "game_post" "{\"organiser_id\":\"$IDA\",\"title\":\"Friday Night Doubles\",\"format\":\"doubles\",\"player_limit\":4,\"venue_id\":\"$VENUE\",\"ability_level\":\"beginner\",\"duration_minutes\":90,\"proposed_time\":\"$(future 26)\"}" | field post_id)
 has() { # has <json array> <post id>: yes if the id is in it
   echo "$1" | python3 -c 'import sys,json;print("yes" if sys.argv[1] in [g["id"] for g in json.load(sys.stdin)] else "no")' "$2"; }
-search() { as "$TB" POST "rpc/search_games" "$1"; }
+# Searches look at the two hours around G5 only, 50 to a page, so games left
+# by earlier runs (the suite does not reset the database) cannot push it off
+# the first page. A body that sets p_limit keeps its own.
+G5_AT=$(future 26)
+search() { as "$TB" POST "rpc/search_games" "$(python3 -c 'import sys,json,datetime as d
+b=json.loads(sys.argv[1]); t=d.datetime.strptime(sys.argv[2],"%Y-%m-%dT%H:%M:%SZ")
+b.setdefault("p_from",(t-d.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ"))
+b.setdefault("p_to",(t+d.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ"))
+b.setdefault("p_limit",50); print(json.dumps(b))' "$1" "$G5_AT")"; }
 check "search finds an upcoming game" "yes" "$(has "$(search '{}')" "$G5")"
 CARD=$(search '{"p_query":"friday"}')
 check "by title" "yes" "$(has "$CARD" "$G5")"
@@ -947,7 +955,7 @@ BODY="{\"p_query\":\"$(as "$TQ" GET "player?player_id=eq.$IDQ&select=username" |
 check "pat finds quinn in player search, badged" "True" "$(as "$TP" POST "rpc/search_players" "$BODY" | flag "$IDQ")"
 check "pat still sees quinn's game, organiser badged" "True" \
   "$(as "$TP" POST "rpc/search_games" '{"p_limit":50}' | python3 -c 'import sys,json
-g=[x for x in json.load(sys.stdin) if x["id"]=="'$GQ'"]; print(g[0]["organiser"]["isBlocked"] if g else "absent")')"
+g=[x for x in json.load(sys.stdin) if x["id"]=="'$GQ'"]; print(g[0]["host"]["isBlocked"] if g else "absent")')"
 BODY="{\"p_post_id\":\"$GQ\"}"
 check "and its details, host badged" "True" \
   "$(as "$TP" POST "rpc/get_game_details" "$BODY" | python3 -c 'import sys,json;d=json.load(sys.stdin);print(d["host"]["isBlocked"] if d else "null")')"

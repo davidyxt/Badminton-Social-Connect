@@ -1,6 +1,6 @@
 # Database Schema
 
-Implemented across thirty-nine migrations in `supabase/migrations/`:
+Implemented across forty migrations in `supabase/migrations/`:
 
 | Migration | What it adds |
 |---|---|
@@ -42,6 +42,7 @@ Implemented across thirty-nine migrations in `supabase/migrations/`:
 | `..._request_game_invitations.sql` | Request Game: `invite_player`, `accept_invite`, `decline_invite`; `game_post.invited_player_id`; `invited` and `declined` participant statuses; invitation games private to the two players |
 | `..._my_home_last_name.sql` | `get_my_home` also returns `lastName` |
 | `..._find_games_one_search_bar.sql` | The Find Games search bar matches a location, day, time, date, level, format, style or title |
+| `..._game_card_host_venue_duration.sql` | Game cards call the organiser `host` (as every screen does) and carry `venue`, `duration` and `durationMinutes` |
 | `..._venue_search_and_no_reliability_band.sql` | `search_venues` for the venue dropdown (trigram indexes on venue and suburb names); `get_game_form_options` no longer lists venues; no reliability band, the screens show a % |
 
 Access rules are documented separately in [rls-policies.md](./rls-policies.md),
@@ -722,7 +723,7 @@ supabase start                  # bring up the local stack (needs Docker running
 supabase db reset --local       # drop and rebuild from migrations + seeds/
 supabase db advisors --local    # security and performance lint
 ./supabase/tests/rls_test.sh    # 340 access-control and integrity checks
-python3 supabase/tests/api_test.py   # 243 API cases, writes docs/api-test-report.md
+python3 supabase/tests/api_test.py   # 245 API cases, writes docs/api-test-report.md
 
 supabase migration new <name>   # start a new change
 supabase db push                # apply pending migrations to the linked project

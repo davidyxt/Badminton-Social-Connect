@@ -402,14 +402,20 @@ def main():
     r = rpc("search_games", T["alice"], p_limit=50)
     lst = r.body if isinstance(r.body, list) else []
     check("returns Find Games cards", lst and all(has_keys(g, [
-        "id", "title", "format", "style", "rank", "date", "time", "location", "suburb", "mapsUrl",
-        "playerCount", "maxPlayers", "organiser", "myStatus"]) for g in lst), r)
+        "id", "title", "format", "style", "rank", "date", "time", "location", "venue", "suburb", "mapsUrl",
+        "duration", "durationMinutes", "playerCount", "maxPlayers", "host", "myStatus"]) for g in lst), r)
+    check("cards call the person or group running the game 'host' (no 'organiser')",
+          lst and all("organiser" not in g and has_keys(g["host"], ["id", "name", "initials", "isGroup"]) for g in lst), r)
+    fnd = [g for g in lst if g["id"] == G["b001"]]
+    check("cards carry the venue name and the duration",
+          fnd and (fnd[0]["venue"], fnd[0]["duration"], fnd[0]["durationMinutes"])
+          == ("Melbourne Sports and Aquatic Centre@ MSAC", "90 mins", 90), r, detail=json.dumps(fnd[0] if fnd else None)[:200])
     check("cancelled and removed games are not listed", not ({G["b005"], G["b006"]} & ids(lst)), r)
     untitled = [g for g in lst if g["id"] == G["b002"]]
     check("an untitled game is called 'Badminton game'", untitled and untitled[0]["title"] == "Badminton game", r)
     fr = [g for g in lst if g["id"] == G["b007"]]
     check("alice still sees frank's game, with a Blocked badge (one-sided block)",
-          fr and fr[0]["organiser"].get("isBlocked") is True, r)
+          fr and fr[0]["host"].get("isBlocked") is True, r)
     r = rpc("search_games", T["alice"], p_format="singles", p_limit=50)
     check("the format filter works", r.body and all(g["format"] == "Singles" for g in r.body), r)
     r = rpc("search_games", T["alice"], p_query="Smash", p_limit=50)
