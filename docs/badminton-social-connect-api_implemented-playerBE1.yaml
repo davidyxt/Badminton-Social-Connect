@@ -1358,7 +1358,7 @@ paths:
       x-implementation: supabase-postgrest
       summary: Read match rows
       description: |-
-        One contest between two sides (match_participant.side a and b): 1 v 1 for singles, 2 v 2 for doubles. A game (game_post) holds any number of matches, set up by its host with create_match; a 2-player singles game gets its one match automatically.
+        One contest between two sides (match_participant.side a and b). Matches within a game are being built separately (with results and rankings); games do not create them.
 
         Row Level Security decides which rows each player can see or change:
 
@@ -1391,7 +1391,7 @@ paths:
       x-implementation: supabase-postgrest
       summary: Create a match row
       description: |-
-        One contest between two sides (match_participant.side a and b): 1 v 1 for singles, 2 v 2 for doubles. A game (game_post) holds any number of matches, set up by its host with create_match; a 2-player singles game gets its one match automatically.
+        One contest between two sides (match_participant.side a and b). Matches within a game are being built separately (with results and rankings); games do not create them.
 
         Row Level Security decides which rows each player can see or change:
 
@@ -1428,7 +1428,7 @@ paths:
       x-implementation: supabase-postgrest
       summary: Update match rows
       description: |-
-        One contest between two sides (match_participant.side a and b): 1 v 1 for singles, 2 v 2 for doubles. A game (game_post) holds any number of matches, set up by its host with create_match; a 2-player singles game gets its one match automatically.
+        One contest between two sides (match_participant.side a and b). Matches within a game are being built separately (with results and rankings); games do not create them.
 
         Row Level Security decides which rows each player can see or change:
 
@@ -1466,7 +1466,7 @@ paths:
       x-implementation: supabase-postgrest
       summary: Delete match rows
       description: |-
-        One contest between two sides (match_participant.side a and b): 1 v 1 for singles, 2 v 2 for doubles. A game (game_post) holds any number of matches, set up by its host with create_match; a 2-player singles game gets its one match automatically.
+        One contest between two sides (match_participant.side a and b). Matches within a game are being built separately (with results and rankings); games do not create them.
 
         Row Level Security decides which rows each player can see or change:
 
@@ -3714,15 +3714,7 @@ paths:
                     suburb: Albert Park
                     address: 30 Aughtie Dr, Albert Park
                     mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
-                    matches:
-                    - id: b4529725-25df-4d20-a61b-e289a999d803
-                      sideA: []
-                      sideB: []
-                      format: Doubles
-                      number: 1
-                      result: 
-                      status: scheduled
-                      playedAt: 
+                    matches: []
                     players:
                     - id: 00000000-0000-0000-0000-00000000a001
                       host: true
@@ -3787,15 +3779,7 @@ paths:
                     suburb: Parkville
                     address: 103 Tin Alley, Parkville VIC 3010
                     mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.796360,144.960652
-                    matches:
-                    - id: 0b22d1a8-f113-4ca8-877b-1ac53acf5177
-                      sideA: []
-                      sideB: []
-                      format: Doubles
-                      number: 1
-                      result: 
-                      status: scheduled
-                      playedAt: 
+                    matches: []
                     players:
                     - id: 00000000-0000-0000-0000-00000000a005
                       host: false
@@ -3824,12 +3808,11 @@ paths:
                     maxPlayers: 8
                     hostActions:
                       canCancel: true
-                      canDelete: true
+                      canDelete: false
                       noShowsOpenAt: '2026-10-14T08:00:00+00:00'
                       canMarkNoShows: false
                       cancelClosesAt: '2026-10-14T04:00:00+00:00'
                       noShowsCloseAt: '2026-10-16T10:00:00+00:00'
-                      canSetUpMatches: true
                       cancelIsLateFrom: '2026-10-13T08:00:00+00:00'
                     playerCount: 2
                     abilityLevel: any
@@ -3890,12 +3873,11 @@ paths:
                     maxPlayers: 2
                     hostActions:
                       canCancel: true
-                      canDelete: true
+                      canDelete: false
                       noShowsOpenAt: '2026-10-13T07:00:00+00:00'
                       canMarkNoShows: false
                       cancelClosesAt: '2026-10-13T03:00:00+00:00'
                       noShowsCloseAt: '2026-10-15T08:00:00+00:00'
-                      canSetUpMatches: true
                       cancelIsLateFrom: '2026-10-12T07:00:00+00:00'
                     playerCount: 1
                     abilityLevel: any
@@ -3960,9 +3942,7 @@ paths:
                     locationDetail: Blackburn North
                     durationMinutes: 60
                 playedGame:
-                  summary: >-
-                    A game that has happened, seen by its host: a match with sides and a confirmed result,
-                    a no-show, hostActions
+                  summary: 'A game that has happened, seen by its host: a no-show on the roster, hostActions'
                   value:
                     id: 00000000-0000-0000-0000-00000000c102
                     date: Mon, 28 Sep
@@ -3990,46 +3970,7 @@ paths:
                     suburb: Blackburn North
                     address: 16 Joseph Street
                     mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.799510,145.144072
-                    matches:
-                    - id: 00000000-0000-0000-0000-00000000d102
-                      sideA:
-                      - id: 00000000-0000-0000-0000-00000000a001
-                        name: alice
-                        noShow: false
-                        initials: AL
-                        isBlocked: false
-                        isDeleted: false
-                        profileImageUrl: 
-                      - id: 00000000-0000-0000-0000-00000000a002
-                        name: bob
-                        noShow: false
-                        initials: BO
-                        isBlocked: false
-                        isDeleted: false
-                        profileImageUrl: 
-                      sideB:
-                      - id: 00000000-0000-0000-0000-00000000a003
-                        name: carol
-                        noShow: false
-                        initials: CA
-                        isBlocked: false
-                        isDeleted: false
-                        profileImageUrl: 
-                      - id: 00000000-0000-0000-0000-00000000a005
-                        name: erin
-                        noShow: false
-                        initials: ER
-                        isBlocked: false
-                        isDeleted: false
-                        profileImageUrl: 
-                      format: Doubles
-                      number: 1
-                      result:
-                        score: 21-18 19-21 21-16
-                        status: confirmed
-                        winningSide: b
-                      status: completed
-                      playedAt: '2026-09-28T09:00:00+00:00'
+                    matches: []
                     players:
                     - id: 00000000-0000-0000-0000-00000000a002
                       host: true
@@ -4087,7 +4028,6 @@ paths:
                       canMarkNoShows: false
                       cancelClosesAt: '2026-09-28T05:00:00+00:00'
                       noShowsCloseAt: '2026-09-30T10:30:00+00:00'
-                      canSetUpMatches: true
                       cancelIsLateFrom: '2026-09-27T09:00:00+00:00'
                     playerCount: 4
                     abilityLevel: any
@@ -4535,92 +4475,6 @@ paths:
                   format: uuid
               required:
               - p_post_id
-  "/rpc/create_match":
-    post:
-      operationId: create_match
-      tags:
-      - Games
-      summary: 'Host: set up a match (side a against side b) in a game'
-      x-implementation: postgres-rpc
-      description: |-
-        The host sets up a match in their game: supabase.rpc('create_match', { p_post_id, p_side_a: [playerIds], p_side_b: [playerIds] }) returns the match id. One player per side for singles, two for doubles; every player must have an accepted place in the game, and nobody can be on both sides. The same player can play several matches. The players are notified (match_scheduled).
-
-        **Errors** (`code`: message, safe to show to players):
-
-        - `42501` (not allowed): Only the game's host can set up its matches.
-        - `23514` (a rule was broken): This game was cancelled or removed.
-        - `23514` (a rule was broken): A % match is % against %: choose % player(s) for each side.
-        - `23514` (a rule was broken): A player can only be on one side of a match.
-        - `23514` (a rule was broken): Every player in a match must have a place in this game.
-      responses:
-        '200':
-          description: OK.
-          content:
-            application/json:
-              schema:
-                type: string
-                format: uuid
-        '400':
-          "$ref": "#/components/responses/RuleBroken"
-        '401':
-          "$ref": "#/components/responses/Unauthorized"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                p_post_id:
-                  type: string
-                  format: uuid
-                p_side_a:
-                  type: array
-                  items:
-                    type: string
-                    format: uuid
-                p_side_b:
-                  type: array
-                  items:
-                    type: string
-                    format: uuid
-              required:
-              - p_post_id
-              - p_side_a
-              - p_side_b
-  "/rpc/remove_match":
-    post:
-      operationId: remove_match
-      tags:
-      - Games
-      summary: The host removes a match set up by mistake
-      x-implementation: postgres-rpc
-      description: |-
-        The host removes a match set up by mistake: supabase.rpc('remove_match', { p_match_id }). Refused once the match has a confirmed result.
-
-        **Errors** (`code`: message, safe to show to players):
-
-        - `42501` (not allowed): Only the game's host can remove its matches.
-        - `23514` (a rule was broken): This match has a confirmed result, so only an admin can remove it.
-      responses:
-        '204':
-          description: Done. No body.
-        '400':
-          "$ref": "#/components/responses/RuleBroken"
-        '401':
-          "$ref": "#/components/responses/Unauthorized"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                p_match_id:
-                  type: string
-                  format: uuid
-              required:
-              - p_match_id
   "/rpc/cancel_game_post":
     post:
       operationId: cancel_game_post
@@ -4664,10 +4518,10 @@ paths:
       operationId: delete_game_post
       tags:
       - Games
-      summary: Organiser or group admin deletes a game that has not happened
+      summary: Organiser or group admin deletes a game
       x-implementation: postgres-rpc
       description: |-
-        Organiser or group admin deletes a game that has not happened: supabase.rpc('delete_game_post', { p_post_id }). The post is hidden, not removed. Subject to the 4-hour rule unless already cancelled. Games that have happened need admin_delete_game_post.
+        Organiser or group admin deletes a game: supabase.rpc('delete_game_post', { p_post_id }). Only while nobody else has asked to join, been invited or been accepted (cancel it instead), before it has happened, and not within 4 hours of the start unless already cancelled. The post is hidden, not removed.
 
         **Errors** (`code`: message, safe to show to players):
 
@@ -4675,6 +4529,7 @@ paths:
         - `42501` (not allowed): Game not found, or you do not organise it.
         - `42501` (not allowed): This game has already happened, so only an admin can delete it.
         - `23514` (a rule was broken): Games cannot be deleted within 4 hours of the start time.
+        - `23514` (a rule was broken): Players have asked to join this game, so it can't be deleted. Cancel it instead.
       responses:
         '204':
           description: Done. No body.
@@ -6565,9 +6420,8 @@ components:
     Match:
       type: object
       description: >-
-        One contest between two sides (match_participant.side a and b): 1 v 1 for singles, 2 v 2 for doubles.
-        A game (game_post) holds any number of matches, set up by its host with create_match; a 2-player
-        singles game gets its one match automatically.
+        One contest between two sides (match_participant.side a and b). Matches within a game are being
+        built separately (with results and rankings); games do not create them.
       properties:
         match_id:
           type: string
@@ -6996,7 +6850,6 @@ components:
           - no_show
           - invite_accepted
           - invite_declined
-          - match_scheduled
         message:
           type: string
           description: >-
@@ -7061,7 +6914,6 @@ components:
           - no_show
           - invite_accepted
           - invite_declined
-          - match_scheduled
         message:
           type: string
           description: >-
@@ -8514,78 +8366,7 @@ components:
           nullable: true
         matches:
           type: array
-          items:
-            type: object
-            properties:
-              id:
-                type: string
-                format: uuid
-              sideA:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                      format: uuid
-                    name:
-                      type: string
-                    noShow:
-                      type: boolean
-                    initials:
-                      type: string
-                    isBlocked:
-                      type: boolean
-                    isDeleted:
-                      type: boolean
-                    profileImageUrl:
-                      type: string
-                      format: uri
-                      nullable: true
-                      description: Public URL of the profile picture (avatars bucket); null when none.
-              sideB:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                      format: uuid
-                    name:
-                      type: string
-                    noShow:
-                      type: boolean
-                    initials:
-                      type: string
-                    isBlocked:
-                      type: boolean
-                    isDeleted:
-                      type: boolean
-                    profileImageUrl:
-                      type: string
-                      format: uri
-                      nullable: true
-                      description: Public URL of the profile picture (avatars bucket); null when none.
-              format:
-                type: string
-              number:
-                type: integer
-              result:
-                type: object
-                properties:
-                  score:
-                    type: string
-                  status:
-                    type: string
-                  winningSide:
-                    type: string
-                nullable: true
-              status:
-                type: string
-              playedAt:
-                type: string
-                format: date-time
-                nullable: true
+          items: {}
         players:
           type: array
           items:
@@ -8662,8 +8443,6 @@ components:
             noShowsCloseAt:
               type: string
               format: date-time
-            canSetUpMatches:
-              type: boolean
             cancelIsLateFrom:
               type: string
               format: date-time

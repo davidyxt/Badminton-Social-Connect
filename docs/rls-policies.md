@@ -107,7 +107,7 @@ Admins can read everything in every table.
 | `cancellation_record` | Organiser of the post (player or group admin), or admin | Admin | Admin |
 | `groups` | Any player, as themselves (they become its first group admin) | Group admins or platform admin (including `is_active`), and not `is_verified` | Nobody. Groups are deactivated, not deleted |
 | `group_member` | Request to join as yourself, forced to `pending` / `member`. Nobody can add someone else (team item 4) | Group admins approve requests and promote members; only `role` and `status`; never another admin's row | Yourself (leave or withdraw), group admins removing a non-admin, or platform admin. The last group admin cannot leave |
-| `match` | The game's host through `create_match` (sides checked against the roster and format); also anyone on the roster, or the league organiser for a fixture | Creator, game organiser, league organiser or admin | Same |
+| `match` | Anyone on the game's roster, or the league organiser for a fixture (matches and results are being built by a teammate) | Creator, game organiser, league organiser or admin | Same |
 | `match_participant` | Yourself, or the match manager adding you. Must be on the game's roster | Your own attendance, or the manager's | Yourself, or the manager |
 | `check_in` | Yourself, only if you are a participant, only unverified | Admin | Admin |
 | `match_result` | Participants, `status` forced to `pending` | Admin | Admin |
@@ -248,7 +248,7 @@ the caller's own token and needs no extra privilege.
 
 ## Verifying it
 
-`supabase/tests/rls_test.sh` runs 342 checks against the local stack. It creates
+`supabase/tests/rls_test.sh` runs 343 checks against the local stack. It creates
 three real, already-confirmed players through the Auth admin API (email
 confirmation is on, so a plain sign-up returns no session), signs them in, and drives PostgREST exactly as the
 browser would, so it tests the policies as deployed rather than the SQL as
@@ -260,7 +260,7 @@ supabase db reset --local
 ./supabase/tests/rls_test.sh
 ```
 
-All 342 pass with every migration up to the API descriptions (2026-10-08). It covers: the sign-up trigger, the
+All 343 pass with every migration up to the API descriptions (2026-10-08). It covers: the sign-up trigger, the
 discoverability rule, cross-user writes, the escalation paths above, anonymous
 access, game post ownership, the private schema not being exposed, group
 admins, members, join requests and deactivation, the exactly-one-organiser constraint, and organiser embedding.

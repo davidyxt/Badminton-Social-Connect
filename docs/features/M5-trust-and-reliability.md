@@ -19,15 +19,14 @@ as each lands.
 | Event | Who is told | `type` | Opens |
 |---|---|---|---|
 | A player asks to join | The organiser, or every admin of the group that posted it | `join_request` | The game (`postId`) |
-| The host accepts | The player | `request_accepted` | The game, or the match in a 2-player singles game (`matchId`) |
+| The host accepts | The player | `request_accepted` | The game |
 | The host declines | The player | `request_declined` | The game |
 | A player withdraws | The host | `request_withdrawn` | The game |
 | The organiser cancels | Everyone who asked, was invited or was accepted | `game_cancelled` | The game |
 | The organiser or an admin deletes | Everyone who asked or was accepted | `game_removed` | – |
 | The host marks a no-show | The player | `no_show` | The game |
 | The organiser invites a player (Request Game) | The invited player | `match_invite` | The game, to accept or decline |
-| The invited player accepts / declines | The organiser | `invite_accepted` / `invite_declined` | The game (or its match) |
-| The host sets up a match | The players in it | `match_scheduled` | The match (`matchId`) |
+| The invited player accepts / declines | The organiser | `invite_accepted` / `invite_declined` | The game |
 
 Changes caused by blocking someone never create a notification, so a block is
 not announced.

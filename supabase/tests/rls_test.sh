@@ -71,6 +71,11 @@ register "$TB" > /dev/null
 future() { python3 -c 'import sys,datetime
 d=datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(days=int(sys.argv[1]))
 print(d.strftime("%Y-%m-%dT08:00:00Z"))' "$1"; }
+# A search body for the two hours around a game N days out, so games left by
+# earlier runs (the suite does not reset the database) cannot page it out.
+around() { python3 -c 'import sys,json,datetime as d
+t=d.datetime.now(d.timezone.utc).replace(hour=8,minute=0,second=0,microsecond=0)+d.timedelta(days=int(sys.argv[1]))
+print(json.dumps({"p_from":(t-d.timedelta(hours=1)).isoformat(),"p_to":(t+d.timedelta(hours=1)).isoformat(),"p_limit":50}))' "$1"; }
 
 echo
 echo "== 1. sign-up trigger created player + profile rows =="
@@ -555,7 +560,7 @@ BODY="{\"match_id\":\"$M2\",\"player_id\":\"$IDB\",\"side\":\"a\"}"
 R=$(as "$TA" POST "match_participant" "$BODY")
 check "a singles side cannot hold two players" "ERR:23514" "$(count "$R")"
 # 3 recorded by hand, plus the one BL-017 creates when bob was accepted.
-check "several matches can belong to one game" 4 \
+check "several matches can belong to one game" 3 \
   "$(count "$(as "$TA" GET "match?post_id=eq.$GAME&select=match_id")")"
 
 # game_participant is what makes a bare player(...) embed on game_post
@@ -735,12 +740,14 @@ check "a cancelled game cannot be reopened" "ERR:23514" \
 G3=$(as "$TA" POST "game_post" "{\"organiser_id\":\"$IDA\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 21)\"}" | field post_id)
 as "$TB" POST "game_participant" "{\"post_id\":\"$G3\",\"player_id\":\"$IDB\"}" > /dev/null
 check "a hard delete is not allowed" "ERR:42501" "$(count "$(as "$TA" DELETE "game_post?post_id=eq.$G3")")"
-check "the organiser deletes an upcoming game" "" \
-  "$(as "$TA" POST "rpc/delete_game_post" "{\"p_post_id\":\"$G3\"}")"
-check "it is hidden from players" 0 "$(count "$(as "$TB" GET "game_post?post_id=eq.$G3")")"
-check "including the organiser" 0 "$(count "$(as "$TA" GET "game_post?post_id=eq.$G3")")"
-check "players who asked to join are told it was removed" "game_removed" \
-  "$(as "$TB" GET "notification?type=eq.game_removed&order=created_at.desc&limit=1&select=type" | field type)"
+check "a game someone has asked to join cannot be deleted (cancel it instead)" "23514" \
+  "$(as "$TA" POST "rpc/delete_game_post" "{\"p_post_id\":\"$G3\"}" | code)"
+check "so it stays visible" 1 "$(count "$(as "$TB" GET "game_post?post_id=eq.$G3")")"
+G3E=$(as "$TA" POST "game_post" "{\"organiser_id\":\"$IDA\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 22)\"}" | field post_id)
+check "the organiser deletes an upcoming game nobody has asked to join" "" \
+  "$(as "$TA" POST "rpc/delete_game_post" "{\"p_post_id\":\"$G3E\"}")"
+check "it is hidden from players" 0 "$(count "$(as "$TB" GET "game_post?post_id=eq.$G3E")")"
+check "including the organiser" 0 "$(count "$(as "$TA" GET "game_post?post_id=eq.$G3E")")"
 
 check "a game that has happened cannot be deleted by its organiser" "42501" \
   "$(as "$TA" POST "rpc/delete_game_post" "{\"p_post_id\":\"$GAME\"}" | code)"
@@ -753,15 +760,15 @@ curl -s "$API/auth/v1/admin/users" -H "apikey: $SERVICE" -H "Authorization: Bear
   -d "{\"email\":\"$AEMAIL\",\"password\":\"Passw0rd!x\",\"email_confirm\":true,\"app_metadata\":{\"role\":\"admin\"},\"user_metadata\":{\"username\":\"admin_$RANDOM\"}}" > /dev/null
 TADM=$(curl -s "$API/auth/v1/token?grant_type=password" -H "apikey: $ANON" -H 'Content-Type: application/json' \
   -d "{\"email\":\"$AEMAIL\",\"password\":\"Passw0rd!x\"}" | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
-check "admins still see deleted posts" 1 "$(count "$(as "$TADM" GET "game_post?post_id=eq.$G3")")"
-check "the admin warning shows what would change" '[true,4]' \
+check "admins still see deleted posts" 1 "$(count "$(as "$TADM" GET "game_post?post_id=eq.$G3E")")"
+check "the admin warning shows what would change" '[true,3]' \
   "$(as "$TADM" POST "rpc/admin_game_post_deletion_impact" "{\"p_post_id\":\"$GAME\"}" | python3 -c 'import sys,json
 d=json.load(sys.stdin); print(json.dumps([d["has_happened"], d["matches"]], separators=(",",":")))')"
 BODY="{\"p_post_id\":\"$GAME\",\"p_reason\":\" \"}"
 check "an admin delete needs a reason" "23514" "$(as "$TADM" POST "rpc/admin_delete_game_post" "$BODY" | code)"
 BODY="{\"p_post_id\":\"$GAME\",\"p_reason\":\"Fabricated results\"}"
 check "an admin can delete a game that has happened" "" "$(as "$TADM" POST "rpc/admin_delete_game_post" "$BODY")"
-check "its matches are kept" 4 "$(count "$(as "$TADM" GET "match?post_id=eq.$GAME&select=match_id")")"
+check "its matches are kept" 3 "$(count "$(as "$TADM" GET "match?post_id=eq.$GAME&select=match_id")")"
 check "its results stop counting towards rankings" "True" \
   "$(as "$TADM" GET "match_result?match_id=eq.$M1&select=excluded_from_ranking" | field excluded_from_ranking)"
 
@@ -798,9 +805,15 @@ check "only the organiser can accept" "42501" \
 BODY="{\"p_post_id\":\"$G4\",\"p_player_id\":\"$IDC\"}"
 check "the organiser accepts" "EMPTY" \
   "$(rpc "$TA" accept_request "$BODY")"
-GM=$(as "$TA" GET "match?post_id=eq.$G4&select=match_id" | field match_id)
-check "the first acceptance creates the match" "yes" "$([[ -n "$GM" ]] && echo yes || echo no)"
-check "a singles match puts organiser and player on sides a and b" '["a","b"]' \
+check "accepting does not create a match (matches are the results work)" 0 \
+  "$(count "$(as "$TA" GET "match?post_id=eq.$G4&select=match_id")")"
+# A match for the profile and history checks below, set up through the match
+# tables as the results work will: alice (side a) against carol (side b).
+BODY="{\"post_id\":\"$G4\",\"created_by\":\"$IDA\",\"format\":\"singles\"}"
+GM=$(as "$TA" POST "match" "$BODY" | field match_id)
+BODY="{\"match_id\":\"$GM\",\"player_id\":\"$IDA\",\"side\":\"a\"}"; as "$TA" POST "match_participant" "$BODY" > /dev/null
+BODY="{\"match_id\":\"$GM\",\"player_id\":\"$IDC\",\"side\":\"b\"}"; as "$TA" POST "match_participant" "$BODY" > /dev/null
+check "the match tables still let the game's host set one up" '["a","b"]' \
   "$(as "$TA" GET "match_participant?match_id=eq.$GM&select=player_id,side" | python3 -c 'import sys,json
 rows={r["player_id"]:r["side"] for r in json.load(sys.stdin)}
 print(json.dumps([rows.get("'$IDA'"), rows.get("'$IDC'")], separators=(",",":")))')"
@@ -892,7 +905,7 @@ check "the level filter keeps matching games" "yes" "$(has "$(search '{"p_level"
 check "and drops others" "no" "$(has "$(search '{"p_level":"advanced"}')" "$G5")"
 check "the format filter drops other formats" "no" "$(has "$(search '{"p_format":"singles"}')" "$G5")"
 check "cancelled games are not listed" "no" "$(has "$(search '{}')" "$G1")"
-check "deleted games are not listed" "no" "$(has "$(search '{}')" "$G3")"
+check "deleted games are not listed" "no" "$(has "$(as "$TB" POST "rpc/search_games" "$(around 22)")" "$G3E")"
 check "results come in pages" 1 "$(search '{"p_limit":1}' | python3 -c 'import sys,json;print(len(json.load(sys.stdin)))')"
 TN=$(signup_meta "nobody-$RANDOM@example.com" '{"first_name":"Ned"}')
 check "unregistered accounts find nothing" "[]" "$(as "$TN" POST "rpc/search_games" '{}')"
@@ -953,11 +966,6 @@ r=[x for x in (d if isinstance(d,list) else []) if x.get("id")==sys.argv[1]]
 print(r[0].get("isBlocked") if r else "absent")' "$1"; }
 BODY="{\"p_query\":\"$(as "$TQ" GET "player?player_id=eq.$IDQ&select=username" | field username)\"}"
 check "pat finds quinn in player search, badged" "True" "$(as "$TP" POST "rpc/search_players" "$BODY" | flag "$IDQ")"
-# A search body for the two hours around a game N days out, so games left by
-# earlier runs (the suite does not reset the database) cannot page it out.
-around() { python3 -c 'import sys,json,datetime as d
-t=d.datetime.now(d.timezone.utc).replace(hour=8,minute=0,second=0,microsecond=0)+d.timedelta(days=int(sys.argv[1]))
-print(json.dumps({"p_from":(t-d.timedelta(hours=1)).isoformat(),"p_to":(t+d.timedelta(hours=1)).isoformat(),"p_limit":50}))' "$1"; }
 check "pat still sees quinn's game, organiser badged" "True" \
   "$(as "$TP" POST "rpc/search_games" "$(around 27)" | python3 -c 'import sys,json
 g=[x for x in json.load(sys.stdin) if x["id"]=="'$GQ'"]; print(g[0]["host"]["isBlocked"] if g else "absent")')"
@@ -1082,7 +1090,7 @@ check "naming the player" "yes" \
   "$([[ "$(latest "$TH" join_request message)" == "$UNR asked to join your Singles game on"* ]] && echo yes || echo "no: $(latest "$TH" join_request message)")"
 BODY="{\"p_post_id\":\"$GN\",\"p_player_id\":\"$IDR\"}"; rpc "$TH" accept_request "$BODY" > /dev/null
 check "the player hears they were accepted" "$GN" "$(latest "$TR" request_accepted post_id)"
-check "with the match to open" "yes" "$([[ -n "$(latest "$TR" request_accepted match_id)" ]] && echo yes || echo no)"
+check "opening the game, not a match" "" "$(latest "$TR" request_accepted match_id)"
 BODY="{\"p_post_id\":\"$GN\"}"; rpc "$TR" withdraw_request "$BODY" > /dev/null
 check "the host hears that an accepted player withdrew" "A place has opened up" "$(latest "$TH" request_withdrawn detail)"
 rpc "$TR" request_to_join "$BODY" > /dev/null

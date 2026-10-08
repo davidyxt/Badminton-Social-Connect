@@ -1,6 +1,6 @@
 # Database Schema
 
-Implemented across forty-three migrations in `supabase/migrations/`:
+Implemented across forty-four migrations in `supabase/migrations/`:
 
 | Migration | What it adds |
 |---|---|
@@ -14,7 +14,7 @@ Implemented across forty-three migrations in `supabase/migrations/`:
 | `..._m4_username_and_private_names.sql` | `display_name` renamed `username` (unique, player-chosen); first and last names in owner-only `player_private` |
 | `..._bl007_age_gate_and_consent.sql` | 18+ age gate, consent records, `register_player`; unregistered accounts locked out (BL-007) |
 | `..._bl013_game_posts.sql` | Post a Game fields, cancel with the 4-hour rule, delete hides, admin-only delete of games that happened, inactive groups have no upcoming games (BL-013) |
-| `..._bl017_join_requests.sql` | Join request RPCs, request messages, status history, match created on first acceptance (BL-017) |
+| `..._bl017_join_requests.sql` | Join request RPCs, request messages, status history (BL-017) |
 | `..._bl019_player_profiles.sql` | `get_player_profile` and the stats behind it (BL-019) |
 | `..._bl015_find_games.sql` | `game_post.title`, `search_games`, `search_players`, `get_game_details`, `get_join_requests` (BL-015) |
 | `..._bl007_age_gate_local_date.sql` | Fix: age judged by the date in the player's state, not UTC |
@@ -45,7 +45,8 @@ Implemented across forty-three migrations in `supabase/migrations/`:
 | `..._game_card_host_venue_duration.sql` | Game cards call the organiser `host` (as every screen does) and carry `venue`, `duration` and `durationMinutes` |
 | `..._my_games_availability_profile_pictures.sql` | `get_my_games` (Home's `nextGames` is its first 3); `player_profile.availability`, `availability_note`, `profile_image_url`; the `avatars` Storage bucket and its policies; `set_my_profile_picture`, `remove_my_profile_picture` |
 | `..._game_details_host_actions.sql` | Game Details' `hostActions` (when the host can cancel, delete and mark no-shows) and no-show players on the host's roster |
-| `..._games_hold_matches.sql` | A game holds several matches, each one contest between two sides: `create_match` / `remove_match` for the host, `matches[]` on Game Details; automatic matches only for 2-player singles games |
+| `..._games_hold_matches.sql` | `create_match` / `remove_match` and `matches[]` on Game Details (removed again by the next migration) |
+| `..._matches_left_out_delete_needs_empty_game.sql` | Matches left to the teammate building results: no `create_match` / `remove_match`, no automatic match on acceptance, `matches: []` on Game Details. `delete_game_post` refused once anyone has asked to join |
 | `..._venue_search_and_no_reliability_band.sql` | `search_venues` for the venue dropdown (trigram indexes on venue and suburb names); `get_game_form_options` no longer lists venues; no reliability band, the screens show a % |
 
 Access rules are documented separately in [rls-policies.md](./rls-policies.md),
@@ -544,15 +545,7 @@ twenty.
 
 ## Notes on the tables
 
-**A game holds several matches; a match is one contest between two sides.**
-
-| Term | Table | Meaning |
-|---|---|---|
-| Game | `game_post` | The session: time, venue, format, up to `player_limit` players |
-| Match | `match` (`post_id` → the game) | One contest, side `a` against side `b` (`match_participant.side`): one player per side for singles, two for doubles. A game holds any number of matches, and the same player can play several |
-| Result | `match_result` | The score of one match, e.g. `21-15 19-21 21-17` (the games within the match), and the winning side. At most one confirmed result per match |
-
-The host sets matches up with `create_match`. Only a 2-player singles game gets its match automatically, when the player is accepted. Badminton calls the parts of a match's score "games"; in this app "game" means the session, so the score's parts are written in the score string, not as rows.
+**Games and matches.** A game (`game_post`) is the session. Matches (`match`, side `a` against side `b`, with `match_result` for the score) are being built by a teammate along with results and rankings. Games don't create or link matches: `get_game_details` returns `matches: []`.
 
 **Usernames are chosen by the player; real names are private.** `player.username`
 is the only name other players see: 3-20 letters, digits, `_` or `.`, unique
@@ -579,7 +572,7 @@ those states** (BL-013):
 | Function | Who | Rule |
 |---|---|---|
 | `cancel_game_post(p_post_id, p_reason)` | Organiser, group admin, admin | Refused within 4 hours of the start (admins excepted) and once the game has started. The post stays visible as `cancelled`; a `cancellation_record` keeps the reason; players are notified |
-| `delete_game_post(p_post_id)` | Organiser, group admin | Only games that have not happened, and not within 4 hours unless already cancelled. The post is hidden (`deleted_at`), not removed |
+| `delete_game_post(p_post_id)` | Organiser, group admin | Only games nobody else has asked to join, been invited to or been accepted into, that have not happened, and not within 4 hours unless already cancelled. The post is hidden (`deleted_at`), not removed |
 | `admin_game_post_deletion_impact(p_post_id)` | Admin | Warning data: matches, confirmed results that would stop counting, affected players. Rating changes come with BL-024 |
 | `admin_delete_game_post(p_post_id, p_reason)` | Admin | Any game, reason required. Hides it and marks its results `excluded_from_ranking` |
 
@@ -594,9 +587,8 @@ venue until a player is accepted is BL-017 (PHY-02).
 Requests only work while the game is open (not cancelled, deleted or started).
 The message lives in `game_request_message`, readable by the requester and the
 host only, so it stays private after the roster row becomes public. Every status
-change is written to `game_participant_history`. The first acceptance creates
-the game's `match`; a singles game posted by a player gets the organiser on
-side `a` and the accepted player on side `b`.
+change is written to `game_participant_history`. Accepting a player no longer
+creates a match: matches are being built with results and rankings.
 
 **Screens read through functions that return the screen's own objects**
 (BL-015, BL-019): `search_games`, `search_players`, `get_game_details`,
@@ -760,8 +752,8 @@ It is text because NT and ACT postcodes start with 0.
 supabase start                  # bring up the local stack (needs Docker running)
 supabase db reset --local       # drop and rebuild from migrations + seeds/
 supabase db advisors --local    # security and performance lint
-./supabase/tests/rls_test.sh    # 342 access-control and integrity checks
-python3 supabase/tests/api_test.py   # 313 API cases, writes docs/api-test-report.md
+./supabase/tests/rls_test.sh    # 343 access-control and integrity checks
+python3 supabase/tests/api_test.py   # 302 API cases, writes docs/api-test-report.md
 
 supabase migration new <name>   # start a new change
 supabase db push                # apply pending migrations to the linked project

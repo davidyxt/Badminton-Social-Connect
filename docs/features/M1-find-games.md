@@ -59,7 +59,7 @@ Edit with `update` on the same columns. Cancelling and deleting are functions:
 | Action | Call | Rule |
 |---|---|---|
 | Cancel | `supabase.rpc('cancel_game_post', { p_post_id, p_reason })` | Not within 4 hours of the start. The game stays visible as cancelled; players are notified |
-| Delete | `supabase.rpc('delete_game_post', { p_post_id })` | Only games that haven't happened, and not within 4 hours unless already cancelled. The game is hidden, not removed |
+| Delete | `supabase.rpc('delete_game_post', { p_post_id })` | Only games nobody else has asked to join yet, that haven't happened, and not within 4 hours unless already cancelled. The game is hidden, not removed |
 
 Disable both buttons inside the 4-hour cutoff and explain why (BL-014).
 
@@ -73,7 +73,6 @@ Disable both buttons inside the 4-hour cutoff and explain why (BL-014).
 
 - A player can ask again after withdrawing, but not after being declined.
 - A full game still accepts requests; accepting one more fails.
-- The first acceptance creates the match. For a singles game the host and the player are already on opposite sides, so Match Details can show the opponent.
 - `get_game_details` returns `myStatus` (`pending`, `accepted`, `declined`, `withdrawn` or null) for the Request button, and `canManage` for showing host actions.
 
 ## What the screen functions return
@@ -161,7 +160,7 @@ cannot be cancelled within 4 hours of the start time…". Useful `code` values:
 | Step | Call | Notification |
 |---|---|---|
 | The organiser invites | `supabase.rpc('invite_player', { p_player_id, p_proposed_time, p_venue_id \| p_suburb, p_duration_minutes, p_style, p_ability_level, p_title, p_notes, p_message })`, which returns the game id | `match_invite` to the invited player, with the message |
-| The invited player accepts | `supabase.rpc('accept_invite', { p_post_id })`, which creates the match | `invite_accepted` to the organiser |
+| The invited player accepts | `supabase.rpc('accept_invite', { p_post_id })`, which gives them the place | `invite_accepted` to the organiser |
 | The invited player declines | `supabase.rpc('decline_invite', { p_post_id })` | `invite_declined` to the organiser |
 | The organiser cancels | `cancel_game_post`, as for any game | `game_cancelled` to the invited player |
 
@@ -192,17 +191,10 @@ Built in `20261008101100_request_game_invitations.sql`. Tested in `supabase/test
 
 Times are Melbourne time. Level words also match games open to any level, as the level filter does. The `p_level` and `p_format` filters combine with it. Matching is done by `private.game_matches_search_word` (`20261008101300_find_games_one_search_bar.sql`). The test data now uses Melbourne clock times (6 pm, 7 pm), so time searches behave as you'd expect.
 
-## Games and matches, 2026-10-08
+## Matches and deleting games, 2026-10-08
 
-A **game** (`game_post`, the session) holds several **matches**. A **match** is one contest between two sides: 1 v 1 for singles, 2 v 2 for doubles.
+- **Matches** within a game are being built by a teammate, with results and rankings. Games don't create or link matches, and `get_game_details` returns `matches: []`.
+- **Deleting a game** (`delete_game_post`) is refused once anyone other than the host has asked to join, been invited or been accepted. The host cancels instead. `hostActions.canDelete` says whether it's still possible.
 
-- **The host sets up matches:** `supabase.rpc('create_match', { p_post_id, p_side_a, p_side_b })`.
-  - Every player must have an accepted place in the game, the side sizes must fit the format, and nobody can be on both sides.
-  - The same players can play several matches (rounds).
-  - The players are notified (`match_scheduled`).
-- **The host removes a match:** `remove_match(p_match_id)`, until it has a confirmed result.
-- **Game Details** lists `matches`: `number`, `sideA`, `sideB`, `status` and `result` for each. This replaces the single `matchId`.
-- **Automatic matches:** only a 2-player singles game gets its match automatically (host against player, including Request Game invitations). Other games start with none.
-
-Built in `20261008101700_games_hold_matches.sql`.
+Built in `20261008101800_matches_left_out_delete_needs_empty_game.sql`.
 
