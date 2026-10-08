@@ -18,8 +18,9 @@ and 6 run automatically on every merge to `main`.
 - [6. Deploy the Edge Functions](#6-deploy-the-edge-functions)
 - [7. Vault entries](#7-vault-entries)
 - [8. Check the scheduled jobs](#8-check-the-scheduled-jobs)
-- [9. Frontend hosting](#9-frontend-hosting)
-- [10. Smoke test](#10-smoke-test)
+- [9. Storage for profile pictures](#9-storage-for-profile-pictures)
+- [10. Frontend hosting](#10-frontend-hosting)
+- [11. Smoke test](#11-smoke-test)
 - [Before real users](#before-real-users)
 - [Day-to-day](#day-to-day)
 - [Troubleshooting](#troubleshooting)
@@ -178,7 +179,52 @@ select jobname, schedule, active from cron.job;
 Recent runs: `select * from cron.job_run_details order by start_time desc limit 10;`
 Replies from the functions: `select * from net._http_response order by id desc limit 10;`
 
-## 9. Frontend hosting
+## 9. Storage for profile pictures
+
+Profile pictures live in Supabase Storage, in a bucket called **`avatars`**.
+
+**Created by the migrations.** `20261008101500_my_games_availability_profile_pictures.sql` creates the bucket and its access rules, so `db push` (step 3) sets it up. There's nothing to create by hand. Check it:
+
+1. **Dashboard → Storage.** An `avatars` bucket is listed as **Public**.
+2. **Bucket settings:**
+   - **file size limit:** 2 MB;
+   - **allowed types:** `image/jpeg`, `image/png`, `image/webp`.
+3. **Dashboard → Storage → Policies → `avatars`.** Four policies:
+
+   | Policy | What it allows |
+   |---|---|
+   | players upload into their own folder | insert |
+   | players see their own files | select |
+   | players replace their own files | update |
+   | players delete their own files | delete |
+
+   Each one allows a signed-in player only inside `avatars/<their player id>/`.
+
+Or in the SQL Editor:
+
+```sql
+select id, public, file_size_limit, allowed_mime_types from storage.buckets where id = 'avatars';
+select policyname, cmd from pg_policies where schemaname = 'storage' and policyname like 'avatars:%';
+```
+
+**How the app uses it:**
+
+1. Upload: `supabase.storage.from('avatars').upload(`${userId}/${crypto.randomUUID()}.jpg`, file, { contentType: file.type })`.
+2. Get the address: `supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl`.
+3. Save it: `supabase.rpc('set_my_profile_picture', { p_url: publicUrl })`. This checks the file is in the player's own folder and returns `previousPath`.
+4. Delete the old file: `supabase.storage.from('avatars').remove([previousPath])`, when `previousPath` isn't null.
+5. To remove the picture: `supabase.rpc('remove_my_profile_picture')`, then remove the returned `previousPath`.
+
+Every screen function then returns the picture as `profileImageUrl`: profiles, Home, game hosts and rosters, join requests, player search and the Blocked Users list. It's only returned where the profile itself may be seen.
+
+**Good to know:**
+
+- **The bucket is public.** Anyone who has a picture's URL can load it, without signing in. File names are random and the API only hands the URL to players allowed to see the profile, but don't treat the pictures as secret. If the team wants them private later, make the bucket private and have the app use signed URLs (`createSignedUrl`); the database side stays the same.
+- **Deleting an account** clears the picture from the profile, but the database can't delete storage files. The app should remove the player's files before calling `delete_my_account`. Leftover files can also be removed by hand: **Storage → avatars → the player's folder → Delete**.
+- **Resizing and cropping** happen in the app before upload; keep pictures small (for example 512 × 512 px). Supabase's image transformations are a paid feature and aren't used.
+- **Locally**, the same bucket comes from the same migration. Files are served at `http://127.0.0.1:54321/storage/v1/object/public/avatars/...` and appear in Studio → Storage.
+
+## 10. Frontend hosting
 
 On the hosting platform (e.g. Vercel → Project → Settings → Environment
 Variables), never as a committed file:
@@ -192,7 +238,7 @@ Variables), never as a committed file:
 Then add the production domain (and preview domains) to the auth redirect URLs
 from step 5.
 
-## 10. Smoke test
+## 11. Smoke test
 
 - [ ] Sign up with a real email: the confirmation email arrives; an under-18 date of birth is refused.
 - [ ] Sign in with Google: you land on the app (and on the age-gate step, once the frontend has that screen).
@@ -200,6 +246,8 @@ from step 5.
 - [ ] Request, accept: both accounts get a notification, and an email once Resend is set.
 - [ ] Add a venue without coordinates (SQL or admin): within a couple of minutes it has a pin (`coordinates_source = 'openstreetmap'`).
 - [ ] Block and report from a profile.
+- [ ] Upload a profile picture: it shows on your profile and on a game you host; replace it, then remove it; the old files disappear from Storage → avatars.
+- [ ] Set your availability: another account sees it on your profile.
 
 ## Before real users
 
@@ -229,5 +277,8 @@ from step 5.
 | No emails | Vault entries from step 7; `net._http_response` for errors; function logs (Dashboard → Edge Functions → Logs); `RESEND_API_KEY` set |
 | Venues never get pins | Vault entries; `select status, attempts, last_error from venue_geocode_queue;`; function logs |
 | `401` in `net._http_response` | The Vault secret and the function secret don't match |
+| Picture upload fails with "new row violates row-level security policy" | The path must start with the player's own id: `avatars/<auth user id>/<file>` |
+| Picture upload fails with 413 or "mime type not supported" | Over 2 MB, or not a JPEG, PNG or WebP |
+| `set_my_profile_picture` says to upload first | The URL must be the public URL of a file in the player's own folder that exists, e.g. from `getPublicUrl` |
 | `db push` refuses a migration | It is older than one already pushed: rename it to a fresh timestamp |
 | Sign-up "Database error saving new user" | Username taken or under 18; check Dashboard → Logs → Postgres |

@@ -169,6 +169,39 @@ def errors_of(fn_name):
     return found
 
 
+# Fields whose type the samples cannot show (often null in the dev seed), or
+# that should list their allowed values. Applied to every response schema.
+SLOTS = [f"{d}_{p}" for d in ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+         for p in ("morning", "afternoon", "evening")]
+FIELD_SCHEMAS = {
+    "profileImageUrl": {"type": "string", "format": "uri", "nullable": True,
+                        "description": "Public URL of the profile picture (avatars bucket); null when none."},
+    "availability": {"type": "array", "items": {"type": "string", "enum": SLOTS},
+                     "description": "When the player usually plays, e.g. [\"mon_evening\", \"sat_morning\"]."},
+    "availabilityNote": {"type": "string", "nullable": True,
+                         "description": "Free text next to availability, up to 200 characters."},
+    "myStatus": {"type": "string", "nullable": True,
+                 "enum": ["pending", "invited", "accepted", "declined", "withdrawn", "no_show", None],
+                 "description": "The caller's place in the game; null when they have none."},
+    "myRole": {"type": "string", "enum": ["host", "player"],
+               "description": "host when the caller runs the game (themselves or as a group admin)."},
+}
+
+
+def apply_field_schemas(node):
+    if isinstance(node, dict):
+        props = node.get("properties")
+        if isinstance(props, dict):
+            for k in props:
+                if k in FIELD_SCHEMAS:
+                    props[k] = dict(FIELD_SCHEMAS[k])
+        for v in node.values():
+            apply_field_schemas(v)
+    elif isinstance(node, list):
+        for v in node:
+            apply_field_schemas(v)
+
+
 CODE_MEANING = {"42501": "not allowed", "23514": "a rule was broken", "23505": "already done / taken",
                 "22023": "invalid value", "P0001": "error"}
 
@@ -348,6 +381,12 @@ RPCS = OrderedDict([
     ("get_my_home", ("Profile", "MyHome", [("alice", {}), ("ivy", {}), ("grace", {})])),
     ("get_my_profile", ("Profile", "MyProfile", [("alice", {}), ("bob", {}), ("ivy", {})])),
     ("update_my_profile", ("Profile", "MyProfile", [])),
+    ("set_my_profile_picture", ("Profile", None, [])),
+    ("remove_my_profile_picture", ("Profile", None, [])),
+    ("get_my_games", ("Games", "MyGameCard", [
+        ("alice", {}, "upcoming|All my upcoming games"),
+        ("alice", {"p_filter": "organised"}, "organised|Organised by me"),
+        ("alice", {"p_when": "past"}, "past|My past games")])),
     ("get_game_form_options", ("Find games", "GameFormOptions", [("alice", {}), ("bob", {})])),
     ("search_venues", ("Find games", "VenueOption", [("alice", {"p_query": "badminton"}),
                                                      ("bob", {"p_query": "msac"})])),
@@ -508,6 +547,8 @@ SUMMARIES = {
     "get_notifications": "Notifications screen",
     "mark_no_show": "Host marks an accepted player as a no-show",
     "invite_player": "Request Game: invite one player to a singles game",
+    "get_my_games": "My games: everything I host or play in",
+    "set_my_profile_picture": "Save an uploaded profile picture",
     "geocode_claim_batch": "Geocoder: take the worker lease and a batch of venues",
     "geocode_complete": "Geocoder: save a venue's pin, or record a miss",
     "geocode_release": "Geocoder: release the worker lease",
@@ -538,6 +579,8 @@ def main():
         if ops:
             paths[f"/{t['name']}"] = ops
     paths.update(rpc_paths(components))
+    apply_field_schemas(components)
+    apply_field_schemas(paths)
 
     # Design-only endpoints from earlier versions, kept until someone builds them.
     planned_refs = set()

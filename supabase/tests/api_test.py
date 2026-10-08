@@ -125,6 +125,31 @@ def admin_create_user(email, user_meta, app_meta=None):
         return e.code, json.loads(e.read() or b"{}")
 
 
+def storage(method, path, token, data=None, ctype="image/png"):
+    """Supabase Storage call (uploads, deletes, public downloads)."""
+    headers = {"apikey": ANON}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    if data is not None:
+        headers["Content-Type"] = ctype
+    req = urllib.request.Request(API + "/storage/v1/" + path, data=data, method=method, headers=headers)
+    start = time.perf_counter()
+    try:
+        with urllib.request.urlopen(req) as r:
+            raw, status = r.read(), r.status
+    except urllib.error.HTTPError as e:
+        raw, status = e.read(), e.code
+    try:
+        body = json.loads(raw) if raw else None
+    except ValueError:
+        body = raw
+    return Resp(status, body, (time.perf_counter() - start) * 1000)
+
+
+# A 1x1 PNG, the smallest valid picture.
+PNG = bytes.fromhex("89504e470d0a1a0a0000000d4948445200000001000000010806000000"
+                    "1f15c4890000000d49444154789c6360000002000154a24f5d0000000049454e44ae426082")
+
 RUN = f"{random.randint(1000, 9999)}"
 
 
@@ -257,11 +282,11 @@ def main():
     r = rpc("get_my_home", T["alice"])
     check("returns the Home page fields", has_keys(r.body, [
         "id", "username", "firstName", "lastName", "greetingName", "initials", "registered", "level", "ratingCard",
-        "unreadNotifications", "nextGame"]), r)
+        "unreadNotifications", "nextGames", "profileImageUrl"]), r)
     check("includes the player's own first and last name",
           ((r.body or {}).get("firstName"), (r.body or {}).get("lastName")) == ("Alice", "Nguyen"), r)
-    ng = (r.body or {}).get("nextGame") or {}
-    check("next game is the soonest one alice is in, with title and Maps link",
+    ng = ((r.body or {}).get("nextGames") or [{}])[0]
+    check("next games start with the soonest one alice is in, with title and Maps link",
           ng.get("id") == G["b001"] and ng.get("title") == "Friday Night Doubles" and ng.get("mapsUrl"),
           r, detail=json.dumps(ng)[:200])
     r = rpc("get_my_home", T["grace"])
@@ -816,6 +841,125 @@ def main():
         rpc("invite_player", th, p_player_id=iid, **{**base, "p_proposed_time": future(16 + k, 9)})
     r = rpc("invite_player", th, p_player_id=iid, **{**base, "p_proposed_time": future(30, 9)})
     check("at most 10 unanswered invitations at a time (23514)", r.code == "23514", r)
+
+    # ------------------------------------------------------------------ My games, availability, pictures
+    A = "My games, availability and profile pictures"
+
+    endpoint(A, "rpc/get_my_games")
+    mh, tmh, mhn = new_player("mygames")
+    mo, tmo, _ = new_player("mgother")
+    def post(tok, oid, days, hour=9, **extra):
+        r = call("POST", "game_post", tok, {"organiser_id": oid, "format": "singles", "suburb": "Carlton",
+                                            "proposed_time": future(days, hour), **extra})
+        return r.body[0]["post_id"] if isinstance(r.body, list) else None
+    mine1, mine2, mine3, mine4 = (post(tmh, mh, d) for d in (3, 5, 7, 9))
+    theirs = post(tmo, mo, 4)
+    rpc("request_to_join", tmh, p_post_id=theirs)
+    rpc("accept_request", tmo, p_post_id=theirs, p_player_id=mh)
+    pending = post(tmo, mo, 6)
+    rpc("request_to_join", tmh, p_post_id=pending)
+    r = rpc("get_my_games", tmh)
+    lst = r.body if isinstance(r.body, list) else []
+    check("all my games: hosted, playing and pending, soonest first",
+          [g["id"] for g in lst] == [mine1, theirs, mine2, pending, mine3, mine4], r,
+          detail=str([g["id"][-4:] for g in lst]))
+    check("each is a game card with myRole and myStatus",
+          lst and all(has_keys(g, ["id", "title", "date", "time", "location", "host", "myRole", "myStatus"]) for g in lst)
+          and {g["myRole"] for g in lst} == {"host", "player"}, r)
+    r = rpc("get_my_games", tmh, p_filter="organised")
+    check("filter 'organised': only the games I host",
+          [g["id"] for g in (r.body or [])] == [mine1, mine2, mine3, mine4]
+          and all(g["myRole"] == "host" for g in r.body), r)
+    r = rpc("get_my_games", tmh, p_include_pending=False)
+    check("without pending: the request still waiting is left out", pending not in ids(r.body), r)
+    r = rpc("get_my_games", tmh, p_when="past")
+    check("past games: none yet for a new player", r.body == [], r)
+    r = rpc("get_my_games", T["alice"], p_when="past", p_limit=50)
+    check("past games, latest first (alice's seeded history)",
+          len(r.body or []) >= 3 and [g["startsAt"] for g in r.body] == sorted([g["startsAt"] for g in r.body], reverse=True), r)
+    r = rpc("get_my_games", T["alice"], p_filter="organised", p_limit=50)
+    check("games of a group I admin count as organised by me",
+          G["b004"] in ids(r.body) and [g for g in r.body if g["id"] == G["b004"]][0]["myRole"] == "host", r)
+    r = rpc("get_my_games", tmh, p_filter="mine")
+    check("an unknown filter is refused (22023)", r.code == "22023", r)
+    r = rpc("get_my_games", T["grace"])
+    check("unregistered players get an empty list", r.body == [], r)
+    r = rpc("get_my_games", None)
+    check("signed out is refused (42501)", r.code == "42501", r)
+
+    endpoint(A, "rpc/get_my_home: nextGames")
+    r = rpc("get_my_home", tmh)
+    ng = (r.body or {}).get("nextGames")
+    check("the next 3 confirmed games, from the same list (no pending)",
+          [g["id"] for g in (ng or [])] == [mine1, theirs, mine2], r, detail=str(ng)[:200])
+    check("nextGame is replaced by nextGames", "nextGame" not in (r.body or {}), r)
+    r = rpc("get_my_home", T["ivy"])
+    check("no games: nextGames is an empty list ('No game planned')", (r.body or {}).get("nextGames") == [], r)
+
+    endpoint(A, "availability")
+    r = rpc("update_my_profile", tmh, p_availability=["sat_morning", "mon_evening", "mon_evening"],
+            p_availability_note="Most weeknights after 6")
+    check("set availability and a note; duplicates dropped, sorted",
+          ((r.body or {}).get("availability"), (r.body or {}).get("availabilityNote"))
+          == (["mon_evening", "sat_morning"], "Most weeknights after 6"), r)
+    r = rpc("get_player_profile", tmo, p_player_id=mh)
+    check("other players see it on the profile",
+          (r.body or {}).get("availability") == ["mon_evening", "sat_morning"]
+          and (r.body or {}).get("availabilityNote") == "Most weeknights after 6", r)
+    r = rpc("update_my_profile", tmh, p_bio="Hi")
+    check("other updates leave it as it was", (r.body or {}).get("availability") == ["mon_evening", "sat_morning"], r)
+    r = rpc("update_my_profile", tmh, p_availability=["someday_evening"])
+    check("an unknown slot is refused (22023)", r.code == "22023", r)
+    r = rpc("update_my_profile", tmh, p_availability_note="x" * 201)
+    check("a note over 200 characters is refused (23514)", r.code == "23514", r)
+    r = rpc("update_my_profile", tmh, p_availability=[], p_availability_note="")
+    check("an empty list and an empty note clear them",
+          ((r.body or {}).get("availability"), (r.body or {}).get("availabilityNote")) == ([], None), r)
+
+    endpoint(A, "profile picture (storage + rpc)")
+    path = f"{mh}/avatar-{RUN}.png"
+    r = storage("POST", f"object/avatars/{path}", tmh, PNG)
+    check("a player uploads a picture into their own folder", r.status == 200, r)
+    url = f"{API}/storage/v1/object/public/avatars/{path}"
+    r = storage("POST", f"object/avatars/{mo}/sneaky-{RUN}.png", tmh, PNG)
+    check("but not into someone else's folder", r.status >= 400, r)
+    r = storage("POST", f"object/avatars/{mh}/notes-{RUN}.txt", tmh, b"hello", "text/plain")
+    check("only images are accepted", r.status >= 400, r)
+    r = rpc("set_my_profile_picture", tmh, p_url=url)
+    check("set_my_profile_picture saves it", (r.body or {}).get("profileImageUrl") == url
+          and (r.body or {}).get("previousPath") is None, r)
+    r = storage("GET", f"object/public/avatars/{path}", None)
+    check("the picture loads from its public URL", r.status == 200, r)
+    for label, fn, kw, tok in [
+        ("my profile", "get_my_profile", {}, tmh), ("home", "get_my_home", {}, tmh),
+        ("another player's view of the profile", "get_player_profile", {"p_player_id": mh}, tmo)]:
+        r = rpc(fn, tok, **kw)
+        check(f"profileImageUrl shows on {label}", (r.body or {}).get("profileImageUrl") == url, r)
+    r = rpc("get_game_details", tmo, p_post_id=theirs)
+    check("and on game rosters",
+          any(p.get("profileImageUrl") == url for p in (r.body or {}).get("players", [])), r)
+    r = rpc("get_game_details", tmo, p_post_id=mine1)
+    check("and as the host of a game", ((r.body or {}).get("host") or {}).get("profileImageUrl") == url, r)
+    r = rpc("set_my_profile_picture", tmo, p_url=url)
+    check("nobody can set someone else's picture as theirs (22023)", r.code == "22023", r)
+    r = rpc("set_my_profile_picture", tmh, p_url=f"{API}/storage/v1/object/public/avatars/{mh}/missing.png")
+    check("nor a file that was never uploaded (22023)", r.code == "22023", r)
+    r = rpc("set_my_profile_picture", tmh, p_url="https://evil.example/x.png")
+    check("nor an outside URL (22023)", r.code == "22023", r)
+    path2 = f"{mh}/avatar2-{RUN}.png"
+    storage("POST", f"object/avatars/{path2}", tmh, PNG)
+    r = rpc("set_my_profile_picture", tmh, p_url=f"{API}/storage/v1/object/public/avatars/{path2}")
+    check("replacing it returns the old file's path to delete", (r.body or {}).get("previousPath") == path, r)
+    r = storage("DELETE", f"object/avatars/{path}", tmh)
+    check("the player deletes the old file", r.status == 200, r)
+    r = storage("DELETE", f"object/avatars/{path2}", tmo)
+    check("nobody else can delete it", r.status >= 400 or storage("GET", f"object/public/avatars/{path2}", None).status == 200, r)
+    r = rpc("remove_my_profile_picture", tmh)
+    check("remove_my_profile_picture clears it and returns the path to delete",
+          (r.body or {}).get("previousPath") == path2, r)
+    storage("DELETE", f"object/avatars/{path2}", tmh)
+    r = rpc("get_my_profile", tmh)
+    check("profileImageUrl is null again", (r.body or {}).get("profileImageUrl") is None, r)
 
     # ------------------------------------------------------------------ M6
     A = "M6 Groups"

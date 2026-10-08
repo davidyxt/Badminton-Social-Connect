@@ -153,3 +153,12 @@ values
   ('00000000-0000-0000-0000-00000000a004', 'singles', 1405, 'advanced', 1),
   ('00000000-0000-0000-0000-00000000a005', 'doubles', 1050, 'lower_intermediate', 1),
   ('00000000-0000-0000-0000-00000000a008', 'singles', 1100, 'intermediate', 1);
+
+-- Availability (when they usually play).
+update public.player_profile set availability = v.slots, availability_note = v.note
+from (values
+  ('00000000-0000-0000-0000-00000000a001'::uuid, array['mon_evening', 'wed_evening', 'sat_morning'], 'Most weeknights after 6'),
+  ('00000000-0000-0000-0000-00000000a002'::uuid, array['sat_morning', 'sun_morning', 'sun_afternoon'], null),
+  ('00000000-0000-0000-0000-00000000a003'::uuid, array['tue_evening', 'thu_evening'], 'Competitive singles only')
+) as v (id, slots, note)
+where player_id = v.id;

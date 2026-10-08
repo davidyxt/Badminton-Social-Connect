@@ -2911,11 +2911,13 @@ paths:
       summary: Home page data
       x-implementation: postgres-rpc
       description: |-
-        Home page: supabase.rpc('get_my_home'). greetingName ("John Doe", or the username), initials for the top bar, registered (false = send to /complete-registration), level, ratingCard (rating, band, matches, winRate, stateRank, status), nextGame (null = "No game planned") and unreadNotifications.
+        Home page: supabase.rpc('get_my_home'). greetingName, firstName, lastName, initials, profileImageUrl, registered (false = send to /complete-registration), level, ratingCard, nextGames (the next 3 confirmed games, same cards as get_my_games; [] = "No game planned") and unreadNotifications.
 
         **Errors** (`code`: message, safe to show to players):
 
         - `42501` (not allowed): Sign in first.
+        - `22023` (invalid value): filter is all or organised.
+        - `22023` (invalid value): when is upcoming or past.
       responses:
         '200':
           description: OK.
@@ -2928,21 +2930,67 @@ paths:
                 level: Intermediate
                 initials: AN
                 lastName: Nguyen
-                nextGame:
-                  id: 00000000-0000-0000-0000-00000000b001
+                username: alice
+                firstName: Alice
+                nextGames:
+                - id: 00000000-0000-0000-0000-00000000b001
                   date: Sat, 10 Oct
-                  time: 6:00 PM
+                  host:
+                    id: 00000000-0000-0000-0000-00000000a001
+                    name: alice
+                    isGroup: false
+                    initials: AL
+                    isBlocked: false
+                    isDeleted: false
+                    profileImageUrl: 
+                  rank: Intermediate
+                  time: 6:00 PM – 7:30 PM
+                  style: Social
                   title: Friday Night Doubles
+                  venue: Melbourne Sports and Aquatic Centre@ MSAC
+                  endsAt: '2026-10-10T08:30:00+00:00'
                   format: Doubles
-                  isHost: true
+                  myRole: host
+                  status: open
                   suburb: Albert Park
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
+                  duration: 90 mins
+                  imageUrl: 
+                  isInvite: false
                   location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
+                  myStatus: accepted
                   startsAt: '2026-10-10T07:00:00+00:00'
                   maxPlayers: 4
                   playerCount: 3
-                username: alice
-                firstName: Alice
+                  durationMinutes: 90
+                - id: 00000000-0000-0000-0000-00000000b004
+                  date: Wed, 14 Oct
+                  host:
+                    id: 00000000-0000-0000-0000-00000000c001
+                    name: Smash Group
+                    isGroup: true
+                    initials: SG
+                    isActive: true
+                  rank: Any Rank
+                  time: 7:00 PM – 9:00 PM
+                  style: Social
+                  title: Smash Group social night
+                  venue: Melbourne University Badminton Club
+                  endsAt: '2026-10-14T10:00:00+00:00'
+                  format: Doubles
+                  myRole: host
+                  status: open
+                  suburb: Parkville
+                  mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.796360,144.960652
+                  duration: 120 mins
+                  imageUrl: 
+                  isInvite: false
+                  location: Melbourne University Badminton Club, Parkville
+                  myStatus: accepted
+                  startsAt: '2026-10-14T08:00:00+00:00'
+                  maxPlayers: 8
+                  playerCount: 2
+                  durationMinutes: 120
                 ratingCard:
                   band: Intermediate
                   wins: 2
@@ -3013,11 +3061,16 @@ paths:
                   ratingChangeThisMonth: 
                 gamesPlayed: 4
                 reliability: 100
+                availability:
+                - mon_evening
+                - wed_evening
+                - sat_morning
                 isDiscoverable: true
                 selfRatingBand: intermediate
                 lateWithdrawals: 0
                 preferredFormat: doubles
                 profileImageUrl: 
+                availabilityNote: Most weeknights after 6
                 lateCancellations: 0
                 emailNotifications: true
                 unreadNotifications: 4
@@ -3033,7 +3086,7 @@ paths:
       summary: Change profile settings (send only what changed)
       x-implementation: postgres-rpc
       description: |-
-        Profile settings: supabase.rpc('update_my_profile', { p_username, p_first_name, p_last_name, p_self_rating_band, p_bio, p_suburb, p_state, p_is_discoverable, p_preferred_format, p_email_notifications }). Send only what changed; returns get_my_profile().
+        Profile settings: supabase.rpc('update_my_profile', { p_username, p_first_name, p_last_name, p_self_rating_band, p_bio, p_suburb, p_state, p_is_discoverable, p_preferred_format, p_email_notifications, p_availability, p_availability_note }). Send only what changed. p_availability replaces the whole list, e.g. ['mon_evening','sat_morning'] ([] clears it); an empty p_availability_note clears it. Returns get_my_profile().
 
         **Errors** (`code`: message, safe to show to players):
 
@@ -3042,6 +3095,8 @@ paths:
         - `22023` (invalid value): Choose a state or territory.
         - `22023` (invalid value): Choose a level: beginner, lower_intermediate, intermediate, upper_intermediate or advanced.
         - `22023` (invalid value): Choose a format: singles, doubles, mixed_doubles or any.
+        - `22023` (invalid value): Availability is a list like mon_evening or sat_morning: a day (mon to sun) and morning, afternoon or evening.
+        - `23514` (a rule was broken): Keep the availability note under 200 characters.
         - `23514` (a rule was broken): First name cannot be empty.
       responses:
         '200':
@@ -3081,6 +3136,302 @@ paths:
                   type: string
                 p_email_notifications:
                   type: boolean
+                p_availability:
+                  type: array
+                  items:
+                    type: string
+                p_availability_note:
+                  type: string
+  "/rpc/set_my_profile_picture":
+    post:
+      operationId: set_my_profile_picture
+      tags:
+      - Profile
+      summary: Save an uploaded profile picture
+      x-implementation: postgres-rpc
+      description: |-
+        Profile picture: upload to storage first (avatars/<your id>/<file>), then supabase.rpc('set_my_profile_picture', { p_url: publicUrl }). Returns profileImageUrl and previousPath: delete that old file with supabase.storage.from('avatars').remove([previousPath]).
+
+        **Errors** (`code`: message, safe to show to players):
+
+        - `42501` (not allowed): Sign in first.
+        - `22023` (invalid value): Upload the picture to your own folder in the avatars bucket first.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          "$ref": "#/components/responses/RuleBroken"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_url:
+                  type: string
+              required:
+              - p_url
+  "/rpc/remove_my_profile_picture":
+    post:
+      operationId: remove_my_profile_picture
+      tags:
+      - Profile
+      summary: Removes the profile picture
+      x-implementation: postgres-rpc
+      description: |-
+        Removes the profile picture: supabase.rpc('remove_my_profile_picture'). Returns previousPath: delete that file with supabase.storage.from('avatars').remove([previousPath]).
+
+        **Errors** (`code`: message, safe to show to players):
+
+        - `42501` (not allowed): Sign in first.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          "$ref": "#/components/responses/RuleBroken"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+  "/rpc/get_my_games":
+    post:
+      operationId: get_my_games
+      tags:
+      - Games
+      summary: 'My games: everything I host or play in'
+      x-implementation: postgres-rpc
+      description: |-
+        My games: supabase.rpc('get_my_games', { p_filter, p_when, p_include_pending, p_limit, p_offset }). Game cards for every game the caller hosts (themselves, or through a group they admin) or plays in, with myRole (host | player) and myStatus. p_filter: all | organised (hosted by you). p_when: upcoming (soonest first) | past (latest first; cancelled games left out). p_include_pending (default true) adds games the caller asked to join or was invited to. Pages of up to 50. Home's nextGames is the first 3 upcoming, without pending ones.
+
+        **Errors** (`code`: message, safe to show to players):
+
+        - `22023` (invalid value): filter is all or organised.
+        - `22023` (invalid value): when is upcoming or past.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/MyGameCard"
+              examples:
+                upcoming:
+                  summary: All my upcoming games
+                  value:
+                  - id: 00000000-0000-0000-0000-00000000b001
+                    date: Sat, 10 Oct
+                    host:
+                      id: 00000000-0000-0000-0000-00000000a001
+                      name: alice
+                      isGroup: false
+                      initials: AL
+                      isBlocked: false
+                      isDeleted: false
+                      profileImageUrl: 
+                    rank: Intermediate
+                    time: 6:00 PM – 7:30 PM
+                    style: Social
+                    title: Friday Night Doubles
+                    venue: Melbourne Sports and Aquatic Centre@ MSAC
+                    endsAt: '2026-10-10T08:30:00+00:00'
+                    format: Doubles
+                    myRole: host
+                    status: open
+                    suburb: Albert Park
+                    mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
+                    duration: 90 mins
+                    imageUrl: 
+                    isInvite: false
+                    location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
+                    myStatus: accepted
+                    startsAt: '2026-10-10T07:00:00+00:00'
+                    maxPlayers: 4
+                    playerCount: 3
+                    durationMinutes: 90
+                  - id: 00000000-0000-0000-0000-00000000b004
+                    date: Wed, 14 Oct
+                    host:
+                      id: 00000000-0000-0000-0000-00000000c001
+                      name: Smash Group
+                      isGroup: true
+                      initials: SG
+                      isActive: true
+                    rank: Any Rank
+                    time: 7:00 PM – 9:00 PM
+                    style: Social
+                    title: Smash Group social night
+                    venue: Melbourne University Badminton Club
+                    endsAt: '2026-10-14T10:00:00+00:00'
+                    format: Doubles
+                    myRole: host
+                    status: open
+                    suburb: Parkville
+                    mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.796360,144.960652
+                    duration: 120 mins
+                    imageUrl: 
+                    isInvite: false
+                    location: Melbourne University Badminton Club, Parkville
+                    myStatus: accepted
+                    startsAt: '2026-10-14T08:00:00+00:00'
+                    maxPlayers: 8
+                    playerCount: 2
+                    durationMinutes: 120
+                organised:
+                  summary: Organised by me
+                  value:
+                  - id: 00000000-0000-0000-0000-00000000b001
+                    date: Sat, 10 Oct
+                    host:
+                      id: 00000000-0000-0000-0000-00000000a001
+                      name: alice
+                      isGroup: false
+                      initials: AL
+                      isBlocked: false
+                      isDeleted: false
+                      profileImageUrl: 
+                    rank: Intermediate
+                    time: 6:00 PM – 7:30 PM
+                    style: Social
+                    title: Friday Night Doubles
+                    venue: Melbourne Sports and Aquatic Centre@ MSAC
+                    endsAt: '2026-10-10T08:30:00+00:00'
+                    format: Doubles
+                    myRole: host
+                    status: open
+                    suburb: Albert Park
+                    mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
+                    duration: 90 mins
+                    imageUrl: 
+                    isInvite: false
+                    location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
+                    myStatus: accepted
+                    startsAt: '2026-10-10T07:00:00+00:00'
+                    maxPlayers: 4
+                    playerCount: 3
+                    durationMinutes: 90
+                  - id: 00000000-0000-0000-0000-00000000b004
+                    date: Wed, 14 Oct
+                    host:
+                      id: 00000000-0000-0000-0000-00000000c001
+                      name: Smash Group
+                      isGroup: true
+                      initials: SG
+                      isActive: true
+                    rank: Any Rank
+                    time: 7:00 PM – 9:00 PM
+                    style: Social
+                    title: Smash Group social night
+                    venue: Melbourne University Badminton Club
+                    endsAt: '2026-10-14T10:00:00+00:00'
+                    format: Doubles
+                    myRole: host
+                    status: open
+                    suburb: Parkville
+                    mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.796360,144.960652
+                    duration: 120 mins
+                    imageUrl: 
+                    isInvite: false
+                    location: Melbourne University Badminton Club, Parkville
+                    myStatus: accepted
+                    startsAt: '2026-10-14T08:00:00+00:00'
+                    maxPlayers: 8
+                    playerCount: 2
+                    durationMinutes: 120
+                past:
+                  summary: My past games
+                  value:
+                  - id: 00000000-0000-0000-0000-00000000c106
+                    date: Sat, 3 Oct
+                    host:
+                      id: 00000000-0000-0000-0000-00000000a001
+                      name: alice
+                      isGroup: false
+                      initials: AL
+                      isBlocked: false
+                      isDeleted: false
+                      profileImageUrl: 
+                    rank: Any Rank
+                    time: 6:00 PM – 7:00 PM
+                    style: Competitive
+                    title: 'Spring ladder: round 3'
+                    venue: Melbourne Sports and Aquatic Centre@ MSAC
+                    endsAt: '2026-10-03T09:00:00+00:00'
+                    format: Singles
+                    myRole: host
+                    status: completed
+                    suburb: Albert Park
+                    mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
+                    duration: 60 mins
+                    imageUrl: 
+                    isInvite: false
+                    location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
+                    myStatus: accepted
+                    startsAt: '2026-10-03T08:00:00+00:00'
+                    maxPlayers: 2
+                    playerCount: 2
+                    durationMinutes: 60
+                  - id: 00000000-0000-0000-0000-00000000c102
+                    date: Mon, 28 Sep
+                    host:
+                      id: 00000000-0000-0000-0000-00000000a002
+                      name: bob
+                      isGroup: false
+                      initials: BO
+                      isBlocked: false
+                      isDeleted: false
+                      profileImageUrl: 
+                    rank: Any Rank
+                    time: 7:00 PM – 8:30 PM
+                    style: Social
+                    title: Clayton doubles
+                    venue: Melbourne Badminton Centre
+                    endsAt: '2026-09-28T10:30:00+00:00'
+                    format: Doubles
+                    myRole: player
+                    status: completed
+                    suburb: Blackburn North
+                    mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.799510,145.144072
+                    duration: 90 mins
+                    imageUrl: 
+                    isInvite: false
+                    location: Melbourne Badminton Centre, Blackburn North
+                    myStatus: accepted
+                    startsAt: '2026-09-28T09:00:00+00:00'
+                    maxPlayers: 6
+                    playerCount: 4
+                    durationMinutes: 90
+        '400':
+          "$ref": "#/components/responses/RuleBroken"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_filter:
+                  type: string
+                p_when:
+                  type: string
+                p_include_pending:
+                  type: boolean
+                p_limit:
+                  type: integer
+                p_offset:
+                  type: integer
   "/rpc/get_game_form_options":
     post:
       operationId: get_game_form_options
@@ -3234,6 +3585,7 @@ paths:
                   initials: AL
                   isBlocked: false
                   isDeleted: false
+                  profileImageUrl: 
                 rank: Any Rank
                 time: 9:40 PM – 10:40 PM
                 style: Social
@@ -3262,6 +3614,7 @@ paths:
                   initials: TH
                   isBlocked: false
                   isDeleted: false
+                  profileImageUrl: 
                 rank: Any Rank
                 time: 9:40 PM – 10:40 PM
                 style: Social
@@ -3342,6 +3695,7 @@ paths:
                       isBlocked: false
                       isDeleted: false
                       reliability: 100
+                      profileImageUrl: 
                       verifiedMatches: 4
                     rank: Intermediate
                     time: 6:00 PM – 7:30 PM
@@ -3364,18 +3718,21 @@ paths:
                       initials: AL
                       isBlocked: false
                       isDeleted: false
+                      profileImageUrl: 
                     - id: 00000000-0000-0000-0000-00000000a003
                       host: false
                       name: carol
                       initials: CA
                       isBlocked: false
                       isDeleted: false
+                      profileImageUrl: 
                     - id: 00000000-0000-0000-0000-00000000a005
                       host: false
                       name: erin
                       initials: ER
                       isBlocked: false
                       isDeleted: false
+                      profileImageUrl: 
                     venueId: 3b46eece-7f3b-4743-ba25-2cee4ad9181e
                     duration: 90 mins
                     imageUrl: 
@@ -3422,12 +3779,14 @@ paths:
                       initials: AL
                       isBlocked: false
                       isDeleted: false
+                      profileImageUrl: 
                     - id: 00000000-0000-0000-0000-00000000a005
                       host: false
                       name: erin
                       initials: ER
                       isBlocked: false
                       isDeleted: false
+                      profileImageUrl: 
                     venueId: c4d01640-2254-43f9-b697-8d011631f95a
                     duration: 120 mins
                     imageUrl: 
@@ -3455,6 +3814,7 @@ paths:
                       isBlocked: false
                       isDeleted: false
                       reliability: 100
+                      profileImageUrl: 
                       verifiedMatches: 2
                     rank: Any Rank
                     time: 6:00 PM – 7:00 PM
@@ -3482,6 +3842,7 @@ paths:
                       initials: CA
                       isBlocked: false
                       isDeleted: false
+                      profileImageUrl: 
                     venueId: 93524291-92b8-4392-873e-60af5b5a1b0b
                     duration: 60 mins
                     imageUrl: 
@@ -3509,6 +3870,7 @@ paths:
                       isBlocked: false
                       isDeleted: false
                       reliability: 100
+                      profileImageUrl: 
                       verifiedMatches: 2
                     rank: Any Rank
                     time: 6:00 PM – 7:00 PM
@@ -3536,6 +3898,7 @@ paths:
                       initials: CA
                       isBlocked: false
                       isDeleted: false
+                      profileImageUrl: 
                     venueId: 93524291-92b8-4392-873e-60af5b5a1b0b
                     duration: 60 mins
                     imageUrl: 
@@ -3670,6 +4033,7 @@ paths:
                     initials: AL
                     isBlocked: false
                     isDeleted: false
+                    profileImageUrl: 
                   rank: Intermediate
                   time: 6:00 PM – 7:30 PM
                   style: Social
@@ -3696,6 +4060,7 @@ paths:
                   initials: AL
                   isBlocked: false
                   isDeleted: false
+                  profileImageUrl: 
                 status: accepted
                 requester:
                   id: 00000000-0000-0000-0000-00000000a003
@@ -3722,6 +4087,7 @@ paths:
                     initials: AL
                     isBlocked: false
                     isDeleted: false
+                    profileImageUrl: 
                   rank: Intermediate
                   time: 6:00 PM – 7:30 PM
                   style: Social
@@ -3748,6 +4114,7 @@ paths:
                   initials: AL
                   isBlocked: false
                   isDeleted: false
+                  profileImageUrl: 
                 status: accepted
                 requester:
                   id: 00000000-0000-0000-0000-00000000a005
@@ -4082,20 +4449,22 @@ paths:
                 items:
                   "$ref": "#/components/schemas/PlayerCard"
               example:
-              - id: 8b280cb0-64dd-4757-8b47-ca78050d082c
-                name: ada_13336_585
+              - id: 1d36fa0d-8128-43ca-8b26-8753c529b3d3
+                name: ada_10718_147
                 rank: Beginner
                 initials: AD
                 location: 
                 isBlocked: false
                 reliability: 100
-              - id: a3520a20-9d37-4f1f-b2c2-ba6bb771b965
-                name: ada_6622_660
+                profileImageUrl: 
+              - id: 41f804a7-d8ea-4d66-8652-b2f2bc198068
+                name: ada_12038_141
                 rank: Beginner
                 initials: AD
                 location: 
                 isBlocked: false
                 reliability: 100
+                profileImageUrl: 
         '401':
           "$ref": "#/components/responses/Unauthorized"
       requestBody:
@@ -4156,9 +4525,13 @@ paths:
                 - L
                 gamesPlayed: 3
                 reliability: 100
+                availability:
+                - tue_evening
+                - thu_evening
                 lateWithdrawals: 0
                 preferredFormat: Singles
                 profileImageUrl: 
+                availabilityNote: Competitive singles only
                 lateCancellations: 0
         '401':
           "$ref": "#/components/responses/Unauthorized"
@@ -4341,6 +4714,7 @@ paths:
                 initials: FR
                 blockedAt: '2026-10-04T08:39:36.769414+00:00'
                 categoryLabel: Harassment
+                profileImageUrl: 
         '401':
           "$ref": "#/components/responses/Unauthorized"
   "/rpc/report_player":
@@ -7319,6 +7693,43 @@ components:
         email_notifications:
           type: boolean
           description: False to stop notification emails. In-app notifications continue.
+        availability:
+          type: array
+          items:
+            type: string
+            enum:
+            - mon_morning
+            - mon_afternoon
+            - mon_evening
+            - tue_morning
+            - tue_afternoon
+            - tue_evening
+            - wed_morning
+            - wed_afternoon
+            - wed_evening
+            - thu_morning
+            - thu_afternoon
+            - thu_evening
+            - fri_morning
+            - fri_afternoon
+            - fri_evening
+            - sat_morning
+            - sat_afternoon
+            - sat_evening
+            - sun_morning
+            - sun_afternoon
+            - sun_evening
+          description: When the player usually plays, e.g. ["mon_evening", "sat_morning"].
+        availability_note:
+          type: string
+          nullable: true
+          description: Free text next to availability, e.g. "Most weeknights after 6".
+        profile_image_url:
+          type: string
+          nullable: true
+          description: >-
+            Public URL of the player's picture in the avatars bucket. Set with set_my_profile_picture,
+            cleared with remove_my_profile_picture.
     PlayerProfileWrite:
       type: object
       properties:
@@ -7385,6 +7796,43 @@ components:
         email_notifications:
           type: boolean
           description: False to stop notification emails. In-app notifications continue.
+        availability:
+          type: array
+          items:
+            type: string
+            enum:
+            - mon_morning
+            - mon_afternoon
+            - mon_evening
+            - tue_morning
+            - tue_afternoon
+            - tue_evening
+            - wed_morning
+            - wed_afternoon
+            - wed_evening
+            - thu_morning
+            - thu_afternoon
+            - thu_evening
+            - fri_morning
+            - fri_afternoon
+            - fri_evening
+            - sat_morning
+            - sat_afternoon
+            - sat_evening
+            - sun_morning
+            - sun_afternoon
+            - sun_evening
+          description: When the player usually plays, e.g. ["mon_evening", "sat_morning"].
+        availability_note:
+          type: string
+          nullable: true
+          description: Free text next to availability, e.g. "Most weeknights after 6".
+        profile_image_url:
+          type: string
+          nullable: true
+          description: >-
+            Public URL of the player's picture in the avatars bucket. Set with set_my_profile_picture,
+            cleared with remove_my_profile_picture.
       required:
       - player_id
     Ranking:
@@ -7804,41 +8252,105 @@ components:
           type: string
         lastName:
           type: string
-        nextGame:
-          type: object
-          properties:
-            id:
-              type: string
-              format: uuid
-            date:
-              type: string
-            time:
-              type: string
-            title:
-              type: string
-            format:
-              type: string
-            isHost:
-              type: boolean
-            suburb:
-              type: string
-            mapsUrl:
-              type: string
-            location:
-              type: string
-            startsAt:
-              type: string
-              format: date-time
-            maxPlayers:
-              type: integer
-            playerCount:
-              type: integer
-          nullable: true
         username:
           type: string
           nullable: true
         firstName:
           type: string
+        nextGames:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              date:
+                type: string
+              host:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  isGroup:
+                    type: boolean
+                  initials:
+                    type: string
+                  isBlocked:
+                    type: boolean
+                    nullable: true
+                  isDeleted:
+                    type: boolean
+                    nullable: true
+                  profileImageUrl:
+                    type: string
+                    format: uri
+                    nullable: true
+                    description: Public URL of the profile picture (avatars bucket); null when none.
+                  isActive:
+                    type: boolean
+                    nullable: true
+              rank:
+                type: string
+              time:
+                type: string
+              style:
+                type: string
+              title:
+                type: string
+              venue:
+                type: string
+              endsAt:
+                type: string
+                format: date-time
+              format:
+                type: string
+              myRole:
+                type: string
+                enum:
+                - host
+                - player
+                description: host when the caller runs the game (themselves or as a group admin).
+              status:
+                type: string
+              suburb:
+                type: string
+              mapsUrl:
+                type: string
+              duration:
+                type: string
+              imageUrl:
+                type: string
+                nullable: true
+                description: Null in every sample (not built yet).
+              isInvite:
+                type: boolean
+              location:
+                type: string
+              myStatus:
+                type: string
+                nullable: true
+                enum:
+                - pending
+                - invited
+                - accepted
+                - declined
+                - withdrawn
+                - no_show
+                - 
+                description: The caller's place in the game; null when they have none.
+              startsAt:
+                type: string
+                format: date-time
+              maxPlayers:
+                type: integer
+              playerCount:
+                type: integer
+              durationMinutes:
+                type: integer
         ratingCard:
           type: object
           properties:
@@ -7879,8 +8391,9 @@ components:
           type: string
         profileImageUrl:
           type: string
+          format: uri
           nullable: true
-          description: Null in every sample (not built yet).
+          description: Public URL of the profile picture (avatars bucket); null when none.
         unreadNotifications:
           type: integer
     MyProfile:
@@ -7955,6 +8468,33 @@ components:
           type: integer
         reliability:
           type: integer
+        availability:
+          type: array
+          items:
+            type: string
+            enum:
+            - mon_morning
+            - mon_afternoon
+            - mon_evening
+            - tue_morning
+            - tue_afternoon
+            - tue_evening
+            - wed_morning
+            - wed_afternoon
+            - wed_evening
+            - thu_morning
+            - thu_afternoon
+            - thu_evening
+            - fri_morning
+            - fri_afternoon
+            - fri_evening
+            - sat_morning
+            - sat_afternoon
+            - sat_evening
+            - sun_morning
+            - sun_afternoon
+            - sun_evening
+          description: When the player usually plays, e.g. ["mon_evening", "sat_morning"].
         isDiscoverable:
           type: boolean
         selfRatingBand:
@@ -7965,13 +8505,112 @@ components:
           type: string
         profileImageUrl:
           type: string
+          format: uri
           nullable: true
-          description: Null in every sample (not built yet).
+          description: Public URL of the profile picture (avatars bucket); null when none.
+        availabilityNote:
+          type: string
+          nullable: true
+          description: Free text next to availability, up to 200 characters.
         lateCancellations:
           type: integer
         emailNotifications:
           type: boolean
         unreadNotifications:
+          type: integer
+    MyGameCard:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        date:
+          type: string
+        host:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            isGroup:
+              type: boolean
+            initials:
+              type: string
+            isBlocked:
+              type: boolean
+              nullable: true
+            isDeleted:
+              type: boolean
+              nullable: true
+            profileImageUrl:
+              type: string
+              format: uri
+              nullable: true
+              description: Public URL of the profile picture (avatars bucket); null when none.
+            isActive:
+              type: boolean
+              nullable: true
+        rank:
+          type: string
+        time:
+          type: string
+        style:
+          type: string
+        title:
+          type: string
+        venue:
+          type: string
+          nullable: true
+        endsAt:
+          type: string
+          format: date-time
+        format:
+          type: string
+        myRole:
+          type: string
+          enum:
+          - host
+          - player
+          description: host when the caller runs the game (themselves or as a group admin).
+        status:
+          type: string
+        suburb:
+          type: string
+        mapsUrl:
+          type: string
+          nullable: true
+        duration:
+          type: string
+        imageUrl:
+          type: string
+          nullable: true
+          description: Null in every sample (not built yet).
+        isInvite:
+          type: boolean
+        location:
+          type: string
+        myStatus:
+          type: string
+          nullable: true
+          enum:
+          - pending
+          - invited
+          - accepted
+          - declined
+          - withdrawn
+          - no_show
+          - 
+          description: The caller's place in the game; null when they have none.
+        startsAt:
+          type: string
+          format: date-time
+        maxPlayers:
+          type: integer
+        playerCount:
+          type: integer
+        durationMinutes:
           type: integer
     GameFormOptions:
       type: object
@@ -8084,6 +8723,11 @@ components:
             isDeleted:
               type: boolean
               nullable: true
+            profileImageUrl:
+              type: string
+              format: uri
+              nullable: true
+              description: Public URL of the profile picture (avatars bucket); null when none.
             isActive:
               type: boolean
               nullable: true
@@ -8123,6 +8767,15 @@ components:
         myStatus:
           type: string
           nullable: true
+          enum:
+          - pending
+          - invited
+          - accepted
+          - declined
+          - withdrawn
+          - no_show
+          - 
+          description: The caller's place in the game; null when they have none.
         startsAt:
           type: string
           format: date-time
@@ -8164,6 +8817,11 @@ components:
             reliability:
               type: integer
               nullable: true
+            profileImageUrl:
+              type: string
+              format: uri
+              nullable: true
+              description: Public URL of the profile picture (avatars bucket); null when none.
             verifiedMatches:
               type: integer
               nullable: true
@@ -8239,6 +8897,11 @@ components:
                 type: boolean
               isDeleted:
                 type: boolean
+              profileImageUrl:
+                type: string
+                format: uri
+                nullable: true
+                description: Public URL of the profile picture (avatars bucket); null when none.
         venueId:
           type: string
           format: uuid
@@ -8256,6 +8919,15 @@ components:
         myStatus:
           type: string
           nullable: true
+          enum:
+          - pending
+          - invited
+          - accepted
+          - declined
+          - withdrawn
+          - no_show
+          - 
+          description: The caller's place in the game; null when they have none.
         startsAt:
           type: string
           format: date-time
@@ -8300,6 +8972,11 @@ components:
                   type: boolean
                 isDeleted:
                   type: boolean
+                profileImageUrl:
+                  type: string
+                  format: uri
+                  nullable: true
+                  description: Public URL of the profile picture (avatars bucket); null when none.
             rank:
               type: string
             time:
@@ -8333,6 +9010,16 @@ components:
               type: string
             myStatus:
               type: string
+              nullable: true
+              enum:
+              - pending
+              - invited
+              - accepted
+              - declined
+              - withdrawn
+              - no_show
+              - 
+              description: The caller's place in the game; null when they have none.
             startsAt:
               type: string
               format: date-time
@@ -8358,6 +9045,11 @@ components:
               type: boolean
             isDeleted:
               type: boolean
+            profileImageUrl:
+              type: string
+              format: uri
+              nullable: true
+              description: Public URL of the profile picture (avatars bucket); null when none.
         status:
           type: string
         requester:
@@ -8388,8 +9080,9 @@ components:
               type: string
             profileImageUrl:
               type: string
+              format: uri
               nullable: true
-              description: Null in every sample (not built yet).
+              description: Public URL of the profile picture (avatars bucket); null when none.
             verifiedMatches:
               type: integer
         requestedAt:
@@ -8414,6 +9107,11 @@ components:
           type: boolean
         reliability:
           type: integer
+        profileImageUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: Public URL of the profile picture (avatars bucket); null when none.
     PlayerProfileView:
       type: object
       properties:
@@ -8466,14 +9164,46 @@ components:
           type: integer
         reliability:
           type: integer
+        availability:
+          type: array
+          items:
+            type: string
+            enum:
+            - mon_morning
+            - mon_afternoon
+            - mon_evening
+            - tue_morning
+            - tue_afternoon
+            - tue_evening
+            - wed_morning
+            - wed_afternoon
+            - wed_evening
+            - thu_morning
+            - thu_afternoon
+            - thu_evening
+            - fri_morning
+            - fri_afternoon
+            - fri_evening
+            - sat_morning
+            - sat_afternoon
+            - sat_evening
+            - sun_morning
+            - sun_afternoon
+            - sun_evening
+          description: When the player usually plays, e.g. ["mon_evening", "sat_morning"].
         lateWithdrawals:
           type: integer
         preferredFormat:
           type: string
         profileImageUrl:
           type: string
+          format: uri
           nullable: true
-          description: Null in every sample (not built yet).
+          description: Public URL of the profile picture (avatars bucket); null when none.
+        availabilityNote:
+          type: string
+          nullable: true
+          description: Free text next to availability, up to 200 characters.
         lateCancellations:
           type: integer
     HistoryEntry:
@@ -8544,6 +9274,11 @@ components:
           format: date-time
         categoryLabel:
           type: string
+        profileImageUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: Public URL of the profile picture (avatars bucket); null when none.
     NotificationItem:
       type: object
       properties:
@@ -8596,27 +9331,6 @@ components:
           description: Null in every sample (not built yet).
         confirmed_results:
           type: integer
-    MatchMessageCreate:
-      type: object
-      properties:
-        messageId:
-          type: string
-          format: uuid
-          description: Unique message id.
-        matchId:
-          type: string
-          format: uuid
-          description: Match this message belongs to (FK to match.matchId).
-        templateCode:
-          type: string
-          description: >-
-            One of a fixed set of preset messages, e.g. on_my_way | running_late_5 | running_late_15 |
-            cant_make_it | arrived | at_court | waiting_front_desk | thanks_for_game | rematch. No free
-            text — this is the light preset-message feature, not open chat.
-        sentAt:
-          type: string
-          format: date-time
-          description: When the message was sent.
     MatchMessage:
       type: object
       properties:
@@ -8644,6 +9358,27 @@ components:
           description: When the message was sent.
       required:
       - messageId
+    MatchMessageCreate:
+      type: object
+      properties:
+        messageId:
+          type: string
+          format: uuid
+          description: Unique message id.
+        matchId:
+          type: string
+          format: uuid
+          description: Match this message belongs to (FK to match.matchId).
+        templateCode:
+          type: string
+          description: >-
+            One of a fixed set of preset messages, e.g. on_my_way | running_late_5 | running_late_15 |
+            cant_make_it | arrived | at_court | waiting_front_desk | thanks_for_game | rematch. No free
+            text — this is the light preset-message feature, not open chat.
+        sentAt:
+          type: string
+          format: date-time
+          description: When the message was sent.
     ActivityLog:
       type: object
       properties:

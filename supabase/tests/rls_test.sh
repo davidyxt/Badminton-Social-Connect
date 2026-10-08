@@ -1209,7 +1209,7 @@ check "home greets the player by their own name" '"Jane Smyth"' "$(echo "$HOME_J
 check "with initials for the top bar" '"JS"' "$(echo "$HOME_J" | key initials)"
 check "and a rating card" '[0,0]' "[$(echo "$HOME_J" | key ratingCard.matches),$(echo "$HOME_J" | key ratingCard.winRate)]"
 check "no rating yet means no state rank" "null" "$(echo "$HOME_J" | key ratingCard.stateRank)"
-check "no upcoming game shows as null (No game planned)" "null" "$(echo "$HOME_J" | key nextGame)"
+check "no upcoming game: nextGames is empty (No game planned)" "[]" "$(echo "$HOME_J" | key nextGames)"
 check "unread notifications are counted" "0" "$(echo "$HOME_J" | key unreadNotifications)"
 
 FUTURE=$(python3 -c 'import datetime;print((datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(days=12)).strftime("%Y-%m-%dT08:00:00Z"))')
@@ -1217,10 +1217,16 @@ BODY="{\"organiser_id\":\"$IDA\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\
 GH=$(as "$TA" POST "game_post" "$BODY" | field post_id)
 BODY="{\"post_id\":\"$GH\",\"player_id\":\"$IDB\"}"; as "$TB" POST "game_participant" "$BODY" > /dev/null
 as "$TA" PATCH "game_participant?post_id=eq.$GH&player_id=eq.$IDB" '{"status":"accepted"}' > /dev/null
-check "a game the player is accepted into is their next game" "\"$GH\"" \
-  "$(as "$TB" POST "rpc/get_my_home" '{}' | key nextGame.id)"
-check "and the host sees it too, marked as host" "true" \
-  "$(as "$TA" POST "rpc/get_my_home" '{}' | key nextGame.isHost)"
+ids_of() { python3 -c 'import sys,json;print(json.dumps([g["id"] for g in json.load(sys.stdin)]))'; }
+check "a game the player is accepted into is in their games, as player" "player" \
+  "$(as "$TB" POST "rpc/get_my_games" '{"p_limit":50}' | python3 -c 'import sys,json
+g=[x for x in json.load(sys.stdin) if x["id"]=="'$GH'"]; print(g[0]["myRole"] if g else "absent")')"
+check "and the host's, as host" "host" \
+  "$(as "$TA" POST "rpc/get_my_games" '{"p_filter":"organised","p_limit":50}' | python3 -c 'import sys,json
+g=[x for x in json.load(sys.stdin) if x["id"]=="'$GH'"]; print(g[0]["myRole"] if g else "absent")')"
+check "home's nextGames are the first 3 confirmed games of that list" \
+  "$(as "$TB" POST "rpc/get_my_games" '{"p_include_pending":false,"p_limit":3}' | ids_of)" \
+  "$(as "$TB" POST "rpc/get_my_home" '{}' | python3 -c 'import sys,json;print(json.dumps([g["id"] for g in json.load(sys.stdin)["nextGames"]]))')"
 
 PROF_J=$(as "$TJ" POST "rpc/get_my_profile" '{}')
 check "my profile has my real name and username" "[\"Jane Smyth\",\"${UN}_x\"]" \

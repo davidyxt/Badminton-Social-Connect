@@ -115,7 +115,7 @@ The username is chosen by the player and unique (ignoring case). The sign-up for
 
 | Screen | Call | Returns |
 |---|---|---|
-| Home page, top-bar avatar and bell | `supabase.rpc('get_my_home')` | `firstName`, `lastName`, `greetingName` ("John Doe"), `initials` ("JD"), `level`, `ratingCard`, `nextGame` (null = "No game planned"), `unreadNotifications` |
+| Home page, top-bar avatar and bell | `supabase.rpc('get_my_home')` | `firstName`, `lastName`, `greetingName` ("John Doe"), `initials` ("JD"), `level`, `ratingCard`, `nextGames` (the next 3 confirmed games, from `get_my_games`; `[]` = "No game planned"), `unreadNotifications` |
 | Profile page | `supabase.rpc('get_my_profile')` | `name`, `username`, `initials`, `level`, `reliability`, `location` ("Albert Park area · VIC"), `ratingCard`, plus every editable field |
 | Your Profile / Privacy Settings | `supabase.rpc('update_my_profile', { p_username, p_first_name, p_last_name, p_self_rating_band, p_bio, p_suburb, p_state, p_is_discoverable, p_preferred_format, p_email_notifications })` | The updated profile. Send only what changed |
 
@@ -242,3 +242,12 @@ One team member does this in the [Supabase dashboard](https://supabase.com/dashb
 - **Profile settings** also set preferred format and the email opt-out.
 - **`get_my_profile`** returns reliability (%) and every count behind it.
 - Screen-by-screen wiring: [frontend-wiring-guide.md](../frontend-wiring-guide.md).
+
+## My games, availability and profile pictures (2026-10-08)
+
+- **My games:** `supabase.rpc('get_my_games', { p_filter: 'all' | 'organised', p_when: 'upcoming' | 'past', p_include_pending, p_limit, p_offset })`. It lists every game the player hosts (also as a group admin) or plays in, with `myRole`. Home's `nextGames` is its first 3 upcoming confirmed games.
+- **Availability:** `update_my_profile({ p_availability: ['mon_evening', 'sat_morning'], p_availability_note })`. The slots are a day (`mon`–`sun`) and `morning`, `afternoon` or `evening`. It's shown as `availability` and `availabilityNote` on `get_my_profile` and `get_player_profile`.
+- **Profile picture:** upload to the `avatars` Storage bucket, in the player's own folder, then `set_my_profile_picture({ p_url })`; `remove_my_profile_picture()` clears it. Both return `previousPath`, the old file for the app to delete. The picture appears as `profileImageUrl` on every screen. Setup: [DEPLOYMENT.md](../DEPLOYMENT.md#9-storage-for-profile-pictures).
+
+Built in `20261008101500_my_games_availability_profile_pictures.sql`.
+
