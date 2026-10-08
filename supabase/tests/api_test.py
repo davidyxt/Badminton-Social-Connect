@@ -505,6 +505,54 @@ def main():
     check("a deleted organiser shows as 'Deleted User'",
           (r.body or {}).get("host", {}).get("name") == "Deleted User", r)
 
+    endpoint(A, "Game Details: host actions (cancel, no-shows)")
+    r = rpc("get_game_details", tc, p_post_id=gpost.get("post_id"))
+    ha = (r.body or {}).get("hostActions") or {}
+    check("the host sees hostActions with the rule times", has_keys(ha, [
+        "canCancel", "cancelClosesAt", "cancelIsLateFrom", "canDelete", "canMarkNoShows",
+        "noShowsOpenAt", "noShowsCloseAt"]), r)
+    check("10 days ahead: can cancel and delete, no-shows not yet",
+          (ha.get("canCancel"), ha.get("canDelete"), ha.get("canMarkNoShows")) == (True, True, False), r, detail=str(ha))
+    r = rpc("get_game_details", T["bob"], p_post_id=gpost.get("post_id"))
+    check("other players get hostActions null", (r.body or {}).get("hostActions") is None and "hostActions" in (r.body or {}), r)
+    soon2 = call("POST", "game_post", tc, {"organiser_id": cid, "format": "singles", "suburb": "Carlton",
+                                           "proposed_time": (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=2)).isoformat()})
+    sp2 = soon2.body[0]["post_id"] if isinstance(soon2.body, list) else None
+    ha = (rpc("get_game_details", tc, p_post_id=sp2).body or {}).get("hostActions") or {}
+    check("2 hours ahead: cancel and delete are closed (the 4-hour rule)",
+          (ha.get("canCancel"), ha.get("canDelete")) == (False, False), detail=str(ha))
+    r = rpc("get_game_details", T["bob"], p_post_id=G["c102"])
+    ha = (r.body or {}).get("hostActions") or {}
+    names = {p["name"]: p.get("noShow") for p in (r.body or {}).get("players", [])}
+    check("10 days after a game: the no-show window has closed", ha.get("canMarkNoShows") is False, r)
+    check("the host still sees the player marked absent (noShow: true)", names.get("dan") is True, r, detail=str(names))
+    r = rpc("get_game_details", T["carol"], p_post_id=G["c102"])
+    check("other players don't see who was marked absent",
+          "dan" not in {p["name"] for p in (r.body or {}).get("players", [])}, r)
+
+    # A game that starts in a few seconds, so the no-show window opens.
+    nid, tn, nname = new_player("noshow")
+    st = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=4)).isoformat()
+    ng_ = call("POST", "game_post", tc, {"organiser_id": cid, "format": "singles", "suburb": "Carlton",
+                                         "proposed_time": st, "duration_minutes": 15})
+    ngid = ng_.body[0]["post_id"] if isinstance(ng_.body, list) else None
+    rpc("request_to_join", tn, p_post_id=ngid)
+    rpc("accept_request", tc, p_post_id=ngid, p_player_id=nid)
+    time.sleep(5)
+    r = rpc("get_game_details", tc, p_post_id=ngid)
+    ha = (r.body or {}).get("hostActions") or {}
+    check("once the game starts: no-shows open, cancelling closed",
+          (ha.get("canMarkNoShows"), ha.get("canCancel")) == (True, False), r, detail=str(ha))
+    r = rpc("mark_no_show", tc, p_post_id=ngid, p_player_id=nid)
+    check("the host marks a no-show from the game page (game id only)", r.status == 204, r)
+    r = rpc("get_game_details", tc, p_post_id=ngid)
+    check("the player stays on the host's roster, marked noShow",
+          [p.get("noShow") for p in (r.body or {}).get("players", []) if p["id"] == nid] == [True], r)
+    r = rpc("clear_no_show", tc, p_post_id=ngid, p_player_id=nid)
+    check("and the host can undo it from the same page", r.status == 204, r)
+    r = rpc("get_game_details", tc, p_post_id=ngid)
+    check("the player is back to present", [p.get("noShow") for p in (r.body or {}).get("players", []) if p["id"] == nid] == [False], r)
+
     endpoint(A, "rpc/request_to_join")
     jid, tj, _ = new_player("joiner")
     r = rpc("request_to_join", tj, p_post_id=gpost.get("post_id"), p_message="Keen to play!")

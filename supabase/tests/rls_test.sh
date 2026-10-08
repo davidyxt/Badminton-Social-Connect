@@ -953,8 +953,13 @@ r=[x for x in (d if isinstance(d,list) else []) if x.get("id")==sys.argv[1]]
 print(r[0].get("isBlocked") if r else "absent")' "$1"; }
 BODY="{\"p_query\":\"$(as "$TQ" GET "player?player_id=eq.$IDQ&select=username" | field username)\"}"
 check "pat finds quinn in player search, badged" "True" "$(as "$TP" POST "rpc/search_players" "$BODY" | flag "$IDQ")"
+# A search body for the two hours around a game N days out, so games left by
+# earlier runs (the suite does not reset the database) cannot page it out.
+around() { python3 -c 'import sys,json,datetime as d
+t=d.datetime.now(d.timezone.utc).replace(hour=8,minute=0,second=0,microsecond=0)+d.timedelta(days=int(sys.argv[1]))
+print(json.dumps({"p_from":(t-d.timedelta(hours=1)).isoformat(),"p_to":(t+d.timedelta(hours=1)).isoformat(),"p_limit":50}))' "$1"; }
 check "pat still sees quinn's game, organiser badged" "True" \
-  "$(as "$TP" POST "rpc/search_games" '{"p_limit":50}' | python3 -c 'import sys,json
+  "$(as "$TP" POST "rpc/search_games" "$(around 27)" | python3 -c 'import sys,json
 g=[x for x in json.load(sys.stdin) if x["id"]=="'$GQ'"]; print(g[0]["host"]["isBlocked"] if g else "absent")')"
 BODY="{\"p_post_id\":\"$GQ\"}"
 check "and its details, host badged" "True" \
@@ -983,7 +988,8 @@ BODY="{\"organiser_id\":\"$IDA\",\"format\":\"doubles\",\"player_limit\":4,\"sub
 GA=$(as "$TA" POST "game_post" "$BODY" | field post_id)
 BODY="{\"p_post_id\":\"$GA\"}"; rpc "$TP" request_to_join "$BODY" > /dev/null
 BODY="{\"p_post_id\":\"$GA\",\"p_player_id\":\"$IDP\"}"; rpc "$TA" accept_request "$BODY" > /dev/null
-check "once pat joins alice's game, quinn cannot see it" "no" "$(has_id "$(as "$TQ" POST "rpc/search_games" '{"p_limit":50}')" "$GA")"
+check "once pat joins alice's game, quinn cannot see it" "no" "$(has_id "$(as "$TQ" POST "rpc/search_games" "$(around 31)")" "$GA")"
+check "(while others still can)" "yes" "$(has_id "$(as "$TA" POST "rpc/search_games" "$(around 31)")" "$GA")"
 BODY="{\"p_post_id\":\"$GA\"}"
 check "nor its details" "null" "$(as "$TQ" POST "rpc/get_game_details" "$BODY")"
 check "nor join it" "42501" "$(rpc "$TQ" request_to_join "$BODY")"

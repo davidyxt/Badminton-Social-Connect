@@ -3715,6 +3715,7 @@ paths:
                     - id: 00000000-0000-0000-0000-00000000a001
                       host: true
                       name: alice
+                      noShow: false
                       initials: AL
                       isBlocked: false
                       isDeleted: false
@@ -3722,6 +3723,7 @@ paths:
                     - id: 00000000-0000-0000-0000-00000000a003
                       host: false
                       name: carol
+                      noShow: false
                       initials: CA
                       isBlocked: false
                       isDeleted: false
@@ -3729,6 +3731,7 @@ paths:
                     - id: 00000000-0000-0000-0000-00000000a005
                       host: false
                       name: erin
+                      noShow: false
                       initials: ER
                       isBlocked: false
                       isDeleted: false
@@ -3742,6 +3745,7 @@ paths:
                     startsAt: '2026-10-10T07:00:00+00:00'
                     canManage: false
                     maxPlayers: 4
+                    hostActions: 
                     playerCount: 3
                     abilityLevel: intermediate
                     locationDetail: Albert Park
@@ -3776,6 +3780,7 @@ paths:
                     - id: 00000000-0000-0000-0000-00000000a001
                       host: false
                       name: alice
+                      noShow: false
                       initials: AL
                       isBlocked: false
                       isDeleted: false
@@ -3783,6 +3788,7 @@ paths:
                     - id: 00000000-0000-0000-0000-00000000a005
                       host: false
                       name: erin
+                      noShow: false
                       initials: ER
                       isBlocked: false
                       isDeleted: false
@@ -3796,6 +3802,14 @@ paths:
                     startsAt: '2026-10-14T08:00:00+00:00'
                     canManage: true
                     maxPlayers: 8
+                    hostActions:
+                      canCancel: true
+                      canDelete: true
+                      noShowsOpenAt: '2026-10-14T08:00:00+00:00'
+                      canMarkNoShows: false
+                      cancelClosesAt: '2026-10-14T04:00:00+00:00'
+                      noShowsCloseAt: '2026-10-16T10:00:00+00:00'
+                      cancelIsLateFrom: '2026-10-13T08:00:00+00:00'
                     playerCount: 2
                     abilityLevel: any
                     locationDetail: Parkville
@@ -3839,6 +3853,7 @@ paths:
                     - id: 00000000-0000-0000-0000-00000000a003
                       host: true
                       name: carol
+                      noShow: false
                       initials: CA
                       isBlocked: false
                       isDeleted: false
@@ -3852,6 +3867,14 @@ paths:
                     startsAt: '2026-10-13T07:00:00+00:00'
                     canManage: true
                     maxPlayers: 2
+                    hostActions:
+                      canCancel: true
+                      canDelete: true
+                      noShowsOpenAt: '2026-10-13T07:00:00+00:00'
+                      canMarkNoShows: false
+                      cancelClosesAt: '2026-10-13T03:00:00+00:00'
+                      noShowsCloseAt: '2026-10-15T08:00:00+00:00'
+                      cancelIsLateFrom: '2026-10-12T07:00:00+00:00'
                     playerCount: 1
                     abilityLevel: any
                     locationDetail: Blackburn North
@@ -3895,6 +3918,7 @@ paths:
                     - id: 00000000-0000-0000-0000-00000000a003
                       host: true
                       name: carol
+                      noShow: false
                       initials: CA
                       isBlocked: false
                       isDeleted: false
@@ -3908,6 +3932,7 @@ paths:
                     startsAt: '2026-10-13T07:00:00+00:00'
                     canManage: false
                     maxPlayers: 2
+                    hostActions: 
                     playerCount: 1
                     abilityLevel: any
                     locationDetail: Blackburn North
@@ -8891,6 +8916,8 @@ components:
                 type: boolean
               name:
                 type: string
+              noShow:
+                type: boolean
               initials:
                 type: string
               isBlocked:
@@ -8935,6 +8962,28 @@ components:
           type: boolean
         maxPlayers:
           type: integer
+        hostActions:
+          type: object
+          properties:
+            canCancel:
+              type: boolean
+            canDelete:
+              type: boolean
+            noShowsOpenAt:
+              type: string
+              format: date-time
+            canMarkNoShows:
+              type: boolean
+            cancelClosesAt:
+              type: string
+              format: date-time
+            noShowsCloseAt:
+              type: string
+              format: date-time
+            cancelIsLateFrom:
+              type: string
+              format: date-time
+          nullable: true
         playerCount:
           type: integer
         abilityLevel:
@@ -9331,6 +9380,35 @@ components:
           description: Null in every sample (not built yet).
         confirmed_results:
           type: integer
+    ActivityLog:
+      type: object
+      properties:
+        logId:
+          type: string
+          format: uuid
+          description: Unique log entry id.
+        actorId:
+          type: string
+          format: uuid
+          description: Admin (or system) that performed the action.
+        action:
+          type: string
+          description: Action performed, e.g. suspend_account, hide_post.
+        targetType:
+          type: string
+          description: Type of the affected record, e.g. player, game_post, mini_league.
+        targetId:
+          type: string
+          description: Id of the affected record.
+        details:
+          type: string
+          description: Free-text or JSON-encoded detail of the action.
+        createdAt:
+          type: string
+          format: date-time
+          description: When the action was logged.
+      required:
+      - logId
     MatchMessage:
       type: object
       properties:
@@ -9379,35 +9457,6 @@ components:
           type: string
           format: date-time
           description: When the message was sent.
-    ActivityLog:
-      type: object
-      properties:
-        logId:
-          type: string
-          format: uuid
-          description: Unique log entry id.
-        actorId:
-          type: string
-          format: uuid
-          description: Admin (or system) that performed the action.
-        action:
-          type: string
-          description: Action performed, e.g. suspend_account, hide_post.
-        targetType:
-          type: string
-          description: Type of the affected record, e.g. player, game_post, mini_league.
-        targetId:
-          type: string
-          description: Id of the affected record.
-        details:
-          type: string
-          description: Free-text or JSON-encoded detail of the action.
-        createdAt:
-          type: string
-          format: date-time
-          description: When the action was logged.
-      required:
-      - logId
     Error:
       type: object
       description: PostgREST error. `code` is the Postgres error code; `message` is written to be shown
