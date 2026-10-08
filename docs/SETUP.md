@@ -65,18 +65,18 @@ Useful commands (from the repo root):
 | Folder | What | Reaches the hosted project? |
 |---|---|---|
 | `supabase/seeds/production/` | Real reference data: states, all Australian suburbs and postcodes, 142 badminton venues with coordinates | Yes, through the CI deploy job. Files must be safe to run again (upserts) |
-| `supabase/seeds/dev/` | Dummy data in every table: accounts, clubs, upcoming and past games, results, blocks, reports, notifications | **Never** |
+| `supabase/seeds/dev/` | Dummy data in every table: accounts, groups, upcoming and past games, results, blocks, reports, notifications | **Never** |
 
 Dev accounts, all with the password `Passw0rd!`:
 
 | Email | Notes |
 |---|---|
 | `admin@example.com` | Platform admin |
-| `alice@example.com` | Organiser, Smash Club admin, runs the Spring Singles Ladder, blocked Frank |
-| `bob@example.com` | Pending request to join Smash Club, one late cancellation |
+| `alice@example.com` | Organiser, Smash Group admin, runs the Spring Singles Ladder, blocked Frank |
+| `bob@example.com` | Pending request to join Smash Group, one late cancellation |
 | `carol@example.com` | Northside Shuttlers admin, a disputed result |
 | `dan@example.com` | Profile hidden from other players, one no-show |
-| `erin@example.com` | Smash Club member, one late withdrawal |
+| `erin@example.com` | Smash Group member, one late withdrawal |
 | `frank@example.com` | Blocked by Alice, reported by Carol |
 | `grace@example.com` | Google-style sign-up, no username, not past the age gate |
 | `ivy@example.com` | New player, no games |

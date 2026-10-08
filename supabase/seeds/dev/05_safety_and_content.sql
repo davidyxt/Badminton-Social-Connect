@@ -24,9 +24,9 @@ values
    'fake_account', 'Thought this was someone I know pretending. My mistake.', 'dismissed',
    jsonb_build_object('username', 'erin', 'captured_at', now() - interval '20 days'),
    now() - interval '20 days'),
-  ('00000000-0000-0000-0000-00000000a001', 'club', '00000000-0000-0000-0000-00000000c003',
-   'other', 'Club still listed although it closed.', 'resolved',
-   jsonb_build_object('name', 'Old Court Club', 'captured_at', now() - interval '25 days'),
+  ('00000000-0000-0000-0000-00000000a001', 'group', '00000000-0000-0000-0000-00000000c003',
+   'other', 'Group still listed although it closed.', 'resolved',
+   jsonb_build_object('name', 'Old Court Group', 'captured_at', now() - interval '25 days'),
    now() - interval '25 days');
 
 -- Admin posts for the home page carousel.

@@ -1,19 +1,19 @@
 # Database Schema
 
-Implemented across thirty-five migrations in `supabase/migrations/`:
+Implemented across thirty-six migrations in `supabase/migrations/`:
 
 | Migration | What it adds |
 |---|---|
 | `..._initial_schema.sql` | The 16 tables from the original ER diagram, with RLS |
-| `..._clubs_as_organisers.sql` | `club`, `club_representative`, and clubs as game post organisers |
+| `..._clubs_as_organisers.sql` | `club`, `club_representative` (now `groups`, `group_member`), and clubs as game post organisers |
 | `..._game_participants_and_match_sides.sql` | The join flow, the game-to-match link, and sides |
 | `..._audit_columns.sql` | `updated_at` / `updated_by` on every table that can change |
-| `..._bl080_club_admins_and_join_requests.sql` | Club admins, members and join requests (M6, using clubs instead of groups); clubs deactivated instead of deleted |
+| `..._bl080_club_admins_and_join_requests.sql` | Club (now group) admins, members and join requests (M6); deactivated instead of deleted |
 | `..._bl011_preferred_format.sql` | `player_profile.preferred_format` (BL-011) |
 | `..._bl001_states_suburbs_venues.sql` | `state` and `suburb` reference tables; venues get a suburb (BL-001) |
 | `..._m4_username_and_private_names.sql` | `display_name` renamed `username` (unique, player-chosen); first and last names in owner-only `player_private` |
 | `..._bl007_age_gate_and_consent.sql` | 18+ age gate, consent records, `register_player`; unregistered accounts locked out (BL-007) |
-| `..._bl013_game_posts.sql` | Post a Game fields, cancel with the 4-hour rule, delete hides, admin-only delete of games that happened, inactive clubs have no upcoming games (BL-013) |
+| `..._bl013_game_posts.sql` | Post a Game fields, cancel with the 4-hour rule, delete hides, admin-only delete of games that happened, inactive groups have no upcoming games (BL-013) |
 | `..._bl017_join_requests.sql` | Join request RPCs, request messages, status history, match created on first acceptance (BL-017) |
 | `..._bl019_player_profiles.sql` | `get_player_profile` and the stats behind it (BL-019) |
 | `..._bl015_find_games.sql` | `game_post.title`, `search_games`, `search_players`, `get_game_details`, `get_join_requests` (BL-015) |
@@ -29,7 +29,7 @@ Implemented across thirty-five migrations in `supabase/migrations/`:
 | `..._bl001_venue_locations_and_maps.sql` | Venue `latitude`, `longitude`, `source_url` and a generated Google Maps `maps_url` |
 | `..._venue_geocoding_queue.sql` | Venues without a pin are queued and geocoded by the `geocode-venues` Edge Function (Nominatim, one worker, 1 request/s) |
 | `..._m4_my_home_and_profile.sql` | `get_my_home`, `get_my_profile`, `update_my_profile` for the Home and Profile pages |
-| `..._bl080_join_by_request_only.sql` | Players join clubs only by asking; admins cannot add members directly (team item 4) |
+| `..._bl080_join_by_request_only.sql` | Players join groups only by asking; admins cannot add members directly (team item 4) |
 | `..._m4_username_required.sql` | No generated usernames: email sign-ups must send one, Google sign-ups choose it in `register_player(p_username)` (item 9) |
 | `..._account_deletion.sql` | Deleting an account keeps the player as "Deleted User" with results and rankings; `delete_my_account` (item 5) |
 | `..._bl028_report_details_required.sql` | Every report needs details (item 12) |
@@ -38,6 +38,7 @@ Implemented across thirty-five migrations in `supabase/migrations/`:
 | `..._wiring_form_options_and_profile_fields.sql` | `get_game_form_options`, "Badminton game" default title, Maps links on cards, preferred format and email opt-out in `update_my_profile` |
 | `..._revoke_anon_function_access.sql` | Signed-out visitors can call only `is_username_available` |
 | `..._api_descriptions.sql` | Function descriptions used to build the API spec |
+| `..._clubs_are_groups.sql` | Clubs renamed groups everywhere: `club` → `groups` (`group` is an SQL keyword), `club_representative` → `group_member`, `club_id` → `group_id`, `organiser_club_id` → `organiser_group_id`, `report_club` → `report_group`, `isClub` → `isGroup`, and every function, policy, trigger and description |
 | `..._venue_search_and_no_reliability_band.sql` | `search_venues` for the venue dropdown (trigram indexes on venue and suburb names); `get_game_form_options` no longer lists venues; no reliability band, the screens show a % |
 
 Access rules are documented separately in [rls-policies.md](./rls-policies.md),
@@ -129,7 +130,7 @@ erDiagram
     REPORT {
         uuid report_id PK
         uuid reported_by_player_id FK
-        text target_type "player, game_post, club, mini_league, ..."
+        text target_type "player, game_post, group, mini_league, ..."
         uuid target_id "polymorphic, no FK"
         text category "harassment, spam, underage, ..."
         text reason "details; required for other"
@@ -143,7 +144,7 @@ erDiagram
     GAME_POST {
         uuid post_id PK
         uuid organiser_id FK "set when a player posts"
-        uuid organiser_club_id FK "set when a club posts"
+        uuid organiser_group_id FK "set when a group posts"
         text format
         text suburb "copied from the venue when one is chosen"
         uuid venue_id FK "seeded venue, null = other venue"
@@ -190,8 +191,8 @@ erDiagram
         uuid updated_by
     }
 
-    CLUB {
-        uuid club_id PK
+    GROUPS {
+        uuid group_id PK
         text name
         text slug UK
         text description
@@ -207,8 +208,8 @@ erDiagram
         uuid updated_by
     }
 
-    CLUB_REPRESENTATIVE {
-        uuid club_id PK,FK
+    GROUP_MEMBER {
+        uuid group_id PK,FK
         uuid player_id PK,FK
         text role "admin | member"
         text status "pending | approved"
@@ -372,11 +373,11 @@ erDiagram
     PLAYER ||--o{ CHECK_IN : checks_in
     PLAYER ||--o{ MATCH_PARTICIPANT : plays_in
     PLAYER ||--o{ MATCH : creates
-    PLAYER ||--o{ CLUB : registers
-    PLAYER ||--o{ CLUB_REPRESENTATIVE : belongs_to
+    PLAYER ||--o{ GROUPS : registers
+    PLAYER ||--o{ GROUP_MEMBER : belongs_to
     PLAYER ||--o{ GAME_PARTICIPANT : requests_to_join
-    CLUB ||--o{ CLUB_REPRESENTATIVE : has_members
-    CLUB ||--o{ GAME_POST : organises
+    GROUPS ||--o{ GROUP_MEMBER : has_members
+    GROUPS ||--o{ GAME_POST : organises
     GAME_POST ||--o{ GAME_PARTICIPANT : receives
     GAME_POST ||--o{ MATCH : contains
     MINI_LEAGUE ||--o{ LEAGUE_STANDING : maintains
@@ -430,7 +431,7 @@ check constraint cannot do:
 |---|---|
 | `game_participant_capacity` | A game cannot accept more players than `player_limit` |
 | `game_post_validate` | Suburb copied from the venue and required; start time in the future; `cancelled` and `deleted_*` only through the game functions |
-| `club_has_no_upcoming_games` | A club cannot be deactivated while it has upcoming games |
+| `group_has_no_upcoming_games` | A group cannot be deactivated while it has upcoming games |
 | `match_participant_validate` | Players must be on the roster; one per side for singles, two for doubles |
 | `match_completion_validate` | A match cannot be marked `completed` with sides that are not full |
 
@@ -486,7 +487,7 @@ Say which link you mean with `!`, and alias it to something readable with `:`
 supabase.from('game_post').select(`
   post_id, player_limit, status,
   organiser:player!organiser_id(username),
-  club(name, logo_url),
+  groups(name, logo_url),
   game_participant(status, player(username))
 `)
 ```
@@ -535,8 +536,8 @@ those states** (BL-013):
 
 | Function | Who | Rule |
 |---|---|---|
-| `cancel_game_post(p_post_id, p_reason)` | Organiser, club admin, admin | Refused within 4 hours of the start (admins excepted) and once the game has started. The post stays visible as `cancelled`; a `cancellation_record` keeps the reason; players are notified |
-| `delete_game_post(p_post_id)` | Organiser, club admin | Only games that have not happened, and not within 4 hours unless already cancelled. The post is hidden (`deleted_at`), not removed |
+| `cancel_game_post(p_post_id, p_reason)` | Organiser, group admin, admin | Refused within 4 hours of the start (admins excepted) and once the game has started. The post stays visible as `cancelled`; a `cancellation_record` keeps the reason; players are notified |
+| `delete_game_post(p_post_id)` | Organiser, group admin | Only games that have not happened, and not within 4 hours unless already cancelled. The post is hidden (`deleted_at`), not removed |
 | `admin_game_post_deletion_impact(p_post_id)` | Admin | Warning data: matches, confirmed results that would stop counting, affected players. Rating changes come with BL-024 |
 | `admin_delete_game_post(p_post_id, p_reason)` | Admin | Any game, reason required. Hides it and marks its results `excluded_from_ranking` |
 
@@ -577,7 +578,7 @@ function that lists players or games must apply the same rules** (for example
 the leaderboard, BL-025).
 
 **Reports are filed only through functions** (BL-028): `report_player`,
-`report_post`, `report_league`, `report_club`. The server copies an evidence
+`report_post`, `report_league`, `report_group`. The server copies an evidence
 snapshot of the reported item into `report.evidence`, enforces 5 reports an
 hour and 20 a day, and allows one open report per reporter per item.
 
@@ -618,34 +619,34 @@ the organiser first.
 **`match.league_id` is nullable.** A casual match arranged through a game post
 belongs to no league.
 
-**A game post is organised by exactly one of a player or a club.** Rather than
+**A game post is organised by exactly one of a player or a group.** Rather than
 one polymorphic column holding either kind of id, there are two nullable
 columns with real foreign keys, and a check constraint
-(`num_nonnulls(organiser_id, organiser_club_id) = 1`) guaranteeing exactly one
+(`num_nonnulls(organiser_id, organiser_group_id) = 1`) guaranteeing exactly one
 is filled in. This keeps referential integrity in the database and, just as
 importantly, lets PostgREST embed the organiser in a single request:
 
 ```js
-supabase.from('game_post').select('*, player(username), club(name, logo_url)')
+supabase.from('game_post').select('*, player(username), groups(name, logo_url)')
 ```
 
 That nested syntax works only because a foreign key exists. The unused side
 comes back `null`. With a polymorphic column, every listing would need a second
 and third round trip to resolve organiser names.
 
-**`club` is not an account.** A club cannot log in. Real people act on its
-behalf. The app uses clubs where the v1.2 documents say "groups" (M6), and
-`club_representative` is the membership list: `role` is `admin` or `member`,
+**`groups` is not an account.** A group cannot log in. Real people act on its
+behalf. Groups are what the v1.2 documents call groups (M6); they were called
+clubs until 2026-10-08. `group_member` is the membership list: `role` is `admin` or `member`,
 `status` is `pending` (a join request) or `approved`. Only approved admins can
-rename the club, post games for it and manage members. Whoever registers a club
-becomes its first admin automatically, via the `on_club_created` trigger, and
-the `keep_one_club_admin` trigger stops the last admin leaving, so a club can
+rename the group, post games for it and manage members. Whoever registers a group
+becomes its first admin automatically, via the `on_group_created` trigger, and
+the `keep_one_group_admin` trigger stops the last admin leaving, so a group can
 never exist with nobody able to run it.
 
-**Clubs are deactivated, never deleted.** A club admin sets `is_active = false`.
+**Groups are deactivated, never deleted.** A group admin sets `is_active = false`.
 Its game posts, matches and results stay; it cannot post games or take members
-until reactivated. `game_post.organiser_club_id` is `on delete restrict`, so a
-club with posts cannot be deleted even by `service_role`.
+until reactivated. `game_post.organiser_group_id` is `on delete restrict`, so a
+group with posts cannot be deleted even by `service_role`.
 
 **`match_result` allows several rows per match**, read from the diagram as "each
 side submits a score and one gets confirmed". A partial unique index enforces at
@@ -655,7 +656,7 @@ being confirmed without a `winning_side`.
 **The organiser of a game joins it automatically.** When an individual posts a
 game, the `on_game_post_created` trigger adds them to the roster as `accepted`,
 taking one of the places. "A game of 4" therefore means four people on court
-including the organiser. A club post has no such person, so all places are open.
+including the organiser. A group post has no such person, so all places are open.
 
 **`report.target_id` is polymorphic**, interpreted according to `target_type`,
 so Postgres cannot enforce a foreign key. Application code must check the target
@@ -668,7 +669,7 @@ results. Nothing computes them yet.
 
 | # | Change | Reason |
 |---|---|---|
-| 1 | `game_post.group_id` replaced by `organiser_club_id`, plus new `club` and `club_representative` tables | The diagram defined no `GROUP` entity. Clubs and organisations need to post listings too |
+| 1 | `game_post.group_id` replaced by `organiser_group_id`, plus new `groups` and `group_member` tables | The diagram defined no `GROUP` entity. Groups and organisations need to post listings too |
 | 2 | Added `match.created_by` | A casual match has no league organiser, so RLS had no way to say who may edit it |
 | 3 | Added `match_result.submitted_by`, `dispute.raised_by` | Needed to show who claimed what, and to let a player see the dispute they raised |
 | 4 | Added `notification.match_id` | Implied by `MATCH ||--o{ NOTIFICATION : reminds` |
@@ -694,7 +695,7 @@ that correcting a venue is a seed-file edit, not a new migration.
 | `seeds/production/01_states.sql` | 8 states and territories | `db reset` locally; CI deploy job on the hosted project |
 | `seeds/production/02_suburbs.sql` | 18,087 Australian suburbs with postcodes and approximate coordinates. Generated by `seeds/scripts/generate_suburbs.py` from GeoNames (CC BY 4.0); mail-only postcode ranges excluded | Same |
 | `seeds/production/03_venues.sql` | 142 venues across Australia with coordinates, from BadmintonHub (permission pending); pins missing or wrong there come from OpenStreetMap Nominatim. Generated by `seeds/scripts/generate_venues.py`; checked by `tests/venue_maps_check.py` | Same |
-| `seeds/dev/01_accounts.sql` … `06_deleted_account.sql` | Dummy data in every table (password `Passw0rd!`): accounts, clubs, upcoming and past games, matches, results, a dispute, no-shows, a league, blocks, reports, admin posts, notifications, the geocoding queue, one deleted account | `db reset` locally only |
+| `seeds/dev/01_accounts.sql` … `06_deleted_account.sql` | Dummy data in every table (password `Passw0rd!`): accounts, groups, upcoming and past games, matches, results, a dispute, no-shows, a league, blocks, reports, admin posts, notifications, the geocoding queue, one deleted account | `db reset` locally only |
 
 Production seed files are upserts, so the deploy job can run them on every
 merge. They never delete: a suburb dropped from the source stays, because venues
@@ -708,7 +709,7 @@ one postcode covers several suburbs, so the unit is `(name, postcode, state)`.
 It is text because NT and ACT postcodes start with 0.
 
 **Suburb text columns are not linked yet.** `game_post.suburb`,
-`player_profile.suburb` and `club.suburb` are still free text. Pointing them at
+`player_profile.suburb` and `groups.suburb` are still free text. Pointing them at
 `suburb` belongs with the stories that use them (BL-013, BL-015).
 
 ## Working with it locally

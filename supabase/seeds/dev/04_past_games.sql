@@ -19,7 +19,7 @@
 --            cancellation
 --   ...c106  alice v dan singles, 5 days ago: dan won; erin gave up her place
 --            the evening before (late withdrawal)
---   ...c107  Old Court Club doubles, 30 days ago, before the club closed
+--   ...c107  Old Court Group doubles, 30 days ago, before the group closed
 
 set session_replication_role = replica;
 
@@ -34,7 +34,7 @@ values
   ('00000000-0000-0000-0000-00000000e001', '00000000-0000-0000-0000-00000000a002', 0, 1, 0, 3);
 
 insert into public.game_post (
-  post_id, organiser_id, organiser_club_id, title, format, style, ability_level,
+  post_id, organiser_id, organiser_group_id, title, format, style, ability_level,
   venue_id, suburb, proposed_time, duration_minutes, player_limit, status, created_at
 )
 values

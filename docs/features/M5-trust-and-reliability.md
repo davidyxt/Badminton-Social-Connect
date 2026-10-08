@@ -18,7 +18,7 @@ as each lands.
 
 | Event | Who is told | `type` | Opens |
 |---|---|---|---|
-| A player asks to join | The organiser, or every admin of the club that posted it | `join_request` | The game (`postId`) |
+| A player asks to join | The organiser, or every admin of the group that posted it | `join_request` | The game (`postId`) |
 | The host accepts | The player | `request_accepted` | The match (`matchId`) or game |
 | The host declines | The player | `request_declined` | The game |
 | A player withdraws | The host | `request_withdrawn` | The game |

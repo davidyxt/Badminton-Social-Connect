@@ -1,7 +1,7 @@
 # M3: Reporting and blocking
 
 Players can block another player, so neither can see or contact the other, and
-report a player, game post, Mini League or club to the administrator. Backend
+report a player, game post, Mini League or group to the administrator. Backend
 stories: BL-027 (block) and BL-028 (report). The screens are BL-029 (Player FE);
 the admin report queue is BL-038 / BL-039 (Admin BE / FE).
 
@@ -22,7 +22,7 @@ the admin report queue is BL-038 / BL-039 (Admin BE / FE).
 | Unblock | Blocked Users list | `supabase.rpc('unblock_player', { p_player_id })` |
 | Report a player | `PlayerProfilePage.jsx` | `supabase.rpc('report_player', { p_player_id, p_category, p_reason })` |
 | Report a game post | Game Details | `supabase.rpc('report_post', { p_post_id, p_category, p_reason })` |
-| Report a club | Club page | `supabase.rpc('report_club', { p_club_id, p_category, p_reason })` |
+| Report a group | Group page | `supabase.rpc('report_group', { p_group_id, p_category, p_reason })` |
 | Report a Mini League | League page | `supabase.rpc('report_league', { p_league_id, p_category, p_reason })` |
 | My reports | Profile → Report a Problem | `supabase.from('report').select('report_id, target_type, category, status, created_at')` |
 

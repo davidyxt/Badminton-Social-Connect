@@ -43,7 +43,7 @@ Insert into `game_post`:
 
 | Form field | Column | Notes |
 |---|---|---|
-| (you) | `organiser_id` | The signed-in player's id. For a club post, send `organiser_club_id` instead |
+| (you) | `organiser_id` | The signed-in player's id. For a group post, send `organiser_group_id` instead |
 | Venue | `venue_id` | From the venue list. The suburb is filled in automatically. For "Other venue", leave it out and send `suburb` |
 | Format | `format` | `singles`, `doubles`, `mixed_doubles` |
 | Style | `style` | `social`, `competitive` |
@@ -87,7 +87,7 @@ Disable both buttons inside the 4-hour cutoff and explain why (BL-014).
   "startsAt": "…", "endsAt": "…",
   "location": "Melbourne Sports and Aquatic Centre, Albert Park", "suburb": "Albert Park",
   "playerCount": 2, "maxPlayers": 4, "status": "open", "imageUrl": null,
-  "organiser": { "id": "…", "name": "alice", "initials": "AL", "isClub": false },
+  "organiser": { "id": "…", "name": "alice", "initials": "AL", "isGroup": false },
   "myStatus": null
 }
 ```
@@ -95,7 +95,7 @@ Disable both buttons inside the 4-hour cutoff and explain why (BL-014).
 **`get_game_details`**: a card plus `duration` ("90 mins"), `durationMinutes`,
 `location` (venue name), `locationDetail` (suburb), `address`, `notes`,
 `abilityLevel`, `host` (`name`, `initials`, `rating`, `verifiedMatches`,
-`reliability`; for a club, its name, `isActive` and `isVerified`), `players`
+`reliability`; for a group, its name, `isActive` and `isVerified`), `players`
 (`name`, `initials`, `host`), `canManage` and `matchId`. Null if the game is
 deleted.
 
@@ -145,7 +145,7 @@ cannot be cancelled within 4 hours of the start time…". Useful `code` values:
   - formats, styles and ability levels;
   - limits;
   - the default title;
-  - who the player can post as (themselves, or a club they admin).
+  - who the player can post as (themselves, or a group they admin).
 - **Maps links:** game cards, Game Details and the Home page's next game carry `mapsUrl`.
 - **Venue search:** `search_venues(p_query, p_state, p_limit)` backs the venue dropdown.
   - It matches name, suburb, address or postcode, tolerates typos, and returns the best matches first (up to 50).

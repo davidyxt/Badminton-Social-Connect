@@ -29,8 +29,8 @@ Sign in as any of these test accounts. Each one's password is `Passw0rd!`.
 
 | Account | Use it to see |
 |---|---|
-| `alice@example.com` | An organiser with requests to answer, a club she admins (Smash Club) and a league. Alice blocked Frank. |
-| `bob@example.com` | A pending club join request and a late cancellation (89% reliable). |
+| `alice@example.com` | An organiser with requests to answer, a group she admins (Smash Group) and a league. Alice blocked Frank. |
+| `bob@example.com` | A pending group join request and a late cancellation (89% reliable). |
 | `carol@example.com` | A disputed result, and a notification that a deleted player's game was cancelled. |
 | `dan@example.com` | A hidden profile and a no-show (80%). |
 | `frank@example.com` | Being blocked: Alice and her games are invisible to him. |
@@ -100,7 +100,6 @@ Admin announcements for the home page come from `from('admin_post').select('titl
 
 - Replace the `dashboardData` sample with `get_my_home`.
 - Show `nextGame` in the "upcoming match" card: title, date, time, location, and an "Open in Maps" link from `mapsUrl`.
-- Hide the league and recent activity cards, or keep their empty states, until they have a backend.
 
 ### Find Games, Matches tab (`FindGamesPage`) ✅
 
@@ -109,7 +108,7 @@ Call `rpc('search_games', { p_query, p_level, p_format, p_suburb, p_from, p_to, 
 Each card has the same keys as the sample `games` array: `id`, `title`, `format`, `style`, `rank`, `date`, `time`, `location`, `playerCount`, `maxPlayers` and `imageUrl`. It also has:
 
 - `mapsUrl`
-- `organiser`, with `isClub`, `isBlocked` and `isDeleted`
+- `organiser`, with `isGroup`, `isBlocked` and `isDeleted`
 - `myStatus`
 
 Changes from the sample data:
@@ -124,7 +123,7 @@ Changes from the sample data:
 - Change the "Friendly" label and filter value to **"Social"** (2).
 - Show a **Blocked** badge on the organiser when `organiser.isBlocked` is true (6).
 - When `organiser.isDeleted` is true, show "Deleted User" with no link (4).
-- When `organiser.isClub` is true, show the club as the host. If `organiser.isActive` is false, mark it inactive (3).
+- When `organiser.isGroup` is true, show the group as the host. If `organiser.isActive` is false, mark it inactive (3).
 - Optional: an "Open in Maps" link from `mapsUrl`.
 
 ### Find Games, Players tab ✅
@@ -191,7 +190,7 @@ Fill the form from `rpc('get_game_form_options')`:
 - **Choices:** `formats`, `styles` and `abilityLevels`, each as value + label.
 - **`limits`:** the allowed ranges.
 - **`defaultTitle`:** "Badminton game".
-- **`postAs`:** the player, plus any club they're an admin of.
+- **`postAs`:** the player, plus any group they're an admin of.
 
 For the **venue dropdown**, search as the player types: `rpc('search_venues', { p_query, p_state, p_limit })`.
 
@@ -206,7 +205,7 @@ Save with `from('game_post').insert({...}).select()`:
 | Form | Column |
 |---|---|
 | post as me | `organiser_id` = your id |
-| post as a club | `organiser_club_id` = the club id (and no `organiser_id`) |
+| post as a group | `organiser_group_id` = the group id (and no `organiser_id`) |
 | **title** (new field) | `title` (optional; cards show "Badminton game" without it) |
 | format, style, abilityLevel, notes | `format`, `style`, `ability_level`, `notes` |
 | durationMinutes | `duration_minutes` (15–240) |
@@ -222,7 +221,7 @@ Replace `services/gameService.js`'s fake `createGame`. On success, go to `/post-
 - Add a **Title** field, optional and up to 80 characters, with "Badminton game" as the placeholder (2).
 - Change the style option "Friendly" to **"Social"** (2).
 - Replace the hard-coded venue `<select>` (three venues and "Other") with a **searchable dropdown** backed by `search_venues`. Keep an **"Other venue"** option that reveals a **Suburb** field (2).
-- Add **Post as** (me, or a club I admin) from `postAs`, shown only when the player admins a club (2, 3).
+- Add **Post as** (me, or a group I admin) from `postAs`, shown only when the player admins a group (2, 3).
 - Fill the format, style, level and duration options from `get_game_form_options` instead of hard-coding them. The duration options can stay as they are, within 15–240 minutes.
 - Add a **Players** number when needed. It defaults to 2 for singles and 4 for doubles (`defaultPlayers`).
 - Send `ability_level` values in snake_case, e.g. `lower_intermediate`, not labels.
@@ -298,7 +297,7 @@ Menu items:
 | Privacy Settings | `update_my_profile({ p_is_discoverable })` |
 | Notifications | `update_my_profile({ p_email_notifications })`: email opt-out |
 | Blocked Users | `rpc('get_blocked_players')` lists them; `rpc('unblock_player', { p_player_id })` |
-| Report a Problem | `report_player` / `report_post` / `report_club` / `report_league` |
+| Report a Problem | `report_player` / `report_post` / `report_group` / `report_league` |
 | Sign Out | `/signout` |
 | Delete account (new) | `rpc('delete_my_account')`, then sign out |
 | Terms & Privacy Policy | Pages don't exist yet |
@@ -369,7 +368,7 @@ Buttons:
 
 ### Groups (new screens) ✅ backend, ❌ no screens yet
 
-Groups use the `club` and `club_representative` tables (see item 3 in [Changes the frontend must make](#changes-the-frontend-must-make)).
+Groups use the `groups` and `group_member` tables (see item 3 in [Changes the frontend must make](#changes-the-frontend-must-make)).
 
 **Frontend adjustments**
 
@@ -399,9 +398,9 @@ From the team's decisions in items-to-confirm:
    - use "Social", not "Friendly";
    - make the venue a searchable dropdown backed by `search_venues`, and send its `venue_id`;
    - "Other" needs a suburb;
-   - add "post as me / as a club" (`postAs`).
+   - add "post as me / as a group" (`postAs`).
 3. **Groups (item 4, Nick's request):**
-   - players **ask** to join, and a club admin approves;
+   - players **ask** to join, and a group admin approves;
    - there's no "add member" button for admins.
 
    Screens to build:
@@ -412,17 +411,17 @@ From the team's decisions in items-to-confirm:
    - post a game as the group;
    - on the Profile page, "my groups" with leave.
 
-   All of it is table calls on `club` and `club_representative`:
+   All of it is table calls on `groups` and `group_member`:
 
    | Action | Call |
    |---|---|
-   | Ask to join | `insert({ club_id, player_id: me })` (starts pending) |
+   | Ask to join | `insert({ group_id, player_id: me })` (starts pending) |
    | Approve | `update({ status: 'approved' })` |
    | Promote | `update({ role: 'admin' })` |
    | Leave or decline | `delete()` |
-   | Deactivate the club | `from('club').update({ is_active: false })` |
+   | Deactivate the group | `from('groups').update({ is_active: false })` |
 
-   An inactive club shows as inactive on its old games (`organiser.isActive`).
+   An inactive group shows as inactive on its old games (`organiser.isActive`).
 4. **Deleted accounts (item 5):** deleted players appear as **"Deleted User"**, with `isDeleted: true` on hosts and rosters.
    - Don't link to their profile; `get_player_profile` returns null.
    - Add a "Delete account" option with a clear warning.
@@ -454,13 +453,13 @@ Report and block categories:
 
 | Feature | Backend |
 |---|---|
-| Clubs (create, join, approve, promote, leave, deactivate) | Tables `club`, `club_representative` |
-| Post a game as a club | `game_post.organiser_club_id`, `get_game_form_options().postAs` |
+| Groups (create, join, approve, promote, leave, deactivate) | Tables `groups`, `group_member` |
+| Post a game as a group | `game_post.organiser_group_id`, `get_game_form_options().postAs` |
 | Withdraw from a game | `withdraw_request` |
 | Organiser cancels or deletes a game | `cancel_game_post`, `delete_game_post` |
 | Mark and undo no-shows | `mark_no_show`, `clear_no_show` |
 | Block with a reason, Blocked Users list, unblock | `block_player`, `get_blocked_players`, `unblock_player` |
-| Report a player, post, club or league | `report_*` |
+| Report a player, post, group or league | `report_*` |
 | Edit profile, preferred format, privacy, email opt-out | `update_my_profile` |
 | Playing history | `get_player_history` |
 | Delete account | `delete_my_account` |

@@ -64,8 +64,8 @@ tags:
     public.notification; RLS sends each player only their own.
 - name: Reliability
   description: No-shows and the reliability score (BL-052, BL-054).
-- name: Clubs
-  description: Clubs, their admins and members (BL-080). Players join by asking; a club admin approves.
+- name: Groups
+  description: Groups, their admins and members (BL-080). Players join by asking; a group admin approves.
 - name: Results (tables)
   description: >-
     Matches, results, disputes and check-ins. Result submission and confirmation screens are not built
@@ -525,251 +525,6 @@ paths:
         '400':
           "$ref": "#/components/responses/RuleBroken"
       operationId: delete_check_in
-  "/club":
-    get:
-      tags:
-      - Clubs
-      x-implementation: supabase-postgrest
-      summary: Read club rows
-      description: |-
-        A club or organisation that posts games. Not an account: a club cannot log in. Real people post on its behalf, listed in club_representative.
-
-        Row Level Security decides which rows each player can see or change:
-
-        - any player can register one [insert]
-        - club admins or platform admin edit [update]
-        - readable by signed-in players [read]
-        - (restrictive) registered players only [all]
-      parameters:
-      - "$ref": "#/components/parameters/selectParam"
-      - "$ref": "#/components/parameters/orderParam"
-      - "$ref": "#/components/parameters/limitParam"
-      - "$ref": "#/components/parameters/offsetParam"
-      - "$ref": "#/components/parameters/rowFilter"
-      responses:
-        '200':
-          description: Rows the caller may see (empty if none).
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  "$ref": "#/components/schemas/Club"
-        '401':
-          "$ref": "#/components/responses/Unauthorized"
-      operationId: list_club
-    post:
-      tags:
-      - Clubs
-      x-implementation: supabase-postgrest
-      summary: Create a club row
-      description: |-
-        A club or organisation that posts games. Not an account: a club cannot log in. Real people post on its behalf, listed in club_representative.
-
-        Row Level Security decides which rows each player can see or change:
-
-        - any player can register one [insert]
-        - club admins or platform admin edit [update]
-        - readable by signed-in players [read]
-        - (restrictive) registered players only [all]
-      parameters:
-      - "$ref": "#/components/parameters/preferParam"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              "$ref": "#/components/schemas/ClubWrite"
-      responses:
-        '201':
-          description: 'Created (with Prefer: return=representation).'
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  "$ref": "#/components/schemas/Club"
-        '400':
-          "$ref": "#/components/responses/RuleBroken"
-        '403':
-          "$ref": "#/components/responses/Forbidden"
-      operationId: create_club
-    patch:
-      tags:
-      - Clubs
-      x-implementation: supabase-postgrest
-      summary: Update club rows
-      description: |-
-        A club or organisation that posts games. Not an account: a club cannot log in. Real people post on its behalf, listed in club_representative.
-
-        Row Level Security decides which rows each player can see or change:
-
-        - any player can register one [insert]
-        - club admins or platform admin edit [update]
-        - readable by signed-in players [read]
-        - (restrictive) registered players only [all]
-
-        Only the columns in the request schema can be changed. A row the caller may not change is silently skipped: check the returned rows.
-      parameters:
-      - "$ref": "#/components/parameters/rowFilter"
-      - "$ref": "#/components/parameters/preferParam"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              "$ref": "#/components/schemas/ClubWrite"
-      responses:
-        '200':
-          description: The rows that changed.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  "$ref": "#/components/schemas/Club"
-        '400':
-          "$ref": "#/components/responses/RuleBroken"
-      operationId: update_club
-  "/club_representative":
-    get:
-      tags:
-      - Clubs
-      x-implementation: supabase-postgrest
-      summary: Read club_representative rows
-      description: |-
-        Club membership, including pending join requests. role = admin may rename the club, post games on its behalf and manage members; role = member just belongs. status = pending is a request awaiting a club admin.
-
-        Row Level Security decides which rows each player can see or change:
-
-        - club admins approve and promote members [update]
-        - leave, or removed by a club admin [delete]
-        - members public, requests private [read]
-        - players ask to join [insert]
-        - (restrictive) registered players only [all]
-      parameters:
-      - "$ref": "#/components/parameters/selectParam"
-      - "$ref": "#/components/parameters/orderParam"
-      - "$ref": "#/components/parameters/limitParam"
-      - "$ref": "#/components/parameters/offsetParam"
-      - "$ref": "#/components/parameters/rowFilter"
-      responses:
-        '200':
-          description: Rows the caller may see (empty if none).
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  "$ref": "#/components/schemas/ClubRepresentative"
-        '401':
-          "$ref": "#/components/responses/Unauthorized"
-      operationId: list_club_representative
-    post:
-      tags:
-      - Clubs
-      x-implementation: supabase-postgrest
-      summary: Create a club_representative row
-      description: |-
-        Club membership, including pending join requests. role = admin may rename the club, post games on its behalf and manage members; role = member just belongs. status = pending is a request awaiting a club admin.
-
-        Row Level Security decides which rows each player can see or change:
-
-        - club admins approve and promote members [update]
-        - leave, or removed by a club admin [delete]
-        - members public, requests private [read]
-        - players ask to join [insert]
-        - (restrictive) registered players only [all]
-      parameters:
-      - "$ref": "#/components/parameters/preferParam"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              "$ref": "#/components/schemas/ClubRepresentativeWrite"
-      responses:
-        '201':
-          description: 'Created (with Prefer: return=representation).'
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  "$ref": "#/components/schemas/ClubRepresentative"
-        '400':
-          "$ref": "#/components/responses/RuleBroken"
-        '403':
-          "$ref": "#/components/responses/Forbidden"
-      operationId: create_club_representative
-    patch:
-      tags:
-      - Clubs
-      x-implementation: supabase-postgrest
-      summary: Update club_representative rows
-      description: |-
-        Club membership, including pending join requests. role = admin may rename the club, post games on its behalf and manage members; role = member just belongs. status = pending is a request awaiting a club admin.
-
-        Row Level Security decides which rows each player can see or change:
-
-        - club admins approve and promote members [update]
-        - leave, or removed by a club admin [delete]
-        - members public, requests private [read]
-        - players ask to join [insert]
-        - (restrictive) registered players only [all]
-
-        Only the columns in the request schema can be changed. A row the caller may not change is silently skipped: check the returned rows.
-      parameters:
-      - "$ref": "#/components/parameters/rowFilter"
-      - "$ref": "#/components/parameters/preferParam"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              "$ref": "#/components/schemas/ClubRepresentativeWrite"
-      responses:
-        '200':
-          description: The rows that changed.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  "$ref": "#/components/schemas/ClubRepresentative"
-        '400':
-          "$ref": "#/components/responses/RuleBroken"
-      operationId: update_club_representative
-    delete:
-      tags:
-      - Clubs
-      x-implementation: supabase-postgrest
-      summary: Delete club_representative rows
-      description: |-
-        Club membership, including pending join requests. role = admin may rename the club, post games on its behalf and manage members; role = member just belongs. status = pending is a request awaiting a club admin.
-
-        Row Level Security decides which rows each player can see or change:
-
-        - club admins approve and promote members [update]
-        - leave, or removed by a club admin [delete]
-        - members public, requests private [read]
-        - players ask to join [insert]
-        - (restrictive) registered players only [all]
-      parameters:
-      - "$ref": "#/components/parameters/rowFilter"
-      - "$ref": "#/components/parameters/preferParam"
-      responses:
-        '200':
-          description: The rows that were deleted.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  "$ref": "#/components/schemas/ClubRepresentative"
-        '400':
-          "$ref": "#/components/responses/RuleBroken"
-      operationId: delete_club_representative
   "/dispute":
     get:
       tags:
@@ -1085,8 +840,8 @@ paths:
         Row Level Security decides which rows each player can see or change:
 
         - (restrictive) hidden from players blocked by an organiser or playe [read]
-        - organiser, club rep or admin edits [update]
-        - post as yourself or on behalf of your club [insert]
+        - organiser, group rep or admin edits [update]
+        - post as yourself or on behalf of your group [insert]
         - readable by signed-in players unless deleted [read]
         - (restrictive) registered players only [all]
       parameters:
@@ -1116,8 +871,8 @@ paths:
         Row Level Security decides which rows each player can see or change:
 
         - (restrictive) hidden from players blocked by an organiser or playe [read]
-        - organiser, club rep or admin edits [update]
-        - post as yourself or on behalf of your club [insert]
+        - organiser, group rep or admin edits [update]
+        - post as yourself or on behalf of your group [insert]
         - readable by signed-in players unless deleted [read]
         - (restrictive) registered players only [all]
       parameters:
@@ -1151,8 +906,8 @@ paths:
         Row Level Security decides which rows each player can see or change:
 
         - (restrictive) hidden from players blocked by an organiser or playe [read]
-        - organiser, club rep or admin edits [update]
-        - post as yourself or on behalf of your club [insert]
+        - organiser, group rep or admin edits [update]
+        - post as yourself or on behalf of your group [insert]
         - readable by signed-in players unless deleted [read]
         - (restrictive) registered players only [all]
 
@@ -1185,7 +940,7 @@ paths:
       x-implementation: supabase-postgrest
       summary: Read game_request_message rows
       description: |-
-        The optional note a player sends with a join request ("Hi! I'd love to join..."). Readable by the requester, the game's organiser or club admins, and admins only. Written by request_to_join.
+        The optional note a player sends with a join request ("Hi! I'd love to join..."). Readable by the requester, the game's organiser or group admins, and admins only. Written by request_to_join.
 
         Row Level Security decides which rows each player can see or change:
 
@@ -1209,6 +964,251 @@ paths:
         '401':
           "$ref": "#/components/responses/Unauthorized"
       operationId: list_game_request_message
+  "/group_member":
+    get:
+      tags:
+      - Groups
+      x-implementation: supabase-postgrest
+      summary: Read group_member rows
+      description: |-
+        Group membership, including pending join requests. role = admin may rename the group, post games on its behalf and manage members; role = member just belongs. status = pending is a request awaiting a group admin.
+
+        Row Level Security decides which rows each player can see or change:
+
+        - group admins approve and promote members [update]
+        - leave, or removed by a group admin [delete]
+        - members public, requests private [read]
+        - players ask to join [insert]
+        - (restrictive) registered players only [all]
+      parameters:
+      - "$ref": "#/components/parameters/selectParam"
+      - "$ref": "#/components/parameters/orderParam"
+      - "$ref": "#/components/parameters/limitParam"
+      - "$ref": "#/components/parameters/offsetParam"
+      - "$ref": "#/components/parameters/rowFilter"
+      responses:
+        '200':
+          description: Rows the caller may see (empty if none).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/GroupMember"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+      operationId: list_group_member
+    post:
+      tags:
+      - Groups
+      x-implementation: supabase-postgrest
+      summary: Create a group_member row
+      description: |-
+        Group membership, including pending join requests. role = admin may rename the group, post games on its behalf and manage members; role = member just belongs. status = pending is a request awaiting a group admin.
+
+        Row Level Security decides which rows each player can see or change:
+
+        - group admins approve and promote members [update]
+        - leave, or removed by a group admin [delete]
+        - members public, requests private [read]
+        - players ask to join [insert]
+        - (restrictive) registered players only [all]
+      parameters:
+      - "$ref": "#/components/parameters/preferParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/GroupMemberWrite"
+      responses:
+        '201':
+          description: 'Created (with Prefer: return=representation).'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/GroupMember"
+        '400':
+          "$ref": "#/components/responses/RuleBroken"
+        '403':
+          "$ref": "#/components/responses/Forbidden"
+      operationId: create_group_member
+    patch:
+      tags:
+      - Groups
+      x-implementation: supabase-postgrest
+      summary: Update group_member rows
+      description: |-
+        Group membership, including pending join requests. role = admin may rename the group, post games on its behalf and manage members; role = member just belongs. status = pending is a request awaiting a group admin.
+
+        Row Level Security decides which rows each player can see or change:
+
+        - group admins approve and promote members [update]
+        - leave, or removed by a group admin [delete]
+        - members public, requests private [read]
+        - players ask to join [insert]
+        - (restrictive) registered players only [all]
+
+        Only the columns in the request schema can be changed. A row the caller may not change is silently skipped: check the returned rows.
+      parameters:
+      - "$ref": "#/components/parameters/rowFilter"
+      - "$ref": "#/components/parameters/preferParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/GroupMemberWrite"
+      responses:
+        '200':
+          description: The rows that changed.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/GroupMember"
+        '400':
+          "$ref": "#/components/responses/RuleBroken"
+      operationId: update_group_member
+    delete:
+      tags:
+      - Groups
+      x-implementation: supabase-postgrest
+      summary: Delete group_member rows
+      description: |-
+        Group membership, including pending join requests. role = admin may rename the group, post games on its behalf and manage members; role = member just belongs. status = pending is a request awaiting a group admin.
+
+        Row Level Security decides which rows each player can see or change:
+
+        - group admins approve and promote members [update]
+        - leave, or removed by a group admin [delete]
+        - members public, requests private [read]
+        - players ask to join [insert]
+        - (restrictive) registered players only [all]
+      parameters:
+      - "$ref": "#/components/parameters/rowFilter"
+      - "$ref": "#/components/parameters/preferParam"
+      responses:
+        '200':
+          description: The rows that were deleted.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/GroupMember"
+        '400':
+          "$ref": "#/components/responses/RuleBroken"
+      operationId: delete_group_member
+  "/groups":
+    get:
+      tags:
+      - Groups
+      x-implementation: supabase-postgrest
+      summary: Read groups rows
+      description: |-
+        A group or organisation that posts games. Not an account: a group cannot log in. Real people post on its behalf, listed in group_member.
+
+        Row Level Security decides which rows each player can see or change:
+
+        - any player can register one [insert]
+        - group admins or platform admin edit [update]
+        - readable by signed-in players [read]
+        - (restrictive) registered players only [all]
+      parameters:
+      - "$ref": "#/components/parameters/selectParam"
+      - "$ref": "#/components/parameters/orderParam"
+      - "$ref": "#/components/parameters/limitParam"
+      - "$ref": "#/components/parameters/offsetParam"
+      - "$ref": "#/components/parameters/rowFilter"
+      responses:
+        '200':
+          description: Rows the caller may see (empty if none).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Groups"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+      operationId: list_groups
+    post:
+      tags:
+      - Groups
+      x-implementation: supabase-postgrest
+      summary: Create a groups row
+      description: |-
+        A group or organisation that posts games. Not an account: a group cannot log in. Real people post on its behalf, listed in group_member.
+
+        Row Level Security decides which rows each player can see or change:
+
+        - any player can register one [insert]
+        - group admins or platform admin edit [update]
+        - readable by signed-in players [read]
+        - (restrictive) registered players only [all]
+      parameters:
+      - "$ref": "#/components/parameters/preferParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/GroupsWrite"
+      responses:
+        '201':
+          description: 'Created (with Prefer: return=representation).'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Groups"
+        '400':
+          "$ref": "#/components/responses/RuleBroken"
+        '403':
+          "$ref": "#/components/responses/Forbidden"
+      operationId: create_groups
+    patch:
+      tags:
+      - Groups
+      x-implementation: supabase-postgrest
+      summary: Update groups rows
+      description: |-
+        A group or organisation that posts games. Not an account: a group cannot log in. Real people post on its behalf, listed in group_member.
+
+        Row Level Security decides which rows each player can see or change:
+
+        - any player can register one [insert]
+        - group admins or platform admin edit [update]
+        - readable by signed-in players [read]
+        - (restrictive) registered players only [all]
+
+        Only the columns in the request schema can be changed. A row the caller may not change is silently skipped: check the returned rows.
+      parameters:
+      - "$ref": "#/components/parameters/rowFilter"
+      - "$ref": "#/components/parameters/preferParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/GroupsWrite"
+      responses:
+        '200':
+          description: The rows that changed.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Groups"
+        '400':
+          "$ref": "#/components/responses/RuleBroken"
+      operationId: update_groups
   "/league_standing":
     get:
       tags:
@@ -2574,7 +2574,7 @@ paths:
       x-implementation: supabase-postgrest
       summary: Read state rows
       description: |-
-        The eight Australian states and territories. Reference data, loaded from supabase/seeds/production/. Codes match the state check constraints on player_profile and club.
+        The eight Australian states and territories. Reference data, loaded from supabase/seeds/production/. Codes match the state check constraints on player_profile and groups.
 
         Row Level Security decides which rows each player can see or change:
 
@@ -2923,14 +2923,14 @@ paths:
                 nextGame:
                   id: 00000000-0000-0000-0000-00000000b001
                   date: Sun, 11 Oct
-                  time: 4:00 AM
+                  time: 5:00 AM
                   title: Friday Night Doubles
                   format: Doubles
                   isHost: true
                   suburb: Albert Park
                   mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
                   location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
-                  startsAt: '2026-10-10T17:00:00+00:00'
+                  startsAt: '2026-10-10T18:00:00+00:00'
                   maxPlayers: 4
                   playerCount: 3
                 username: alice
@@ -2984,7 +2984,7 @@ paths:
                 suburb: Carlton
                 noShows: 0
                 initials: AN
-                joinedAt: '2026-07-09T23:55:31.809326+00:00'
+                joinedAt: '2026-07-10T00:16:44.75846+00:00'
                 lastName: Nguyen
                 location: Carlton area · VIC
                 username: alice
@@ -3106,8 +3106,8 @@ paths:
                   name: alice
                   type: player
                 - id: 00000000-0000-0000-0000-00000000c001
-                  name: Smash Club
-                  type: club
+                  name: Smash Group
+                  type: group
                 styles:
                 - label: Social
                   value: social
@@ -3162,7 +3162,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/VenueOption"
               example:
-              - id: 6b44724d-7028-4d9f-9218-9d184dd2cbdf
+              - id: 3ef5e9fd-360e-4404-b77c-4d26f7abf0c4
                 name: Badminton Court
                 label: Badminton Court — Wantirna VIC
                 state: VIC
@@ -3170,7 +3170,7 @@ paths:
                 address: Badminton Ct, Wantirna VIC 3152
                 mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.849473,145.230175
                 postcode: '3152'
-              - id: '08215221-ea01-4a2e-b22f-b833313b7ecd'
+              - id: '08917471-b1fa-4de4-ba08-24b14ac6da88'
                 name: Badminton Court
                 label: Badminton Court — Marshall VIC
                 state: VIC
@@ -3218,10 +3218,10 @@ paths:
               - id: 00000000-0000-0000-0000-00000000b001
                 date: Sun, 11 Oct
                 rank: Intermediate
-                time: 4:00 AM – 5:30 AM
+                time: 5:00 AM – 6:30 AM
                 style: Social
                 title: Friday Night Doubles
-                endsAt: '2026-10-10T18:30:00+00:00'
+                endsAt: '2026-10-10T19:30:00+00:00'
                 format: Doubles
                 status: open
                 suburb: Albert Park
@@ -3229,11 +3229,11 @@ paths:
                 imageUrl: 
                 location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
                 myStatus: accepted
-                startsAt: '2026-10-10T17:00:00+00:00'
+                startsAt: '2026-10-10T18:00:00+00:00'
                 organiser:
                   id: 00000000-0000-0000-0000-00000000a001
                   name: alice
-                  isClub: false
+                  isGroup: false
                   initials: AL
                   isBlocked: false
                   isDeleted: false
@@ -3242,10 +3242,10 @@ paths:
               - id: 00000000-0000-0000-0000-00000000b002
                 date: Sun, 11 Oct
                 rank: Any Rank
-                time: 8:00 PM – 9:00 PM
+                time: 9:00 PM – 10:00 PM
                 style: Social
                 title: Badminton game
-                endsAt: '2026-10-11T10:00:00+00:00'
+                endsAt: '2026-10-11T11:00:00+00:00'
                 format: Singles
                 status: open
                 suburb: Blackburn North
@@ -3253,11 +3253,11 @@ paths:
                 imageUrl: 
                 location: Melbourne Badminton Centre, Blackburn North
                 myStatus: 
-                startsAt: '2026-10-11T09:00:00+00:00'
+                startsAt: '2026-10-11T10:00:00+00:00'
                 organiser:
                   id: 00000000-0000-0000-0000-00000000a002
                   name: bob
-                  isClub: false
+                  isGroup: false
                   initials: BO
                   isBlocked: false
                   isDeleted: false
@@ -3315,25 +3315,25 @@ paths:
                 host:
                   id: 00000000-0000-0000-0000-00000000a001
                   name: alice
-                  isClub: false
                   rating: 1240
+                  isGroup: false
                   initials: AL
                   isBlocked: false
                   isDeleted: false
                   reliability: 100
                   verifiedMatches: 4
                 rank: Intermediate
-                time: 4:00 AM – 5:30 AM
+                time: 5:00 AM – 6:30 AM
                 notes: Bring your own racquet. Shuttles provided.
                 style: Social
                 title: Friday Night Doubles
-                endsAt: '2026-10-10T18:30:00+00:00'
+                endsAt: '2026-10-10T19:30:00+00:00'
                 format: Doubles
                 status: open
                 suburb: Albert Park
                 address: 30 Aughtie Dr, Albert Park
                 mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
-                matchId: c1ad08f5-10e7-425c-b432-ad25a5055b4b
+                matchId: 717d271d-6567-4e16-bfbb-d5e7ffb1a3d5
                 players:
                 - id: 00000000-0000-0000-0000-00000000a001
                   host: true
@@ -3353,17 +3353,17 @@ paths:
                   initials: ER
                   isBlocked: false
                   isDeleted: false
-                venueId: b9a6bbc6-4b48-49b8-8746-dac1ede7a314
+                venueId: 6e46bd90-0d0d-4bcc-adc4-29a8cb17d554
                 duration: 90 mins
                 imageUrl: 
                 location: Melbourne Sports and Aquatic Centre@ MSAC
                 myStatus: pending
-                startsAt: '2026-10-10T17:00:00+00:00'
+                startsAt: '2026-10-10T18:00:00+00:00'
                 canManage: false
                 organiser:
                   id: 00000000-0000-0000-0000-00000000a001
                   name: alice
-                  isClub: false
+                  isGroup: false
                   initials: AL
                   isBlocked: false
                   isDeleted: false
@@ -3486,10 +3486,10 @@ paths:
                   id: 00000000-0000-0000-0000-00000000b001
                   date: Sun, 11 Oct
                   rank: Intermediate
-                  time: 4:00 AM – 5:30 AM
+                  time: 5:00 AM – 6:30 AM
                   style: Social
                   title: Friday Night Doubles
-                  endsAt: '2026-10-10T18:30:00+00:00'
+                  endsAt: '2026-10-10T19:30:00+00:00'
                   format: Doubles
                   status: open
                   suburb: Albert Park
@@ -3497,11 +3497,11 @@ paths:
                   imageUrl: 
                   location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
                   myStatus: accepted
-                  startsAt: '2026-10-10T17:00:00+00:00'
+                  startsAt: '2026-10-10T18:00:00+00:00'
                   organiser:
                     id: 00000000-0000-0000-0000-00000000a001
                     name: alice
-                    isClub: false
+                    isGroup: false
                     initials: AL
                     isBlocked: false
                     isDeleted: false
@@ -3510,7 +3510,7 @@ paths:
                 host:
                   id: 00000000-0000-0000-0000-00000000a001
                   name: alice
-                  isClub: false
+                  isGroup: false
                   initials: AL
                   isBlocked: false
                   isDeleted: false
@@ -3528,16 +3528,16 @@ paths:
                   preferredFormat: Singles
                   profileImageUrl: 
                   verifiedMatches: 2
-                requestedAt: '2026-10-04T23:55:31.873997+00:00'
+                requestedAt: '2026-10-05T00:16:44.822556+00:00'
               - id: 00000000-0000-0000-0000-00000000b001:00000000-0000-0000-0000-00000000a005
                 game:
                   id: 00000000-0000-0000-0000-00000000b001
                   date: Sun, 11 Oct
                   rank: Intermediate
-                  time: 4:00 AM – 5:30 AM
+                  time: 5:00 AM – 6:30 AM
                   style: Social
                   title: Friday Night Doubles
-                  endsAt: '2026-10-10T18:30:00+00:00'
+                  endsAt: '2026-10-10T19:30:00+00:00'
                   format: Doubles
                   status: open
                   suburb: Albert Park
@@ -3545,11 +3545,11 @@ paths:
                   imageUrl: 
                   location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
                   myStatus: accepted
-                  startsAt: '2026-10-10T17:00:00+00:00'
+                  startsAt: '2026-10-10T18:00:00+00:00'
                   organiser:
                     id: 00000000-0000-0000-0000-00000000a001
                     name: alice
-                    isClub: false
+                    isGroup: false
                     initials: AL
                     isBlocked: false
                     isDeleted: false
@@ -3558,7 +3558,7 @@ paths:
                 host:
                   id: 00000000-0000-0000-0000-00000000a001
                   name: alice
-                  isClub: false
+                  isGroup: false
                   initials: AL
                   isBlocked: false
                   isDeleted: false
@@ -3576,7 +3576,7 @@ paths:
                   preferredFormat: Mixed Doubles
                   profileImageUrl: 
                   verifiedMatches: 1
-                requestedAt: '2026-10-05T23:55:31.873997+00:00'
+                requestedAt: '2026-10-06T00:16:44.822556+00:00'
         '400':
           "$ref": "#/components/responses/RuleBroken"
         '401':
@@ -3598,10 +3598,10 @@ paths:
       operationId: accept_request
       tags:
       - Join requests
-      summary: Organiser or club admin accepts a request
+      summary: Organiser or group admin accepts a request
       x-implementation: postgres-rpc
       description: |-
-        Organiser or club admin accepts a request: supabase.rpc('accept_request', { p_post_id, p_player_id }). Refused when the game is full (check violation). The first acceptance creates the match.
+        Organiser or group admin accepts a request: supabase.rpc('accept_request', { p_post_id, p_player_id }). Refused when the game is full (check violation). The first acceptance creates the match.
 
         **Errors** (`code`: message, safe to show to players):
 
@@ -3636,10 +3636,10 @@ paths:
       operationId: decline_request
       tags:
       - Join requests
-      summary: Organiser or club admin declines a request
+      summary: Organiser or group admin declines a request
       x-implementation: postgres-rpc
       description: |-
-        Organiser or club admin declines a request: supabase.rpc('decline_request', { p_post_id, p_player_id }). The player cannot ask again for this game.
+        Organiser or group admin declines a request: supabase.rpc('decline_request', { p_post_id, p_player_id }). The player cannot ask again for this game.
 
         **Errors** (`code`: message, safe to show to players):
 
@@ -3674,10 +3674,10 @@ paths:
       operationId: cancel_game_post
       tags:
       - Games
-      summary: Organiser or club admin cancels an upcoming game
+      summary: Organiser or group admin cancels an upcoming game
       x-implementation: postgres-rpc
       description: |-
-        Organiser or club admin cancels an upcoming game: supabase.rpc('cancel_game_post', { p_post_id, p_reason }). Refused within 4 hours of the start (admins excepted) and once the game has started. Writes cancellation_record and notifies players. The post stays visible as cancelled.
+        Organiser or group admin cancels an upcoming game: supabase.rpc('cancel_game_post', { p_post_id, p_reason }). Refused within 4 hours of the start (admins excepted) and once the game has started. Writes cancellation_record and notifies players. The post stays visible as cancelled.
 
         **Errors** (`code`: message, safe to show to players):
 
@@ -3712,10 +3712,10 @@ paths:
       operationId: delete_game_post
       tags:
       - Games
-      summary: Organiser or club admin deletes a game that has not happened
+      summary: Organiser or group admin deletes a game that has not happened
       x-implementation: postgres-rpc
       description: |-
-        Organiser or club admin deletes a game that has not happened: supabase.rpc('delete_game_post', { p_post_id }). The post is hidden, not removed. Subject to the 4-hour rule unless already cancelled. Games that have happened need admin_delete_game_post.
+        Organiser or group admin deletes a game that has not happened: supabase.rpc('delete_game_post', { p_post_id }). The post is hidden, not removed. Subject to the 4-hour rule unless already cancelled. Games that have happened need admin_delete_game_post.
 
         **Errors** (`code`: message, safe to show to players):
 
@@ -3885,7 +3885,7 @@ paths:
                 matchId: 00000000-0000-0000-0000-00000000d106
                 partner: 
                 location: Albert Park
-                playedAt: '2026-10-03T17:00:00+00:00'
+                playedAt: '2026-10-03T18:00:00+00:00'
                 opponents:
                 - id: 00000000-0000-0000-0000-00000000a004
                   name: dan
@@ -3903,7 +3903,7 @@ paths:
                   initials: BO
                   isBlocked: false
                 location: Blackburn North
-                playedAt: '2026-09-28T18:00:00+00:00'
+                playedAt: '2026-09-28T19:00:00+00:00'
                 opponents:
                 - id: 00000000-0000-0000-0000-00000000a003
                   name: carol
@@ -4021,7 +4021,7 @@ paths:
                 reason: Kept messaging me after our game.
                 category: harassment
                 initials: FR
-                blockedAt: '2026-10-03T23:55:31.925788+00:00'
+                blockedAt: '2026-10-04T00:16:44.869269+00:00'
                 categoryLabel: Harassment
         '401':
           "$ref": "#/components/responses/Unauthorized"
@@ -4119,15 +4119,15 @@ paths:
               required:
               - p_post_id
               - p_category
-  "/rpc/report_club":
+  "/rpc/report_group":
     post:
-      operationId: report_club
+      operationId: report_group
       tags:
       - Trust and safety
-      summary: Report a club
+      summary: Report a groups
       x-implementation: postgres-rpc
       description: |-
-        Report a club. Same categories and rules as report_player.
+        Report a groups. Same categories and rules as report_player.
 
         **Errors** (`code`: message, safe to show to players):
 
@@ -4155,7 +4155,7 @@ paths:
             schema:
               type: object
               properties:
-                p_club_id:
+                p_group_id:
                   type: string
                   format: uuid
                 p_category:
@@ -4163,7 +4163,7 @@ paths:
                 p_reason:
                   type: string
               required:
-              - p_club_id
+              - p_group_id
               - p_category
   "/rpc/report_league":
     post:
@@ -4232,23 +4232,23 @@ paths:
                 items:
                   "$ref": "#/components/schemas/NotificationItem"
               example:
-              - id: c4aec9ac-471a-45aa-bd2e-03f0d0c104d6
+              - id: 5011873c-fce4-48f6-bb61-57b2f5093449
                 type: game_cancelled
-                title: 'Doubles game on Fri 16 Oct, 4:00 AM in Richmond was cancelled: the organiser closed
+                title: 'Doubles game on Fri 16 Oct, 5:00 AM in Richmond was cancelled: the organiser closed
                   their account.'
                 postId: 00000000-0000-0000-0000-00000000b008
                 unread: true
                 matchId: 
                 message: Find another game or post your own
-                createdAt: '2026-10-07T23:55:31.936882+00:00'
-              - id: 4071d7e3-c975-4348-b6a0-8434c692126d
+                createdAt: '2026-10-08T00:16:44.877611+00:00'
+              - id: f8849e6e-9461-4027-b8fd-e6e8068e9a7f
                 type: request_accepted
-                title: Your request to join Doubles game on Sun 11 Oct, 4:00 AM in Albert Park was accepted.
+                title: Your request to join Doubles game on Sun 11 Oct, 5:00 AM in Albert Park was accepted.
                 postId: 00000000-0000-0000-0000-00000000b001
                 unread: true
-                matchId: c1ad08f5-10e7-425c-b432-ad25a5055b4b
+                matchId: 717d271d-6567-4e16-bfbb-d5e7ffb1a3d5
                 message: Tap to view match details
-                createdAt: '2026-10-07T23:55:31.873997+00:00'
+                createdAt: '2026-10-08T00:16:44.822556+00:00'
         '401':
           "$ref": "#/components/responses/Unauthorized"
       requestBody:
@@ -5170,7 +5170,7 @@ components:
       required: false
       schema:
         type: string
-      description: PostgREST column projection, e.g. select=post_id,title,club(name).
+      description: PostgREST column projection, e.g. select=post_id,title,groups(name).
     orderParam:
       name: order
       in: query
@@ -5493,230 +5493,6 @@ components:
       required:
       - match_id
       - player_id
-    Club:
-      type: object
-      description: >-
-        A club or organisation that posts games. Not an account: a club cannot log in. Real people post
-        on its behalf, listed in club_representative.
-      properties:
-        club_id:
-          type: string
-          format: uuid
-        name:
-          type: string
-        slug:
-          type: string
-          description: >-
-            URL-safe identifier for /clubs/<slug>. Lowercase letters, digits and single hyphens only,
-            enforced by the check constraint.
-        description:
-          type: string
-          nullable: true
-        suburb:
-          type: string
-          nullable: true
-        state:
-          type: string
-          enum:
-          - NSW
-          - VIC
-          - QLD
-          - WA
-          - SA
-          - TAS
-          - ACT
-          - NT
-          nullable: true
-        contact_email:
-          type: string
-          nullable: true
-        logo_url:
-          type: string
-          nullable: true
-        is_verified:
-          type: boolean
-          description: >-
-            Staff-set badge confirming this is a genuine club. Anyone can create a club record, so unverified
-            clubs exist and the UI should say so. Locked to service_role by the column grant below.
-        created_by:
-          type: string
-          format: uuid
-          description: >-
-            on delete restrict: deleting a player must not take a club and its posts with it. Hand the
-            club over first.
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-        updated_by:
-          type: string
-          format: uuid
-          nullable: true
-          description: >-
-            The player who last changed this row. Null when the change came from service_role, meaning
-            a backend job rather than a person. Set by the club_set_updated_metadata trigger; a value
-            sent by a client is ignored. Not a foreign key, so that player embeds stay unambiguous.
-        is_active:
-          type: boolean
-          description: >-
-            False once a club admin deactivates the club. Its game posts and results are kept; it cannot
-            post new games or take new members until reactivated. Clubs are never deleted through the
-            API.
-    ClubWrite:
-      type: object
-      properties:
-        club_id:
-          type: string
-          format: uuid
-        name:
-          type: string
-        slug:
-          type: string
-          description: >-
-            URL-safe identifier for /clubs/<slug>. Lowercase letters, digits and single hyphens only,
-            enforced by the check constraint.
-        description:
-          type: string
-          nullable: true
-        suburb:
-          type: string
-          nullable: true
-        state:
-          type: string
-          enum:
-          - NSW
-          - VIC
-          - QLD
-          - WA
-          - SA
-          - TAS
-          - ACT
-          - NT
-          nullable: true
-        contact_email:
-          type: string
-          nullable: true
-        logo_url:
-          type: string
-          nullable: true
-        is_verified:
-          type: boolean
-          description: >-
-            Staff-set badge confirming this is a genuine club. Anyone can create a club record, so unverified
-            clubs exist and the UI should say so. Locked to service_role by the column grant below.
-        created_by:
-          type: string
-          format: uuid
-          description: >-
-            on delete restrict: deleting a player must not take a club and its posts with it. Hand the
-            club over first.
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-        updated_by:
-          type: string
-          format: uuid
-          nullable: true
-          description: >-
-            The player who last changed this row. Null when the change came from service_role, meaning
-            a backend job rather than a person. Set by the club_set_updated_metadata trigger; a value
-            sent by a client is ignored. Not a foreign key, so that player embeds stay unambiguous.
-        is_active:
-          type: boolean
-          description: >-
-            False once a club admin deactivates the club. Its game posts and results are kept; it cannot
-            post new games or take new members until reactivated. Clubs are never deleted through the
-            API.
-      required:
-      - name
-      - slug
-      - created_by
-    ClubRepresentative:
-      type: object
-      description: >-
-        Club membership, including pending join requests. role = admin may rename the club, post games
-        on its behalf and manage members; role = member just belongs. status = pending is a request awaiting
-        a club admin.
-      properties:
-        club_id:
-          type: string
-          format: uuid
-        player_id:
-          type: string
-          format: uuid
-        added_at:
-          type: string
-          format: date-time
-        role:
-          type: string
-          enum:
-          - admin
-          - member
-          description: admin or member. Only approved rows can be admin (club_representative_admin_is_approved).
-        status:
-          type: string
-          enum:
-          - pending
-          - approved
-          description: >-
-            pending until a club admin approves the request. Players can only ever create their own row
-            as pending; approval is an admin's update.
-        updated_at:
-          type: string
-          format: date-time
-        updated_by:
-          type: string
-          format: uuid
-          nullable: true
-          description: >-
-            The player who last changed this row, e.g. the admin who approved the request. Null when the
-            change came from service_role. Set by the club_representative_set_updated_metadata trigger;
-            a value sent by a client is ignored. Not a foreign key, so that player embeds stay unambiguous.
-    ClubRepresentativeWrite:
-      type: object
-      properties:
-        club_id:
-          type: string
-          format: uuid
-        player_id:
-          type: string
-          format: uuid
-        added_at:
-          type: string
-          format: date-time
-        role:
-          type: string
-          enum:
-          - admin
-          - member
-          description: admin or member. Only approved rows can be admin (club_representative_admin_is_approved).
-        status:
-          type: string
-          enum:
-          - pending
-          - approved
-          description: >-
-            pending until a club admin approves the request. Players can only ever create their own row
-            as pending; approval is an admin's update.
-        updated_at:
-          type: string
-          format: date-time
-        updated_by:
-          type: string
-          format: uuid
-          nullable: true
-          description: >-
-            The player who last changed this row, e.g. the admin who approved the request. Null when the
-            change came from service_role. Set by the club_representative_set_updated_metadata trigger;
-            a value sent by a client is ignored. Not a foreign key, so that player embeds stay unambiguous.
-      required:
-      - club_id
-      - player_id
     Dispute:
       type: object
       description: A row of dispute.
@@ -5923,7 +5699,7 @@ components:
           type: string
           format: uuid
           nullable: true
-          description: Set when an individual player posts. Null when a club posts.
+          description: Set when an individual player posts. Null when a group posts.
         format:
           type: string
           enum:
@@ -5946,12 +5722,12 @@ components:
         created_at:
           type: string
           format: date-time
-        organiser_club_id:
+        organiser_group_id:
           type: string
           format: uuid
           nullable: true
           description: >-
-            Set when a club posts. Null when an individual posts. The post form toggles between the two;
+            Set when a group posts. Null when an individual posts. The post form toggles between the two;
             game_post_exactly_one_organiser enforces that exactly one is filled in.
         player_limit:
           type: integer
@@ -6028,7 +5804,7 @@ components:
           type: string
           format: uuid
           nullable: true
-          description: Set when an individual player posts. Null when a club posts.
+          description: Set when an individual player posts. Null when a group posts.
         format:
           type: string
           enum:
@@ -6051,12 +5827,12 @@ components:
         created_at:
           type: string
           format: date-time
-        organiser_club_id:
+        organiser_group_id:
           type: string
           format: uuid
           nullable: true
           description: >-
-            Set when a club posts. Null when an individual posts. The post form toggles between the two;
+            Set when a group posts. Null when an individual posts. The post form toggles between the two;
             game_post_exactly_one_organiser enforces that exactly one is filled in.
         player_limit:
           type: integer
@@ -6130,7 +5906,7 @@ components:
       type: object
       description: >-
         The optional note a player sends with a join request ("Hi! I'd love to join..."). Readable by
-        the requester, the game's organiser or club admins, and admins only. Written by request_to_join.
+        the requester, the game's organiser or group admins, and admins only. Written by request_to_join.
       properties:
         post_id:
           type: string
@@ -6143,6 +5919,232 @@ components:
         created_at:
           type: string
           format: date-time
+    GroupMember:
+      type: object
+      description: >-
+        Group membership, including pending join requests. role = admin may rename the group, post games
+        on its behalf and manage members; role = member just belongs. status = pending is a request awaiting
+        a group admin.
+      properties:
+        group_id:
+          type: string
+          format: uuid
+        player_id:
+          type: string
+          format: uuid
+        added_at:
+          type: string
+          format: date-time
+        role:
+          type: string
+          enum:
+          - admin
+          - member
+          description: admin or member. Only approved rows can be admin (group_member_admin_is_approved).
+        status:
+          type: string
+          enum:
+          - pending
+          - approved
+          description: >-
+            pending until a group admin approves the request. Players can only ever create their own row
+            as pending; approval is an admin's update.
+        updated_at:
+          type: string
+          format: date-time
+        updated_by:
+          type: string
+          format: uuid
+          nullable: true
+          description: >-
+            The player who last changed this row, e.g. the admin who approved the request. Null when the
+            change came from service_role. Set by the group_member_set_updated_metadata trigger; a value
+            sent by a client is ignored. Not a foreign key, so that player embeds stay unambiguous.
+    GroupMemberWrite:
+      type: object
+      properties:
+        group_id:
+          type: string
+          format: uuid
+        player_id:
+          type: string
+          format: uuid
+        added_at:
+          type: string
+          format: date-time
+        role:
+          type: string
+          enum:
+          - admin
+          - member
+          description: admin or member. Only approved rows can be admin (group_member_admin_is_approved).
+        status:
+          type: string
+          enum:
+          - pending
+          - approved
+          description: >-
+            pending until a group admin approves the request. Players can only ever create their own row
+            as pending; approval is an admin's update.
+        updated_at:
+          type: string
+          format: date-time
+        updated_by:
+          type: string
+          format: uuid
+          nullable: true
+          description: >-
+            The player who last changed this row, e.g. the admin who approved the request. Null when the
+            change came from service_role. Set by the group_member_set_updated_metadata trigger; a value
+            sent by a client is ignored. Not a foreign key, so that player embeds stay unambiguous.
+      required:
+      - group_id
+      - player_id
+    Groups:
+      type: object
+      description: >-
+        A group or organisation that posts games. Not an account: a group cannot log in. Real people post
+        on its behalf, listed in group_member.
+      properties:
+        group_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+          description: >-
+            URL-safe identifier for /groups/<slug>. Lowercase letters, digits and single hyphens only,
+            enforced by the check constraint.
+        description:
+          type: string
+          nullable: true
+        suburb:
+          type: string
+          nullable: true
+        state:
+          type: string
+          enum:
+          - NSW
+          - VIC
+          - QLD
+          - WA
+          - SA
+          - TAS
+          - ACT
+          - NT
+          nullable: true
+        contact_email:
+          type: string
+          nullable: true
+        logo_url:
+          type: string
+          nullable: true
+        is_verified:
+          type: boolean
+          description: >-
+            Staff-set badge confirming this is a genuine groups. Anyone can create a group record, so
+            unverified groups exist and the UI should say so. Locked to service_role by the column grant
+            below.
+        created_by:
+          type: string
+          format: uuid
+          description: >-
+            on delete restrict: deleting a player must not take a group and its posts with it. Hand the
+            group over first.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        updated_by:
+          type: string
+          format: uuid
+          nullable: true
+          description: >-
+            The player who last changed this row. Null when the change came from service_role, meaning
+            a backend job rather than a person. Set by the group_set_updated_metadata trigger; a value
+            sent by a client is ignored. Not a foreign key, so that player embeds stay unambiguous.
+        is_active:
+          type: boolean
+          description: >-
+            False once a group admin deactivates the groups. Its game posts and results are kept; it cannot
+            post new games or take new members until reactivated. Groups are never deleted through the
+            API.
+    GroupsWrite:
+      type: object
+      properties:
+        group_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+          description: >-
+            URL-safe identifier for /groups/<slug>. Lowercase letters, digits and single hyphens only,
+            enforced by the check constraint.
+        description:
+          type: string
+          nullable: true
+        suburb:
+          type: string
+          nullable: true
+        state:
+          type: string
+          enum:
+          - NSW
+          - VIC
+          - QLD
+          - WA
+          - SA
+          - TAS
+          - ACT
+          - NT
+          nullable: true
+        contact_email:
+          type: string
+          nullable: true
+        logo_url:
+          type: string
+          nullable: true
+        is_verified:
+          type: boolean
+          description: >-
+            Staff-set badge confirming this is a genuine groups. Anyone can create a group record, so
+            unverified groups exist and the UI should say so. Locked to service_role by the column grant
+            below.
+        created_by:
+          type: string
+          format: uuid
+          description: >-
+            on delete restrict: deleting a player must not take a group and its posts with it. Hand the
+            group over first.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        updated_by:
+          type: string
+          format: uuid
+          nullable: true
+          description: >-
+            The player who last changed this row. Null when the change came from service_role, meaning
+            a backend job rather than a person. Set by the group_set_updated_metadata trigger; a value
+            sent by a client is ignored. Not a foreign key, so that player embeds stay unambiguous.
+        is_active:
+          type: boolean
+          description: >-
+            False once a group admin deactivates the groups. Its game posts and results are kept; it cannot
+            post new games or take new members until reactivated. Groups are never deleted through the
+            API.
+      required:
+      - name
+      - slug
+      - created_by
     LeagueStanding:
       type: object
       description: >-
@@ -7132,7 +7134,7 @@ components:
           - game_post
           - match
           - admin_post
-          - club
+          - group
           - mini_league
         target_id:
           type: string
@@ -7197,7 +7199,7 @@ components:
           - game_post
           - match
           - admin_post
-          - club
+          - group
           - mini_league
         target_id:
           type: string
@@ -7250,7 +7252,7 @@ components:
       type: object
       description: >-
         The eight Australian states and territories. Reference data, loaded from supabase/seeds/production/.
-        Codes match the state check constraints on player_profile and club.
+        Codes match the state check constraints on player_profile and groups.
       properties:
         state_code:
           type: string
@@ -7756,7 +7758,7 @@ components:
               format: uuid
             name:
               type: string
-            isClub:
+            isGroup:
               type: boolean
             initials:
               type: string
@@ -7789,11 +7791,11 @@ components:
               format: uuid
             name:
               type: string
-            isClub:
-              type: boolean
             rating:
               type: integer
               nullable: true
+            isGroup:
+              type: boolean
             initials:
               type: string
             isBlocked:
@@ -7890,7 +7892,7 @@ components:
               format: uuid
             name:
               type: string
-            isClub:
+            isGroup:
               type: boolean
             initials:
               type: string
@@ -7964,7 +7966,7 @@ components:
                   format: uuid
                 name:
                   type: string
-                isClub:
+                isGroup:
                   type: boolean
                 initials:
                   type: string
@@ -7984,7 +7986,7 @@ components:
               format: uuid
             name:
               type: string
-            isClub:
+            isGroup:
               type: boolean
             initials:
               type: string
@@ -8229,33 +8231,6 @@ components:
           description: Null in every sample (not built yet).
         confirmed_results:
           type: integer
-    MatchMessage:
-      type: object
-      properties:
-        messageId:
-          type: string
-          format: uuid
-          description: Unique message id.
-        matchId:
-          type: string
-          format: uuid
-          description: Match this message belongs to (FK to match.matchId).
-        senderId:
-          type: string
-          format: uuid
-          description: Player who sent it (FK to player.playerId).
-        templateCode:
-          type: string
-          description: >-
-            One of a fixed set of preset messages, e.g. on_my_way | running_late_5 | running_late_15 |
-            cant_make_it | arrived | at_court | waiting_front_desk | thanks_for_game | rematch. No free
-            text — this is the light preset-message feature, not open chat.
-        sentAt:
-          type: string
-          format: date-time
-          description: When the message was sent.
-      required:
-      - messageId
     ActivityLog:
       type: object
       properties:
@@ -8306,6 +8281,33 @@ components:
           type: string
           format: date-time
           description: When the message was sent.
+    MatchMessage:
+      type: object
+      properties:
+        messageId:
+          type: string
+          format: uuid
+          description: Unique message id.
+        matchId:
+          type: string
+          format: uuid
+          description: Match this message belongs to (FK to match.matchId).
+        senderId:
+          type: string
+          format: uuid
+          description: Player who sent it (FK to player.playerId).
+        templateCode:
+          type: string
+          description: >-
+            One of a fixed set of preset messages, e.g. on_my_way | running_late_5 | running_late_15 |
+            cant_make_it | arrived | at_court | waiting_front_desk | thanks_for_game | rematch. No free
+            text — this is the light preset-message feature, not open chat.
+        sentAt:
+          type: string
+          format: date-time
+          description: When the message was sent.
+      required:
+      - messageId
     Error:
       type: object
       description: PostgREST error. `code` is the Postgres error code; `message` is written to be shown

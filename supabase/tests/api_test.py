@@ -38,8 +38,8 @@ U = {name: f"00000000-0000-0000-0000-00000000a00{i}" for i, name in enumerate(
 G = {k: f"00000000-0000-0000-0000-00000000{k}" for k in
      ["b001", "b002", "b003", "b004", "b005", "b006", "b007", "b008",
       "c101", "c102", "c103", "c104", "c105", "c106", "c107"]}
-CLUB_SMASH = "00000000-0000-0000-0000-00000000c001"
-CLUB_OLD = "00000000-0000-0000-0000-00000000c003"
+GROUP_SMASH = "00000000-0000-0000-0000-00000000c001"
+GROUP_OLD = "00000000-0000-0000-0000-00000000c003"
 LEAGUE = "00000000-0000-0000-0000-00000000e001"
 MATCH_D101 = "00000000-0000-0000-0000-00000000d101"
 
@@ -335,8 +335,8 @@ def main():
     check("returns formats, styles, levels, limits and post-as options", has_keys(o, [
         "formats", "styles", "abilityLevels", "limits", "defaultTitle", "postAs"]), r)
     check("venues are not sent here (the dropdown uses search_venues)", "venues" not in o, r)
-    check("alice can post as herself or as Smash Club (she is its admin)",
-          [p.get("name") for p in o.get("postAs", [])] == ["alice", "Smash Club"], r,
+    check("alice can post as herself or as Smash Group (she is its admin)",
+          [p.get("name") for p in o.get("postAs", [])] == ["alice", "Smash Group"], r,
           detail=json.dumps(o.get("postAs")))
     check("the fallback title is 'Badminton game'", o.get("defaultTitle") == "Badminton game", r)
     r = rpc("get_game_form_options", T["grace"])
@@ -385,12 +385,12 @@ def main():
     r = call("POST", "game_post", tc, {"organiser_id": cid, "format": "singles", "suburb": "Carlton",
                                        "proposed_time": "2020-01-01T08:00:00Z"})
     check("a start in the past is refused (23514)", r.code == "23514", r)
-    r = call("POST", "game_post", tc, {"organiser_club_id": CLUB_SMASH, "format": "doubles",
+    r = call("POST", "game_post", tc, {"organiser_group_id": GROUP_SMASH, "format": "doubles",
                                        "suburb": "Carlton", "proposed_time": future(10)})
-    check("posting for a club you are not an admin of is refused", r.code == "42501", r)
-    r = call("POST", "game_post", T["alice"], {"organiser_club_id": CLUB_OLD, "format": "doubles",
+    check("posting for a group you are not an admin of is refused", r.code == "42501", r)
+    r = call("POST", "game_post", T["alice"], {"organiser_group_id": GROUP_OLD, "format": "doubles",
                                                "suburb": "Carlton", "proposed_time": future(10)})
-    check("posting for an inactive club is refused", r.code in ("42501", "23514"), r)
+    check("posting for an inactive group is refused", r.code in ("42501", "23514"), r)
     r = call("PATCH", f"game_post?post_id=eq.{gpost.get('post_id')}", tc, {"notes": "Bring water"})
     check("the organiser edits their game", isinstance(r.body, list) and len(r.body) == 1, r)
     r = call("PATCH", f"game_post?post_id=eq.{gpost.get('post_id')}", T["bob"], {"notes": "Hijacked"})
@@ -411,7 +411,7 @@ def main():
     r = rpc("search_games", T["alice"], p_format="singles", p_limit=50)
     check("the format filter works", r.body and all(g["format"] == "Singles" for g in r.body), r)
     r = rpc("search_games", T["alice"], p_query="Smash", p_limit=50)
-    check("search finds the club game by name", G["b004"] in ids(r.body), r)
+    check("search finds the group game by name", G["b004"] in ids(r.body), r)
     r = rpc("search_games", T["frank"], p_limit=50)
     check("frank (blocked by alice) cannot see games alice runs or plays in",
           not ({G["b001"], G["b004"]} & ids(r.body)), r)
@@ -605,7 +605,7 @@ def main():
     check("unblock (204)", r.status == 204, r)
     check("the list is empty again", rpc("get_blocked_players", tb).body == [])
 
-    endpoint(A, "rpc/report_player / report_post / report_club / report_league")
+    endpoint(A, "rpc/report_player / report_post / report_group / report_league")
     rid, tr, _ = new_player("reporter")
     r = rpc("report_player", tr, p_player_id=U["frank"], p_category="harassment")
     check("a report without details is refused (23514)", r.code == "23514", r)
@@ -615,8 +615,8 @@ def main():
     check("a second open report on the same player is refused (23505)", r.code == "23505", r)
     r = rpc("report_post", tr, p_post_id=G["b007"], p_category="spam", p_reason="Coaching ad")
     check("a game post can be reported", isinstance(r.body, str), r)
-    r = rpc("report_club", tr, p_club_id=CLUB_SMASH, p_category="other", p_reason="Fake club")
-    check("a club can be reported", isinstance(r.body, str), r)
+    r = rpc("report_group", tr, p_group_id=GROUP_SMASH, p_category="other", p_reason="Fake group")
+    check("a group can be reported", isinstance(r.body, str), r)
     r = rpc("report_league", tr, p_league_id=LEAGUE, p_category="other", p_reason="Spam league")
     check("a league can be reported", isinstance(r.body, str), r)
     r = rpc("report_player", tr, p_player_id=U["frank"], p_category="threats", p_reason="x")
@@ -670,38 +670,38 @@ def main():
     check("but not for someone else", r.body == [], r)
 
     # ------------------------------------------------------------------ M6
-    A = "M6 Clubs"
+    A = "M6 Groups"
 
-    endpoint(A, "table club")
-    r = call("GET", "club?select=club_id,name,is_active&order=name", T["bob"])
-    check("clubs are listed, active and inactive", isinstance(r.body, list) and len(r.body) >= 3, r)
-    kid, tk, _ = new_player("clubber")
-    r = call("POST", "club", tk, {"name": f"Test Club {RUN}", "slug": f"test-club-{RUN}", "created_by": kid,
+    endpoint(A, "table groups")
+    r = call("GET", "groups?select=group_id,name,is_active&order=name", T["bob"])
+    check("groups are listed, active and inactive", isinstance(r.body, list) and len(r.body) >= 3, r)
+    kid, tk, _ = new_player("groupber")
+    r = call("POST", "groups", tk, {"name": f"Test Group {RUN}", "slug": f"test-group-{RUN}", "created_by": kid,
                                   "suburb": "Carlton", "state": "VIC"})
-    newclub = r.body[0]["club_id"] if isinstance(r.body, list) else None
-    check("a player creates a club (201)", r.status == 201, r)
-    r = call("GET", f"club_representative?club_id=eq.{newclub}&select=player_id,role,status", tk)
+    newgroup = r.body[0]["group_id"] if isinstance(r.body, list) else None
+    check("a player creates a group (201)", r.status == 201, r)
+    r = call("GET", f"group_member?group_id=eq.{newgroup}&select=player_id,role,status", tk)
     check("and becomes its first admin", r.body == [{"player_id": kid, "role": "admin", "status": "approved"}], r)
-    r = call("PATCH", f"club?club_id=eq.{CLUB_SMASH}", tk, {"name": "Hijacked"})
-    check("only a club's admins rename it", r.body == [], r)
-    r = call("DELETE", f"club?club_id=eq.{newclub}", tk)
-    check("clubs cannot be deleted, only deactivated", r.code == "42501" or r.body == [], r)
+    r = call("PATCH", f"groups?group_id=eq.{GROUP_SMASH}", tk, {"name": "Hijacked"})
+    check("only a group's admins rename it", r.body == [], r)
+    r = call("DELETE", f"groups?group_id=eq.{newgroup}", tk)
+    check("groups cannot be deleted, only deactivated", r.code == "42501" or r.body == [], r)
 
-    endpoint(A, "table club_representative")
-    r = call("POST", "club_representative", tk, {"club_id": CLUB_SMASH, "player_id": kid})
+    endpoint(A, "table group_member")
+    r = call("POST", "group_member", tk, {"group_id": GROUP_SMASH, "player_id": kid})
     check("a player asks to join (pending member)", isinstance(r.body, list)
           and (r.body[0]["status"], r.body[0]["role"]) == ("pending", "member"), r)
-    r = call("POST", "club_representative", T["alice"], {"club_id": CLUB_SMASH, "player_id": jid, "status": "approved"})
-    check("a club admin cannot add a player directly (players must ask)", r.code == "42501", r)
-    r = call("GET", f"club_representative?club_id=eq.{CLUB_SMASH}&status=eq.pending&select=player_id", T["erin"])
+    r = call("POST", "group_member", T["alice"], {"group_id": GROUP_SMASH, "player_id": jid, "status": "approved"})
+    check("a group admin cannot add a player directly (players must ask)", r.code == "42501", r)
+    r = call("GET", f"group_member?group_id=eq.{GROUP_SMASH}&status=eq.pending&select=player_id", T["erin"])
     check("other members do not see pending requests", r.body == [], r)
-    r = call("PATCH", f"club_representative?club_id=eq.{CLUB_SMASH}&player_id=eq.{kid}", tk, {"status": "approved"})
+    r = call("PATCH", f"group_member?group_id=eq.{GROUP_SMASH}&player_id=eq.{kid}", tk, {"status": "approved"})
     check("nobody approves their own request", r.body == [], r)
-    r = call("PATCH", f"club_representative?club_id=eq.{CLUB_SMASH}&player_id=eq.{kid}", T["alice"], {"status": "approved"})
-    check("the club admin approves it", isinstance(r.body, list) and len(r.body) == 1, r)
-    r = call("DELETE", f"club_representative?club_id=eq.{CLUB_SMASH}&player_id=eq.{kid}", tk)
+    r = call("PATCH", f"group_member?group_id=eq.{GROUP_SMASH}&player_id=eq.{kid}", T["alice"], {"status": "approved"})
+    check("the group admin approves it", isinstance(r.body, list) and len(r.body) == 1, r)
+    r = call("DELETE", f"group_member?group_id=eq.{GROUP_SMASH}&player_id=eq.{kid}", tk)
     check("a member can leave", isinstance(r.body, list) and len(r.body) == 1, r)
-    r = call("DELETE", f"club_representative?club_id=eq.{newclub}&player_id=eq.{kid}", tk)
+    r = call("DELETE", f"group_member?group_id=eq.{newgroup}&player_id=eq.{kid}", tk)
     check("the last admin cannot leave (23514)", r.code == "23514", r)
 
     # ------------------------------------------------------------------ Other tables
@@ -738,7 +738,7 @@ def main():
                "get_game_form_options", "mark_all_notifications_read", "delete_my_account"]:
         r = rpc(fn, None)
         check(f"rpc/{fn} is refused (42501)", r.code == "42501", r)
-    for table in ["player", "player_profile", "game_post", "venue", "club", "notification", "report"]:
+    for table in ["player", "player_profile", "game_post", "venue", "groups", "notification", "report"]:
         r = call("GET", f"{table}?select=*&limit=1", None)
         check(f"table {table} returns nothing", r.body == [] or r.code in ("42501", "401"), r)
 

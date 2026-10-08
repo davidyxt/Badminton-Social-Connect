@@ -180,7 +180,7 @@ TABLE_TAGS = {
     "match_result": "Results (tables)", "dispute": "Results (tables)", "check_in": "Results (tables)",
     "ranking": "Rankings and leagues (tables)", "mini_league": "Rankings and leagues (tables)",
     "league_standing": "Rankings and leagues (tables)",
-    "club": "Clubs", "club_representative": "Clubs",
+    "groups": "Groups", "group_member": "Groups",
     "blocks": "Trust and safety", "report": "Trust and safety",
     "notification": "Notifications",
     "venue": "Reference data", "state": "Reference data", "suburb": "Reference data",
@@ -369,7 +369,7 @@ RPCS = OrderedDict([
     ("get_blocked_players", ("Trust and safety", "BlockedPlayer", [("alice", {})])),
     ("report_player", ("Trust and safety", None, [])),
     ("report_post", ("Trust and safety", None, [])),
-    ("report_club", ("Trust and safety", None, [])),
+    ("report_group", ("Trust and safety", None, [])),
     ("report_league", ("Trust and safety", None, [])),
     ("get_notifications", ("Notifications", "NotificationItem", [("carol", {}), ("alice", {}), ("dan", {})])),
     ("mark_all_notifications_read", ("Notifications", None, [])),
@@ -521,7 +521,9 @@ def main():
 
     # Design-only endpoints from earlier versions, kept until someone builds them.
     planned_refs = set()
-    superseded = {"/group": "/club", "/group_member": "/club_representative"}
+    # Built under other names, so the old design entries are dropped:
+    # the design's /group became the club tables, which became groups.
+    superseded = {"/group", "/club", "/club_representative", "/rpc/report_club"}
     for path, ops in old.get("paths", {}).items():
         if path in paths or path in superseded:
             continue
@@ -573,7 +575,7 @@ def main():
 
     params = old["components"]["parameters"]
     params = OrderedDict((k, v) for k, v in params.items() if not k.endswith("Filter"))
-    params["selectParam"]["description"] = "PostgREST column projection, e.g. select=post_id,title,club(name)."
+    params["selectParam"]["description"] = "PostgREST column projection, e.g. select=post_id,title,groups(name)."
     params["orderParam"]["description"] = "PostgREST ordering, e.g. order=proposed_time.asc."
     params["rowFilter"] = {
         "name": "<column>", "in": "query", "required": False, "schema": {"type": "string"},
@@ -608,7 +610,7 @@ def main():
         ("Notifications", "In-app notifications (BL-050). New rows also arrive over Realtime: subscribe to "
                           "postgres_changes on public.notification; RLS sends each player only their own."),
         ("Reliability", "No-shows and the reliability score (BL-052, BL-054)."),
-        ("Clubs", "Clubs, their admins and members (BL-080). Players join by asking; a club admin approves."),
+        ("Groups", "Groups, their admins and members (BL-080). Players join by asking; a group admin approves."),
         ("Results (tables)", "Matches, results, disputes and check-ins. Result submission and confirmation "
                              "screens are not built in the backend yet (Planned)."),
         ("Rankings and leagues (tables)", "Read access to rankings and Mini Leagues. Their calculations and "

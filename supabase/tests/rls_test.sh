@@ -336,33 +336,33 @@ echo "== 7. private helper schema is not reachable over the API =="
 check "private.is_admin is not exposed as an RPC" "ERR:PGRST202" \
   "$(count "$(as "$TA" POST "rpc/is_admin" '{}')")"
 echo
-echo "== 8. clubs as organisers =="
-SLUG="test-club-$RANDOM"
+echo "== 8. groups as organisers =="
+SLUG="test-group-$RANDOM"
 BODY="{\"name\":\"Test Smashers\",\"slug\":\"$SLUG\",\"created_by\":\"$IDA\",\"state\":\"VIC\"}"
-R=$(as "$TA" POST "club" "$BODY")
-check "alice can register a club" 1 "$(count "$R")"
-CLUB=$(echo "$R" | python3 -c 'import sys,json
+R=$(as "$TA" POST "groups" "$BODY")
+check "alice can register a group" 1 "$(count "$R")"
+GROUP=$(echo "$R" | python3 -c 'import sys,json
 d=json.load(sys.stdin)
-print(d[0]["club_id"] if isinstance(d,list) and d else "")')
+print(d[0]["group_id"] if isinstance(d,list) and d else "")')
 
-check "the trigger made her an approved club admin" 1 \
-  "$(count "$(as "$TA" GET "club_representative?club_id=eq.$CLUB&player_id=eq.$IDA&role=eq.admin&status=eq.approved")")"
+check "the trigger made her an approved group admin" 1 \
+  "$(count "$(as "$TA" GET "group_member?group_id=eq.$GROUP&player_id=eq.$IDA&role=eq.admin&status=eq.approved")")"
 check "bob is not a member" 0 \
-  "$(count "$(as "$TB" GET "club_representative?club_id=eq.$CLUB&player_id=eq.$IDB")")"
+  "$(count "$(as "$TB" GET "group_member?group_id=eq.$GROUP&player_id=eq.$IDB")")"
 
-BODY="{\"organiser_club_id\":\"$CLUB\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 5)\"}"
+BODY="{\"organiser_group_id\":\"$GROUP\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 5)\"}"
 R=$(as "$TA" POST "game_post" "$BODY")
-check "a club admin can post on the club's behalf" 1 "$(count "$R")"
+check "a group admin can post on the group's behalf" 1 "$(count "$R")"
 CPOST=$(echo "$R" | python3 -c 'import sys,json
 d=json.load(sys.stdin)
 print(d[0]["post_id"] if isinstance(d,list) and d else "")')
 
 R=$(as "$TB" POST "game_post" "$BODY")
-check "bob cannot post as a club he does not represent" "ERR:42501" "$(count "$R")"
+check "bob cannot post as a group he does not represent" "ERR:42501" "$(count "$R")"
 
-check "bob cannot edit the club's post" 0 \
+check "bob cannot edit the group's post" 0 \
   "$(count "$(as "$TB" PATCH "game_post?post_id=eq.$CPOST" '{"status":"cancelled"}')")"
-check "the rep can edit the club's post" 1 \
+check "the rep can edit the group's post" 1 \
   "$(count "$(as "$TA" PATCH "game_post?post_id=eq.$CPOST" '{"suburb":"Box Hill"}')")"
 
 echo
@@ -375,32 +375,32 @@ BODY="{\"format\":\"singles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(futur
 R=$(as "$TA" POST "game_post" "$BODY")
 check "a post with no organiser is refused" "ERR:42501" "$(count "$R")"
 
-BODY="{\"organiser_id\":\"$IDA\",\"organiser_club_id\":\"$CLUB\",\"format\":\"singles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 6)\"}"
+BODY="{\"organiser_id\":\"$IDA\",\"organiser_group_id\":\"$GROUP\",\"format\":\"singles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 6)\"}"
 R=$(as "$TA" POST "game_post" "$BODY")
 check "a post with both organisers is rejected" "ERR:23514" "$(count "$R")"
 
 echo
-echo "== 10. club integrity =="
-check "nobody can verify their own club" "ERR:42501" \
-  "$(count "$(as "$TA" PATCH "club?club_id=eq.$CLUB" '{"is_verified":true}')")"
-check "bob cannot edit alice's club" 0 \
-  "$(count "$(as "$TB" PATCH "club?club_id=eq.$CLUB" '{"name":"Hijacked"}')")"
+echo "== 10. group integrity =="
+check "nobody can verify their own group" "ERR:42501" \
+  "$(count "$(as "$TA" PATCH "groups?group_id=eq.$GROUP" '{"is_verified":true}')")"
+check "bob cannot edit alice's group" 0 \
+  "$(count "$(as "$TB" PATCH "groups?group_id=eq.$GROUP" '{"name":"Hijacked"}')")"
 
-BREP="club_representative?club_id=eq.$CLUB&player_id=eq.$IDB"
-AREP="club_representative?club_id=eq.$CLUB&player_id=eq.$IDA"
+BREP="group_member?group_id=eq.$GROUP&player_id=eq.$IDB"
+AREP="group_member?group_id=eq.$GROUP&player_id=eq.$IDA"
 
-BODY="{\"club_id\":\"$CLUB\",\"player_id\":\"$IDB\",\"status\":\"approved\"}"
-R=$(as "$TB" POST "club_representative" "$BODY")
-check "bob cannot let himself straight into the club" "ERR:42501" "$(count "$R")"
-BODY="{\"club_id\":\"$CLUB\",\"player_id\":\"$IDB\",\"role\":\"admin\",\"status\":\"approved\"}"
-R=$(as "$TB" POST "club_representative" "$BODY")
-check "bob cannot make himself a club admin" "ERR:42501" "$(count "$R")"
-BODY="{\"club_id\":\"$CLUB\",\"player_id\":\"$IDA\"}"
-R=$(as "$TB" POST "club_representative" "$BODY")
+BODY="{\"group_id\":\"$GROUP\",\"player_id\":\"$IDB\",\"status\":\"approved\"}"
+R=$(as "$TB" POST "group_member" "$BODY")
+check "bob cannot let himself straight into the group" "ERR:42501" "$(count "$R")"
+BODY="{\"group_id\":\"$GROUP\",\"player_id\":\"$IDB\",\"role\":\"admin\",\"status\":\"approved\"}"
+R=$(as "$TB" POST "group_member" "$BODY")
+check "bob cannot make himself a group admin" "ERR:42501" "$(count "$R")"
+BODY="{\"group_id\":\"$GROUP\",\"player_id\":\"$IDA\"}"
+R=$(as "$TB" POST "group_member" "$BODY")
 check "bob cannot file a join request for someone else" "ERR:42501" "$(count "$R")"
 
-BODY="{\"club_id\":\"$CLUB\",\"player_id\":\"$IDB\"}"
-R=$(as "$TB" POST "club_representative" "$BODY")
+BODY="{\"group_id\":\"$GROUP\",\"player_id\":\"$IDB\"}"
+R=$(as "$TB" POST "group_member" "$BODY")
 check "bob can request to join (pending by default)" '["pending","member"]' \
   "$(echo "$R" | python3 -c 'import sys,json
 d=json.load(sys.stdin)
@@ -409,30 +409,30 @@ print(json.dumps([r.get("status"), r.get("role")], separators=(",",":")))')"
 check "bob cannot approve his own request" 0 \
   "$(count "$(as "$TB" PATCH "$BREP" '{"status":"approved"}')")"
 
-BODY="{\"organiser_club_id\":\"$CLUB\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 7)\"}"
+BODY="{\"organiser_group_id\":\"$GROUP\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 7)\"}"
 R=$(as "$TB" POST "game_post" "$BODY")
-check "a pending member cannot post for the club" "ERR:42501" "$(count "$R")"
+check "a pending member cannot post for the group" "ERR:42501" "$(count "$R")"
 
-check "the club admin approves bob" 1 \
+check "the group admin approves bob" 1 \
   "$(count "$(as "$TA" PATCH "$BREP" '{"status":"approved"}')")"
 R=$(as "$TB" POST "game_post" "$BODY")
-check "an approved member still cannot post for the club" "ERR:42501" "$(count "$R")"
-check "an approved member cannot rename the club" 0 \
-  "$(count "$(as "$TB" PATCH "club?club_id=eq.$CLUB" '{"name":"Hijacked"}')")"
+check "an approved member still cannot post for the group" "ERR:42501" "$(count "$R")"
+check "an approved member cannot rename the group" 0 \
+  "$(count "$(as "$TB" PATCH "groups?group_id=eq.$GROUP" '{"name":"Hijacked"}')")"
 
-check "the club admin promotes bob to admin" 1 \
+check "the group admin promotes bob to admin" 1 \
   "$(count "$(as "$TA" PATCH "$BREP" '{"role":"admin"}')")"
-check "a second admin can edit the club" 1 \
-  "$(count "$(as "$TB" PATCH "club?club_id=eq.$CLUB" '{"description":"Tuesday nights"}')")"
+check "a second admin can edit the group" 1 \
+  "$(count "$(as "$TB" PATCH "groups?group_id=eq.$GROUP" '{"description":"Tuesday nights"}')")"
 R=$(as "$TB" POST "game_post" "$BODY")
-check "a second admin can post for the club" 1 "$(count "$R")"
+check "a second admin can post for the group" 1 "$(count "$R")"
 
 check "an admin cannot demote another admin" 0 \
   "$(count "$(as "$TB" PATCH "$AREP" '{"role":"member"}')")"
 check "an admin cannot remove another admin" 0 \
   "$(count "$(as "$TB" DELETE "$AREP")")"
-check "not even a club admin can delete the club" "ERR:42501" \
-  "$(count "$(as "$TB" DELETE "club?club_id=eq.$CLUB")")"
+check "not even a group admin can delete the group" "ERR:42501" \
+  "$(count "$(as "$TB" DELETE "groups?group_id=eq.$GROUP")")"
 check "an admin can step down while another remains" 1 \
   "$(count "$(as "$TB" DELETE "$BREP")")"
 check "the last admin cannot step down" "ERR:23514" \
@@ -445,20 +445,20 @@ echo "== 11. the organiser embeds in one request =="
 # The hint after ! can be the column name or the constraint name; the column
 # name is shorter and survives a constraint being renamed.
 ORG='organiser:player!organiser_id(username)'
-EMB=$(as "$TA" GET "game_post?post_id=eq.$CPOST&select=post_id,club(name,slug),$ORG")
-check "club post embeds the club and a null organiser" '["Test Smashers",null]' \
+EMB=$(as "$TA" GET "game_post?post_id=eq.$CPOST&select=post_id,groups(name,slug),$ORG")
+check "group post embeds the group and a null organiser" '["Test Smashers",null]' \
   "$(echo "$EMB" | python3 -c 'import sys,json
 d=json.load(sys.stdin)
 r=d[0] if isinstance(d,list) and d else {}
-c=r.get("club") or {}
+c=r.get("groups") or {}
 print(json.dumps([c.get("name"), r.get("organiser")], separators=(",",":")))')"
-EMB=$(as "$TA" GET "game_post?post_id=eq.$PID&select=post_id,club(name),$ORG")
-check "player post embeds the organiser and a null club" "[\"$UNA\",null]" \
+EMB=$(as "$TA" GET "game_post?post_id=eq.$PID&select=post_id,groups(name),$ORG")
+check "player post embeds the organiser and a null group" "[\"$UNA\",null]" \
   "$(echo "$EMB" | python3 -c 'import sys,json
 d=json.load(sys.stdin)
 r=d[0] if isinstance(d,list) and d else {}
 p=r.get("organiser") or {}
-print(json.dumps([p.get("username"), r.get("club")], separators=(",",":")))')"
+print(json.dumps([p.get("username"), r.get("groups")], separators=(",",":")))')"
 echo
 echo "== 12. requesting to join a game =="
 C=$(signup "carol-$RANDOM@example.com" 'Passw0rd!x' 'Carol')
@@ -612,7 +612,7 @@ check "updated_by records who made the change, not whose row it is" "$IDA" \
 # columns fails with 42703 if either is missing.
 MISSING=""
 for tbl in player player_profile venue mini_league league_standing game_post \
-           game_participant cancellation_record club club_representative \
+           game_participant cancellation_record groups group_member \
            match match_participant check_in match_result dispute ranking \
            notification report admin_post
 do
@@ -622,20 +622,20 @@ done
 check "all 19 changeable tables expose the pair" "" "$MISSING"
 
 echo
-echo "== 16. club join requests are private, membership is public =="
-BODY="{\"club_id\":\"$CLUB\",\"player_id\":\"$IDC\"}"
-R=$(as "$TC" POST "club_representative" "$BODY")
+echo "== 16. group join requests are private, membership is public =="
+BODY="{\"group_id\":\"$GROUP\",\"player_id\":\"$IDC\"}"
+R=$(as "$TC" POST "group_member" "$BODY")
 check "carol can request to join" 1 "$(count "$R")"
-CREP="club_representative?club_id=eq.$CLUB&player_id=eq.$IDC"
+CREP="group_member?group_id=eq.$GROUP&player_id=eq.$IDC"
 check "bob cannot see carol's pending request" 0 "$(count "$(as "$TB" GET "$CREP")")"
-check "the club admin can see it" 1 "$(count "$(as "$TA" GET "$CREP")")"
-check "the club admin can decline it" 1 "$(count "$(as "$TA" DELETE "$CREP")")"
+check "the group admin can see it" 1 "$(count "$(as "$TA" GET "$CREP")")"
+check "the group admin can decline it" 1 "$(count "$(as "$TA" DELETE "$CREP")")"
 
-BODY="{\"club_id\":\"$CLUB\",\"player_id\":\"$IDC\",\"status\":\"approved\"}"
-R=$(as "$TA" POST "club_representative" "$BODY")
-check "a club admin cannot add a member directly (players must ask)" "ERR:42501" "$(count "$R")"
-BODY="{\"club_id\":\"$CLUB\",\"player_id\":\"$IDC\"}"
-as "$TC" POST "club_representative" "$BODY" > /dev/null
+BODY="{\"group_id\":\"$GROUP\",\"player_id\":\"$IDC\",\"status\":\"approved\"}"
+R=$(as "$TA" POST "group_member" "$BODY")
+check "a group admin cannot add a member directly (players must ask)" "ERR:42501" "$(count "$R")"
+BODY="{\"group_id\":\"$GROUP\",\"player_id\":\"$IDC\"}"
+as "$TC" POST "group_member" "$BODY" > /dev/null
 check "carol asks again and the admin approves" 1 \
   "$(count "$(as "$TA" PATCH "$CREP" '{"status":"approved"}')")"
 check "approved membership is visible to other players" 1 "$(count "$(as "$TB" GET "$CREP")")"
@@ -644,44 +644,44 @@ check "approval is stamped with the admin, not the member" "$IDA" \
 check "a member can leave" 1 "$(count "$(as "$TC" DELETE "$CREP")")"
 
 echo
-echo "== 17. clubs are deactivated, not deleted =="
+echo "== 17. groups are deactivated, not deleted =="
 # Bob is an approved member again, not an admin: he asks, Alice approves.
-BODY="{\"club_id\":\"$CLUB\",\"player_id\":\"$IDB\"}"
-as "$TB" POST "club_representative" "$BODY" > /dev/null
+BODY="{\"group_id\":\"$GROUP\",\"player_id\":\"$IDB\"}"
+as "$TB" POST "group_member" "$BODY" > /dev/null
 as "$TA" PATCH "$BREP" '{"status":"approved"}' > /dev/null
-check "a plain member cannot deactivate the club" 0 \
-  "$(count "$(as "$TB" PATCH "club?club_id=eq.$CLUB" '{"is_active":false}')")"
-check "a club with upcoming games cannot be deactivated" "ERR:23514" \
-  "$(count "$(as "$TA" PATCH "club?club_id=eq.$CLUB" '{"is_active":false}')")"
-for G in $(as "$TA" GET "game_post?organiser_club_id=eq.$CLUB&status=in.(open,full)&select=post_id" |
+check "a plain member cannot deactivate the group" 0 \
+  "$(count "$(as "$TB" PATCH "groups?group_id=eq.$GROUP" '{"is_active":false}')")"
+check "a group with upcoming games cannot be deactivated" "ERR:23514" \
+  "$(count "$(as "$TA" PATCH "groups?group_id=eq.$GROUP" '{"is_active":false}')")"
+for G in $(as "$TA" GET "game_post?organiser_group_id=eq.$GROUP&status=in.(open,full)&select=post_id" |
            python3 -c 'import sys,json;[print(r["post_id"]) for r in json.load(sys.stdin)]'); do
-  BODY="{\"p_post_id\":\"$G\",\"p_reason\":\"Club closing\"}"
+  BODY="{\"p_post_id\":\"$G\",\"p_reason\":\"Group closing\"}"
   as "$TA" POST "rpc/cancel_game_post" "$BODY" > /dev/null
 done
-check "once they are cancelled, a club admin can deactivate it" 1 \
-  "$(count "$(as "$TA" PATCH "club?club_id=eq.$CLUB" '{"is_active":false}')")"
+check "once they are cancelled, a group admin can deactivate it" 1 \
+  "$(count "$(as "$TA" PATCH "groups?group_id=eq.$GROUP" '{"is_active":false}')")"
 
 check "its game posts are still there" 1 \
   "$(count "$(as "$TB" GET "game_post?post_id=eq.$CPOST")")"
-check "the post can show the club as inactive" '[false]' \
-  "$(as "$TB" GET "game_post?post_id=eq.$CPOST&select=club(is_active)" | python3 -c 'import sys,json
+check "the post can show the group as inactive" '[false]' \
+  "$(as "$TB" GET "game_post?post_id=eq.$CPOST&select=groups(is_active)" | python3 -c 'import sys,json
 d=json.load(sys.stdin)
-print(json.dumps([(d[0].get("club") or {}).get("is_active")] if d else []))')"
+print(json.dumps([(d[0].get("groups") or {}).get("is_active")] if d else []))')"
 
-BODY="{\"organiser_club_id\":\"$CLUB\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 61)\"}"
+BODY="{\"organiser_group_id\":\"$GROUP\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 61)\"}"
 R=$(as "$TA" POST "game_post" "$BODY")
-check "an inactive club cannot post a game" "ERR:23514" "$(count "$R")"
-BODY="{\"club_id\":\"$CLUB\",\"player_id\":\"$IDC\"}"
-R=$(as "$TC" POST "club_representative" "$BODY")
-check "an inactive club cannot take join requests" "ERR:23514" "$(count "$R")"
-check "a member can still leave an inactive club" 1 \
+check "an inactive group cannot post a game" "ERR:23514" "$(count "$R")"
+BODY="{\"group_id\":\"$GROUP\",\"player_id\":\"$IDC\"}"
+R=$(as "$TC" POST "group_member" "$BODY")
+check "an inactive group cannot take join requests" "ERR:23514" "$(count "$R")"
+check "a member can still leave an inactive group" 1 \
   "$(count "$(as "$TB" DELETE "$BREP")")"
-check "an admin can still edit the club's existing posts" 1 \
+check "an admin can still edit the group's existing posts" 1 \
   "$(count "$(as "$TA" PATCH "game_post?post_id=eq.$CPOST" '{"suburb":"Richmond"}')")"
 
-check "a club admin can reactivate it" 1 \
-  "$(count "$(as "$TA" PATCH "club?club_id=eq.$CLUB" '{"is_active":true}')")"
-BODY="{\"organiser_club_id\":\"$CLUB\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 61)\"}"
+check "a group admin can reactivate it" 1 \
+  "$(count "$(as "$TA" PATCH "groups?group_id=eq.$GROUP" '{"is_active":true}')")"
+BODY="{\"organiser_group_id\":\"$GROUP\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 61)\"}"
 R=$(as "$TA" POST "game_post" "$BODY")
 check "once reactivated it can post again" 1 "$(count "$R")"
 echo
@@ -1035,8 +1035,8 @@ check "a game post can be reported" "OK" "$(report "$TC" report_post "$BODY")"
 check "with the post's title in the evidence" "Friday Night Doubles" \
   "$(as "$TC" GET "report?target_id=eq.$G5&select=evidence" | python3 -c 'import sys,json;print(json.load(sys.stdin)[0]["evidence"]["title"])')"
 check "but not by its organiser" "23514" "$(report "$TA" report_post "$BODY")"
-BODY="{\"p_club_id\":\"$CLUB\",\"p_category\":\"fake_account\",\"p_reason\":\"Pretends to be an official club\"}"
-check "a club can be reported" "OK" "$(report "$TC" report_club "$BODY")"
+BODY="{\"p_group_id\":\"$GROUP\",\"p_category\":\"fake_account\",\"p_reason\":\"Pretends to be an official group\"}"
+check "a group can be reported" "OK" "$(report "$TC" report_group "$BODY")"
 BODY="{\"p_league_id\":\"00000000-0000-0000-0000-000000000000\",\"p_category\":\"spam\",\"p_reason\":\"x\"}"
 check "a league that does not exist cannot" "42501" "$(report "$TC" report_league "$BODY")"
 BODY="{\"reported_by_player_id\":\"$IDC\",\"target_type\":\"player\",\"target_id\":\"$IDB\",\"reason\":\"x\",\"category\":\"spam\",\"evidence\":{\"username\":\"made up\"}}"
@@ -1076,10 +1076,10 @@ BODY="{\"p_post_id\":\"$GN\",\"p_player_id\":\"$IDR\"}"; rpc "$TH" decline_reque
 check "the player hears they were declined" "$GN" "$(latest "$TR" request_declined post_id)"
 check "nobody else can read them" 0 "$(count "$(as "$TA" GET "notification?player_id=eq.$IDR&select=notification_id")")"
 
-BODY="{\"organiser_club_id\":\"$CLUB\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 34)\"}"
+BODY="{\"organiser_group_id\":\"$GROUP\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 34)\"}"
 GC=$(as "$TA" POST "game_post" "$BODY" | field post_id)
 BODY="{\"p_post_id\":\"$GC\"}"; rpc "$TR" request_to_join "$BODY" > /dev/null
-check "for a club game, the club's admins hear about requests" "$GC" "$(latest "$TA" join_request post_id)"
+check "for a group game, the group's admins hear about requests" "$GC" "$(latest "$TA" join_request post_id)"
 
 LIST=$(as "$TR" POST "rpc/get_notifications" '{}')
 check "the screen gets title, message, unread and the game to open" "yes" \

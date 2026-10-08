@@ -236,7 +236,7 @@ One team member does this in the [Supabase dashboard](https://supabase.com/dashb
 - **Usernames are never generated** (item 9). `register_player` takes `p_username`, required when the account has none.
 - **Deleting an account** (item 5): `supabase.rpc('delete_my_account')`, then sign out.
   - The player stays as "Deleted User", so other players' results and rankings are kept.
-  - Their names, date of birth, consent records, bio, suburb, blocks, club memberships and notifications are removed.
+  - Their names, date of birth, consent records, bio, suburb, blocks, group memberships and notifications are removed.
   - Their upcoming games are cancelled, and the players in them are told.
   - The same happens when an admin deletes the user in the Supabase dashboard.
 - **Profile settings** also set preferred format and the email opt-out.

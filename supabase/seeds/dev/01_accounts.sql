@@ -4,7 +4,7 @@
 -- The dev seed fills every table so each screen and API has something to
 -- show. Files run in name order:
 --   01_accounts.sql          players, profiles, private details, rankings
---   02_clubs.sql             clubs, admins, members, a join request
+--   02_groups.sql             groups, admins, members, a join request
 --   03_upcoming_games.sql    games to find, requests, a cancelled and a removed game
 --   04_past_games.sql        finished games, matches, results, a dispute, no-shows
 --   05_safety_and_content.sql blocks, reports, admin posts, notifications, venues
@@ -13,12 +13,12 @@
 -- Every account's password is Passw0rd!  (meets the local password policy)
 --
 --   admin@example.com   platform admin (app_metadata.role = admin)
---   alice@example.com   organiser, Smash Club admin, runs the Spring Singles Ladder,
+--   alice@example.com   organiser, Smash Group admin, runs the Spring Singles Ladder,
 --                       blocked frank
---   bob@example.com     asked to join Smash Club (pending), one late cancellation
+--   bob@example.com     asked to join Smash Group (pending), one late cancellation
 --   carol@example.com   Northside Shuttlers admin, has a disputed result
 --   dan@example.com     profile hidden (is_discoverable = false), one no-show
---   erin@example.com    Smash Club member, one late withdrawal
+--   erin@example.com    Smash Group member, one late withdrawal
 --   frank@example.com   blocked by alice, reported by carol
 --   grace@example.com   signed up with Google: no username, has not passed the
 --                       age gate, so lands on /complete-registration
@@ -132,7 +132,7 @@ from (values
   ('00000000-0000-0000-0000-00000000a002'::uuid, 'Clayton', 'New to badminton, keen to improve.', true, 'any'),
   ('00000000-0000-0000-0000-00000000a003'::uuid, 'Box Hill', 'Looking for competitive singles.', true, 'singles'),
   ('00000000-0000-0000-0000-00000000a004'::uuid, 'Albert Park', null, false, 'singles'),
-  ('00000000-0000-0000-0000-00000000a005'::uuid, 'Brunswick', 'Club player, happy to make up numbers.', true, 'mixed_doubles'),
+  ('00000000-0000-0000-0000-00000000a005'::uuid, 'Brunswick', 'Group player, happy to make up numbers.', true, 'mixed_doubles'),
   ('00000000-0000-0000-0000-00000000a006'::uuid, 'Parramatta', 'Visiting Melbourne for work.', true, 'any'),
   ('00000000-0000-0000-0000-00000000a008'::uuid, 'Richmond', 'Weekend player.', true, 'doubles'),
   ('00000000-0000-0000-0000-00000000a009'::uuid, 'Southbank', 'Just moved here, looking for games.', true, 'any')

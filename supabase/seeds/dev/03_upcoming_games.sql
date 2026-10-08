@@ -8,7 +8,7 @@
 --   ...b002  bob     untitled singles ("Badminton game") at Melbourne Badminton
 --                    Centre, in 3 days: dan asking, erin asked then withdrew
 --   ...b003  carol   competitive singles at an "other venue" (suburb only), in 5 days
---   ...b004  Smash Club  club social night at Melbourne University, in 6 days
+--   ...b004  Smash Group  group social night at Melbourne University, in 6 days
 --   ...b005  alice   cancelled ("Venue double-booked")
 --   ...b006  bob     removed by bob (hidden from everyone but admins)
 --   ...b007  frank   singles in 4 days: alice blocked frank, so she sees a
@@ -17,7 +17,7 @@
 --                    account is deleted in 06
 
 insert into public.game_post (
-  post_id, organiser_id, organiser_club_id, title, format, style, ability_level,
+  post_id, organiser_id, organiser_group_id, title, format, style, ability_level,
   venue_id, suburb, proposed_time, duration_minutes, player_limit, notes
 )
 values
@@ -36,7 +36,7 @@ values
    date_trunc('hour', now()) + interval '5 days 19 hours', 60, 2,
    'School hall on Station St. Text me on arrival.'),
   ('00000000-0000-0000-0000-00000000b004', null, '00000000-0000-0000-0000-00000000c001',
-   'Smash Club social night', 'doubles', 'social', 'any',
+   'Smash Group social night', 'doubles', 'social', 'any',
    (select venue_id from public.venue where name = 'Melbourne University Badminton Club'), null,
    date_trunc('hour', now()) + interval '6 days 19 hours', 120, 8, 'All levels welcome.'),
   ('00000000-0000-0000-0000-00000000b005', '00000000-0000-0000-0000-00000000a001', null,

@@ -70,12 +70,12 @@ may need to sign out and back in.
 | `mini_league` | Any signed-in player |
 | `league_standing` | Any signed-in player |
 | `game_post` | Any signed-in player, except deleted posts (admins see those too) |
-| `game_request_message` | The requester and the game's organiser or club admins |
-| `game_participant_history` | The requester and the game's organiser or club admins |
+| `game_request_message` | The requester and the game's organiser or group admins |
+| `game_participant_history` | The requester and the game's organiser or group admins |
 | `game_participant` | **Accepted** rows: any signed-in player, so the board can show places taken. **Pending or rejected** rows: only the player who asked, and the organiser |
 | `cancellation_record` | Any signed-in player |
-| `club` | Any signed-in player |
-| `club_representative` | **Approved** members: any signed-in player. **Pending** join requests: only the player who asked, and the club's admins |
+| `groups` | Any signed-in player |
+| `group_member` | **Approved** members: any signed-in player. **Pending** join requests: only the player who asked, and the group's admins |
 | `match` | Any signed-in player |
 | `match_participant` | Players in that match, plus whoever manages it |
 | `check_in` | Players in that match, plus whoever manages it |
@@ -102,11 +102,11 @@ Admins can read everything in every table.
 | `mini_league` | Any player, as organiser | Organiser or admin | Organiser or admin |
 | `league_standing` | League organiser or admin | Same | Same |
 | `game_request_message`, `game_participant_history` | Nobody directly (`request_to_join` and a trigger) | Nobody | Nobody |
-| `game_post` | As yourself, or as a club you are an admin of | Organiser, club admin or admin. Cancelling and deleting only through the BL-013 functions | Nobody. Deleting hides the post (`delete_game_post`) |
+| `game_post` | As yourself, or as a group you are an admin of | Organiser, group admin or admin. Cancelling and deleting only through the BL-013 functions | Nobody. Deleting hides the post (`delete_game_post`) |
 | `game_participant` | Request to join as yourself, `status` forced to `requested`. The organiser may add people directly | The organiser decides accept/reject; you may only move your own row to `withdrawn` | Yourself, or the organiser |
-| `cancellation_record` | Organiser of the post (player or club admin), or admin | Admin | Admin |
-| `club` | Any player, as themselves (they become its first club admin) | Club admins or platform admin (including `is_active`), and not `is_verified` | Nobody. Clubs are deactivated, not deleted |
-| `club_representative` | Request to join as yourself, forced to `pending` / `member`. Nobody can add someone else (team item 4) | Club admins approve requests and promote members; only `role` and `status`; never another admin's row | Yourself (leave or withdraw), club admins removing a non-admin, or platform admin. The last club admin cannot leave |
+| `cancellation_record` | Organiser of the post (player or group admin), or admin | Admin | Admin |
+| `groups` | Any player, as themselves (they become its first group admin) | Group admins or platform admin (including `is_active`), and not `is_verified` | Nobody. Groups are deactivated, not deleted |
+| `group_member` | Request to join as yourself, forced to `pending` / `member`. Nobody can add someone else (team item 4) | Group admins approve requests and promote members; only `role` and `status`; never another admin's row | Yourself (leave or withdraw), group admins removing a non-admin, or platform admin. The last group admin cannot leave |
 | `match` | Anyone on the game's roster, or the league organiser for a fixture | Creator, game organiser, league organiser or admin | Same |
 | `match_participant` | Yourself, or the match manager adding you. Must be on the game's roster | Your own attendance, or the manager's | Yourself, or the manager |
 | `check_in` | Yourself, only if you are a participant, only unverified | Admin | Admin |
@@ -114,7 +114,7 @@ Admins can read everything in every table.
 | `dispute` | Participants, `status` forced to `open` | Admin | Admin |
 | `ranking` | Nobody | Admin | Nobody |
 | `notification` | Admin | Own row, and only `is_read` | Own row |
-| `report` | Nobody directly. Only `report_player` / `report_post` / `report_league` / `report_club`, which capture the evidence | Admin | Admin |
+| `report` | Nobody directly. Only `report_player` / `report_post` / `report_league` / `report_group`, which capture the evidence | Admin | Admin |
 | `blocks` | Nobody directly (`block_player`) | Nobody | Nobody directly (`unblock_player`) |
 | `admin_post` | Admin, as themselves | Admin | Admin |
 
@@ -125,7 +125,7 @@ or over, the 18+ declaration, and accepted versions of the terms of use and the
 privacy notice (`player_private.registered_at` set). Until then:
 
 - it can read and edit its own `player`, `player_profile` and `player_private` rows, and read states, suburbs, venues, announcements and its own notifications;
-- every other player, game, club, match, league, ranking and report is invisible, and it cannot create any.
+- every other player, game, group, match, league, ranking and report is invisible, and it cannot create any.
 
 This is enforced by **restrictive** policies (`<table>: registered players
 only`), which Postgres ANDs with the normal permissive ones. They narrow access
@@ -160,7 +160,7 @@ operation, or a trigger that overwrites whatever the client sent.
 | Column | Why |
 |---|---|
 | `player.is_verified` | Otherwise any player awards themselves a verification badge |
-| `club.is_verified` | Same. Anyone can register a club, so the badge is the only signal that it is genuine |
+| `group.is_verified` | Same. Anyone can register a group, so the badge is the only signal that it is genuine |
 | `player_profile.reliability_score` | Derived from no-shows; self-reporting defeats the point |
 | `player_profile.games_played`, `.no_show_count`, `.late_withdrawal_count`, `.late_cancellation_count` | Same. Refreshed from `private.reliability` |
 | `game_participant.status = no_show`, `.late_withdrawal` | Only `mark_no_show` / `clear_no_show` and a trigger. A player who could clear their own no-show would undo the point |
@@ -196,7 +196,7 @@ the API as well.
 |---|---|
 | `game_participant_capacity` | A game cannot accept more players than `player_limit` |
 | `game_post_validate` | Suburb required (copied from the venue); start time in the future; `status = cancelled` and `deleted_*` can only be set by `cancel_game_post`, `delete_game_post` and `admin_delete_game_post` |
-| `club_has_no_upcoming_games` | A club cannot be deactivated while it has upcoming games |
+| `group_has_no_upcoming_games` | A group cannot be deactivated while it has upcoming games |
 | `game_participant_validate_change` | Join requests and responses only while the game is open (not cancelled, deleted or started) |
 | `game_participant_first_acceptance` | The first accepted player creates the game's match |
 | `match_participant_validate` | Players must be on the game's accepted roster; one per side for singles, two for doubles |
@@ -219,8 +219,8 @@ cannot be called as an RPC).
 | `private.is_match_participant(match_id)` | Are you in this match? |
 | `private.can_manage_match(match_id)` | Did you create it, or do you organise its league? |
 | `private.is_league_organiser(league_id)` | Do you organise this league? |
-| `private.can_post_for_club(club_id)` | Are you an approved admin of this club? |
-| `private.can_manage_post(post_id)` | Did you post this game, or are you an admin of the club that did? |
+| `private.can_post_for_group(group_id)` | Are you an approved admin of this groups? |
+| `private.can_manage_post(post_id)` | Did you post this game, or are you an admin of the group that did? |
 | `private.is_game_participant(post_id)` | Are you on this game's accepted roster? |
 | `private.is_registered()` | Have you passed the age gate (or are you an admin)? |
 
@@ -258,7 +258,7 @@ supabase db reset --local
 
 All 340 pass with every migration up to the API descriptions (2026-10-08). It covers: the sign-up trigger, the
 discoverability rule, cross-user writes, the escalation paths above, anonymous
-access, game post ownership, the private schema not being exposed, club
+access, game post ownership, the private schema not being exposed, group
 admins, members, join requests and deactivation, the exactly-one-organiser constraint, and organiser embedding.
 
 Add a case here whenever you add a policy. A policy that is subtly too
@@ -315,33 +315,33 @@ schema working, marked `DEVIATION` in the migration.
    or we add a trigger. I avoided one because it would fight with an organiser
    setting the status by hand.
 
-7. **Anyone can register a club, and unverified clubs can post.** Nothing stops
+7. **Anyone can register a group, and unverified groups can post.** Nothing stops
    someone creating "Melbourne Badminton Association" and posting as it. The
    `is_verified` badge is the only signal, and it is staff-set. The alternatives
-   are to let only admins create clubs (no self-service) or to block unverified
-   clubs from posting until approved. I chose the open default to match how
+   are to let only admins create groups (no self-service) or to block unverified
+   groups from posting until approved. I chose the open default to match how
    player verification already works, but this is an impersonation risk and
    worth a deliberate decision.
 
-8. **Resolved (BL-080): clubs have admins, members and join requests.**
-   `club_representative` is the membership list, with `role` (`admin` /
+8. **Resolved (BL-080): groups have admins, members and join requests.**
+   `group_member` is the membership list, with `role` (`admin` /
    `member`) and `status` (`pending` / `approved`). The creator is the first
-   admin; a club can have several. Players request to join and a club admin
-   approves. Only club admins can rename the club or post games for it. A club
+   admin; a group can have several. Players request to join and a group admin
+   approves. Only group admins can rename the group or post games for it. A group
    admin can never demote or remove another admin, so two admins who fall out
    cannot lock each other out; platform admins settle those. The
-   `keep_one_club_admin` trigger stops the last admin leaving. Club admins can
+   `keep_one_group_admin` trigger stops the last admin leaving. Group admins can
    still add a player directly without a request, which means someone can be
-   listed in a club without having agreed to it. Say so if that should become
+   listed in a group without having agreed to it. Say so if that should become
    an invitation the player accepts.
 
-9. **Resolved (BL-080): clubs are deactivated, never deleted.** Deleting a
-   club used to cascade through its game posts to every match, result and
-   dispute played in them. Now nobody can delete a club through the API (no
-   policy and no privilege), and `game_post.organiser_club_id` is `on delete
-   restrict`, so even a `service_role` delete fails while the club has posts.
-   A club admin sets `club.is_active = false` instead: posts and results stay,
-   the club page shows it as inactive, and the `club_must_be_active` trigger
+9. **Resolved (BL-080): groups are deactivated, never deleted.** Deleting a
+   group used to cascade through its game posts to every match, result and
+   dispute played in them. Now nobody can delete a group through the API (no
+   policy and no privilege), and `game_post.organiser_group_id` is `on delete
+   restrict`, so even a `service_role` delete fails while the group has posts.
+   A group admin sets `group.is_active = false` instead: posts and results stay,
+   the group page shows it as inactive, and the `group_must_be_active` trigger
    stops new game posts and join requests until it is reactivated. Members can
    still leave and admins can still edit or cancel existing posts.
 
