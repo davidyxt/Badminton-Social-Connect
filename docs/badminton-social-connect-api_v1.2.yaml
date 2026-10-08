@@ -3048,7 +3048,7 @@ paths:
                 suburb: Carlton
                 noShows: 0
                 initials: AN
-                joinedAt: '2026-07-10T08:39:36.601912+00:00'
+                joinedAt: '2026-07-10T10:54:08.45014+00:00'
                 lastName: Nguyen
                 location: Carlton area · VIC
                 username: alice
@@ -3529,7 +3529,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/VenueOption"
               example:
-              - id: 6aecb6a9-6140-4d43-912f-433f8e6e94cc
+              - id: 8b7d6f35-6480-4958-a143-855a8813bdb3
                 name: Badminton Court
                 label: Badminton Court — Wantirna VIC
                 state: VIC
@@ -3537,7 +3537,7 @@ paths:
                 address: Badminton Ct, Wantirna VIC 3152
                 mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.849473,145.230175
                 postcode: '3152'
-              - id: 294b4023-82ed-42c7-a3bd-7c0b5033605e
+              - id: a0adabdb-7bf4-4050-ad30-23ca81c0f2c0
                 name: Badminton Court
                 label: Badminton Court — Marshall VIC
                 state: VIC
@@ -3584,22 +3584,22 @@ paths:
                 items:
                   "$ref": "#/components/schemas/GameCard"
               example:
-              - id: 4d007657-bd7c-4fae-8a85-a1ecbc21d935
+              - id: 8328cf64-3573-4484-8787-296c268ae3ae
                 date: Thu, 8 Oct
                 host:
-                  id: c0cb3520-6038-4ca5-b1c4-f1e3586dd8d9
-                  name: Alice_28115
+                  id: 1fd73ec1-8452-48cb-a228-546012c72910
+                  name: Alice_21551
                   isGroup: false
                   initials: AL
                   isBlocked: false
                   isDeleted: false
                   profileImageUrl: 
                 rank: Any Rank
-                time: 9:40 PM – 10:40 PM
+                time: 11:54 PM – 12:54 AM
                 style: Social
                 title: Badminton game
                 venue: 
-                endsAt: '2026-10-08T11:40:06+00:00'
+                endsAt: '2026-10-08T13:54:43+00:00'
                 format: Singles
                 status: open
                 suburb: Carlton
@@ -3609,26 +3609,26 @@ paths:
                 isInvite: false
                 location: Carlton
                 myStatus: 
-                startsAt: '2026-10-08T10:40:06+00:00'
+                startsAt: '2026-10-08T12:54:43+00:00'
                 maxPlayers: 4
                 playerCount: 1
                 durationMinutes: 60
-              - id: dd91a180-fe08-405a-8c38-74aec48f5f2a
+              - id: 27286faa-59e0-4097-a3f0-666b63842199
                 date: Thu, 8 Oct
                 host:
-                  id: 39d39d10-2b6f-4000-8754-2829cf80f0a4
-                  name: t7221_host
+                  id: b5b59ac7-8f38-4bd7-9b7c-f585c086a24f
+                  name: t5107_host
                   isGroup: false
                   initials: TH
                   isBlocked: false
                   isDeleted: false
                   profileImageUrl: 
                 rank: Any Rank
-                time: 9:40 PM – 10:40 PM
+                time: 11:55 PM – 12:55 AM
                 style: Social
                 title: Badminton game
                 venue: 
-                endsAt: '2026-10-08T11:40:50.120911+00:00'
+                endsAt: '2026-10-08T13:55:19.338356+00:00'
                 format: Singles
                 status: open
                 suburb: Carlton
@@ -3638,7 +3638,7 @@ paths:
                 isInvite: false
                 location: Carlton
                 myStatus: 
-                startsAt: '2026-10-08T10:40:50.120911+00:00'
+                startsAt: '2026-10-08T12:55:19.338356+00:00'
                 maxPlayers: 4
                 playerCount: 1
                 durationMinutes: 60
@@ -3744,7 +3744,7 @@ paths:
                       isBlocked: false
                       isDeleted: false
                       profileImageUrl: 
-                    venueId: 3b46eece-7f3b-4743-ba25-2cee4ad9181e
+                    venueId: 3fefbd57-5378-4458-95b5-6eb338c8ad7c
                     duration: 90 mins
                     imageUrl: 
                     isInvite: false
@@ -3785,14 +3785,6 @@ paths:
                     mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.796360,144.960652
                     matches: []
                     players:
-                    - id: 00000000-0000-0000-0000-00000000a005
-                      host: false
-                      name: erin
-                      noShow: false
-                      initials: ER
-                      isBlocked: false
-                      isDeleted: false
-                      profileImageUrl: 
                     - id: 00000000-0000-0000-0000-00000000a001
                       host: false
                       name: alice
@@ -3801,7 +3793,15 @@ paths:
                       isBlocked: false
                       isDeleted: false
                       profileImageUrl: 
-                    venueId: c4d01640-2254-43f9-b697-8d011631f95a
+                    - id: 00000000-0000-0000-0000-00000000a005
+                      host: false
+                      name: erin
+                      noShow: false
+                      initials: ER
+                      isBlocked: false
+                      isDeleted: false
+                      profileImageUrl: 
+                    venueId: 157e5368-e534-42d1-bfa5-c08d53136960
                     duration: 120 mins
                     imageUrl: 
                     isInvite: false
@@ -3866,7 +3866,7 @@ paths:
                       isBlocked: false
                       isDeleted: false
                       profileImageUrl: 
-                    venueId: 93524291-92b8-4392-873e-60af5b5a1b0b
+                    venueId: 17e9bfb1-c039-46ff-b42c-13fd97113e8f
                     duration: 60 mins
                     imageUrl: 
                     isInvite: true
@@ -3931,7 +3931,7 @@ paths:
                       isBlocked: false
                       isDeleted: false
                       profileImageUrl: 
-                    venueId: 93524291-92b8-4392-873e-60af5b5a1b0b
+                    venueId: 17e9bfb1-c039-46ff-b42c-13fd97113e8f
                     duration: 60 mins
                     imageUrl: 
                     isInvite: true
@@ -4016,7 +4016,7 @@ paths:
                       isBlocked: false
                       isDeleted: false
                       profileImageUrl: 
-                    venueId: 93524291-92b8-4392-873e-60af5b5a1b0b
+                    venueId: 17e9bfb1-c039-46ff-b42c-13fd97113e8f
                     duration: 90 mins
                     imageUrl: 
                     isInvite: false
@@ -4200,7 +4200,7 @@ paths:
                   preferredFormat: Singles
                   profileImageUrl: 
                   verifiedMatches: 2
-                requestedAt: '2026-10-05T08:39:36.661807+00:00'
+                requestedAt: '2026-10-05T10:54:08.514826+00:00'
               - id: 00000000-0000-0000-0000-00000000b001:00000000-0000-0000-0000-00000000a005
                 game:
                   id: 00000000-0000-0000-0000-00000000b001
@@ -4254,7 +4254,7 @@ paths:
                   preferredFormat: Mixed Doubles
                   profileImageUrl: 
                   verifiedMatches: 1
-                requestedAt: '2026-10-06T08:39:36.661807+00:00'
+                requestedAt: '2026-10-06T10:54:08.514826+00:00'
         '400':
           "$ref": "#/components/responses/RuleBroken"
         '401':
@@ -4575,18 +4575,18 @@ paths:
                 items:
                   "$ref": "#/components/schemas/PlayerCard"
               example:
-              - id: 1d36fa0d-8128-43ca-8b26-8753c529b3d3
-                name: ada_10718_147
+              - id: 58fd71b3-fb86-4407-8a64-c3353d720770
+                name: ada_4059_605
                 rank: Beginner
                 initials: AD
                 location: 
                 isBlocked: false
                 reliability: 100
                 profileImageUrl: 
-              - id: 41f804a7-d8ea-4d66-8652-b2f2bc198068
-                name: ada_12038_141
+              - id: 1fd73ec1-8452-48cb-a228-546012c72910
+                name: Alice_21551
                 rank: Beginner
-                initials: AD
+                initials: AL
                 location: 
                 isBlocked: false
                 reliability: 100
@@ -4838,7 +4838,7 @@ paths:
                 reason: Kept messaging me after our game.
                 category: harassment
                 initials: FR
-                blockedAt: '2026-10-04T08:39:36.769414+00:00'
+                blockedAt: '2026-10-04T10:54:08.568594+00:00'
                 categoryLabel: Harassment
                 profileImageUrl: 
         '401':
@@ -5050,7 +5050,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/NotificationItem"
               example:
-              - id: 3fdc7255-00eb-47ca-9c01-5dee3ecf86d4
+              - id: 2f4b94a3-67ad-4009-9d85-674d401fd459
                 type: game_cancelled
                 title: 'Doubles game on Thu 15 Oct, 6:00 PM in Richmond was cancelled: the organiser closed
                   their account.'
@@ -5058,15 +5058,15 @@ paths:
                 unread: true
                 matchId: 
                 message: Find another game or post your own
-                createdAt: '2026-10-08T08:39:36.781802+00:00'
-              - id: e962ba6c-e8da-43b9-92c5-d85cfccbeb09
+                createdAt: '2026-10-08T10:54:08.576488+00:00'
+              - id: 551bef3b-cc74-4e90-9ec7-d76e7f1532fb
                 type: request_accepted
                 title: Your request to join Doubles game on Sat 10 Oct, 6:00 PM in Albert Park was accepted.
                 postId: 00000000-0000-0000-0000-00000000b001
                 unread: true
-                matchId: b4529725-25df-4d20-a61b-e289a999d803
-                message: Tap to view match details
-                createdAt: '2026-10-08T08:39:36.661807+00:00'
+                matchId: 
+                message: Tap to view the game
+                createdAt: '2026-10-08T10:54:08.514826+00:00'
         '401':
           "$ref": "#/components/responses/Unauthorized"
       requestBody:
@@ -8847,13 +8847,18 @@ components:
               type: string
             isBlocked:
               type: boolean
+              nullable: true
             isDeleted:
               type: boolean
+              nullable: true
             profileImageUrl:
               type: string
               format: uri
               nullable: true
               description: Public URL of the profile picture (avatars bucket); null when none.
+            isActive:
+              type: boolean
+              nullable: true
         rank:
           type: string
         time:

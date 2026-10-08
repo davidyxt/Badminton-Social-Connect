@@ -5,16 +5,69 @@ How each screen connects to the backend, what the frontend has to change, and wh
 Everything here is on the branch `M4-M6-M1-M3-M5`, which combines the backend work from M1, M3, M4, M5 and M6.
 
 - **Exact calls, parameters, responses and errors:** [the implemented API spec](badminton-social-connect-api_implemented-playerBE1.yaml) (open it in https://editor.swagger.io). It has only what's built, and every response has a real example. [The full spec](badminton-social-connect-api_v1.2.yaml) also lists the design's endpoints that are still Planned.
-- **Proof that the calls work:** [API test report](api-test-report.md).
+- **Proof that the calls work:** run `python3 supabase/tests/api_test.py`. It tests every call against the local stack and writes a report to `docs/api-test-report.md` (not kept in Git).
 
 ## Contents
 
+- [Start here](#start-here)
 - [Getting started](#getting-started)
 - [How to call the backend](#how-to-call-the-backend)
 - [Screen by screen](#screen-by-screen)
 - [Changes the frontend must make](#changes-the-frontend-must-make)
-- [Backend ready, no screen yet](#backend-ready-no-screen-yet)
+- [Backend ready, no screen implementation yet](#backend-ready-no-screen-implementation-yet)
 - [Screens with no backend yet](#screens-with-no-backend-yet)
+
+## Start here
+
+A short version for whoever, or whatever AI assistant, picks this up.
+
+**Scope.** Wire the existing React pages to the Supabase backend, and build the few new screens listed below.
+
+- **In scope:** sign-in and registration are already wired. Everything else in [Screen by screen](#screen-by-screen) is to do.
+- **Out of scope:** matches, results, rankings and mini leagues are being built by a teammate. Leave those pages on their sample data.
+
+**Sources of truth.**
+
+- **This guide:** what each screen calls and what to change on it.
+- **[The implemented API spec](badminton-social-connect-api_implemented-playerBE1.yaml):** the exact parameters, response fields and errors, with a real example for every call. When the guide and the spec disagree, the spec is right: it's generated from the running backend.
+- **The test accounts** in [Getting started](#getting-started): every screen should work when signed in as them.
+
+**Conventions.**
+
+- **Clients and helpers:**
+  - always use the shared client in [`services/supabase.js`](../frontend/src/services/supabase.js). Never create a second client or call the API with `fetch`; the shared client adds the signed-in player's token to every call;
+  - call functions through `rpc()` in [`services/api.js`](../frontend/src/services/api.js), and tables through `unwrap(supabase.from(...))`. Both throw an `ApiError` whose `message` can be shown to the player.
+- **Service files:** keep calls in `frontend/src/services/`, not in pages:
+  - `playerService.js`: profiles, players, blocking, reports;
+  - `gameService.js`: games, requests, invitations, venues;
+  - new files where it helps, e.g. `groupService.js`, `notificationService.js`.
+
+  Replace `gameService.js`'s fake `createGame`.
+- **Loading the session:** load data only after `useAuth().loading` is false. App pages stay behind `ProtectedRoute`.
+- **Names:**
+  - API fields are camelCase (`startsAt`, `profileImageUrl`);
+  - table columns are snake_case (`proposed_time`);
+  - function parameters start with `p_`.
+
+**Order of work.** Each step should work against the test accounts before the next:
+
+1. **Setup:** local stack and frontend env file. See [SETUP.md](SETUP.md#5-frontend-env) (`frontend/.env.development.local`, values from `npx supabase status`).
+2. **Read-only screens:** Home (next games), Find Games (both tabs, search bar and filters), Game Details, another player's profile, your own Profile, Notifications.
+3. **Actions:**
+   - request to join, withdraw;
+   - the host's accept, decline, cancel, delete and no-shows;
+   - Post a Game, with the venue search and title;
+   - Request Game invitations;
+   - block, report.
+4. **New screens:**
+   - My games;
+   - profile editing (availability, picture);
+   - Blocked Users;
+   - groups;
+   - Delete account.
+5. **Live notification badge** (Realtime).
+
+**Done means:** each screen shows real data for the test accounts, every button calls the backend and shows its error `message` when refused, and nothing on the page is sample data any more.
 
 ## Getting started
 
@@ -526,16 +579,16 @@ Matches, results, rankings and leagues are being built by a teammate, so they ar
 
 ## Changes the frontend must make
 
-1. **Username on sign-up (item 9).** Done on this branch. Usernames are never made up any more:
+1. **Username on sign-up.** Done on this branch. Usernames are never made up any more:
    - an email sign-up without one fails;
    - Google players choose theirs on `/complete-registration`.
-2. **Post a Game (item 2):**
+2. **Post a Game:**
    - add a **title** field;
    - use "Social", not "Friendly";
    - make the venue a searchable dropdown backed by `search_venues`, and send its `venue_id`;
    - "Other" needs a suburb;
    - add "post as me / as a group" (`postAs`).
-3. **Groups (item 4, Nick's request):**
+3. **Groups (requested by Nick):**
    - players **ask** to join, and a group admin approves;
 
    Screens to build:
@@ -557,21 +610,21 @@ Matches, results, rankings and leagues are being built by a teammate, so they ar
    | Deactivate the group | `from('groups').update({ is_active: false })` |
 
    An inactive group shows as inactive on its old games (`host.isActive`).
-4. **Deleted accounts (item 5):** deleted players appear as **"Deleted User"**, with `isDeleted: true` on hosts and rosters.
+4. **Deleted accounts:** deleted players appear as **"Deleted User"**, with `isDeleted: true` on hosts and rosters.
    - Don't link to their profile; `get_player_profile` returns null.
    - Add a "Delete account" option with a clear warning.
-5. **Reports (item 12):** a reason is required for **every** report. Use the category picker from the table below.
-6. **Blocking (item 13, notes 4 and 6):**
+5. **Reports:** a reason is required for **every** report. Use the category picker from the table below.
+6. **Blocking :**
    - Ask for an optional category (same list as reports) and reason: `rpc('block_player', { p_player_id, p_category, p_reason })`.
    - Show a **Blocked** badge wherever `isBlocked` is true: player search, profile, Game Details host and players, Find Games host.
    - The blocker can still open the blocked player's profile, so show the badge and an **Unblock** button there.
    - Add a **Blocked Users** page from `get_blocked_players` (shows category and reason).
    - Rankings will stay visible both ways, without a picture or click-through, when the leaderboard is built.
-7. **Reliability (item 14):** keep the screens as they are: reliability is a percentage ("96% reliable"). There is no band. The counts behind the score (`gamesPlayed`, `noShows`, `lateWithdrawals`, `lateCancellations`) are on the profile.
-8. **Email opt-out (item 15):** add a toggle in Notifications settings: `update_my_profile({ p_email_notifications })`.
-9. **Admin (item 18, report filter):**
+7. **Reliability:** keep the screens as they are: reliability is a percentage ("96% reliable"). There is no band. The counts behind the score (`gamesPlayed`, `noShows`, `lateWithdrawals`, `lateCancellations`) are on the profile.
+8. **Email opt-out:** add a toggle in Notifications settings: `update_my_profile({ p_email_notifications })`.
+9. **Admin :**
    - the admin console needs a report queue filtered by category;
-10. **Request Game / Request to Play (item 17).** These buttons invite one player to a singles game. The invited player accepts or declines, and both sides are notified.
+10. **Request Game / Request to Play.** These buttons invite one player to a singles game. The invited player accepts or declines, and both sides are notified.
     - Post a Game gets an [invite mode](#request-game-invite-mode) that calls `invite_player`.
     - Game Details shows **Accept / Decline** when `myStatus` is `invited`.
     - Notifications get an invitation icon for `match_invite`, `invite_accepted` and `invite_declined`.
@@ -627,4 +680,4 @@ These are outside the BE-1 stories, or need a team decision first.
 | Match Details, Record Result, Result Submitted, Result Confirmed | Matches within a game and their results: being built by a teammate. `get_game_details` returns `matches: []` until then |
 | Dashboard league and recent activity | No functions yet |
 | Notification types reminder, new game nearby, rating change | Not sent yet |
-| Terms and privacy pages | The documents and their version labels (item 11) |
+| Terms and privacy pages | The documents and their version labels |
