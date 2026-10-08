@@ -3225,55 +3225,55 @@ paths:
                 items:
                   "$ref": "#/components/schemas/GameCard"
               example:
-              - id: 00000000-0000-0000-0000-00000000b001
-                date: Sat, 10 Oct
-                rank: Intermediate
-                time: 6:00 PM – 7:30 PM
+              - id: 4d007657-bd7c-4fae-8a85-a1ecbc21d935
+                date: Thu, 8 Oct
+                rank: Any Rank
+                time: 9:40 PM – 10:40 PM
                 style: Social
-                title: Friday Night Doubles
-                endsAt: '2026-10-10T08:30:00+00:00'
-                format: Doubles
+                title: Badminton game
+                endsAt: '2026-10-08T11:40:06+00:00'
+                format: Singles
                 status: open
-                suburb: Albert Park
-                mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
+                suburb: Carlton
+                mapsUrl: 
                 imageUrl: 
                 isInvite: false
-                location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
-                myStatus: accepted
-                startsAt: '2026-10-10T07:00:00+00:00'
+                location: Carlton
+                myStatus: 
+                startsAt: '2026-10-08T10:40:06+00:00'
                 organiser:
-                  id: 00000000-0000-0000-0000-00000000a001
-                  name: alice
+                  id: c0cb3520-6038-4ca5-b1c4-f1e3586dd8d9
+                  name: Alice_28115
                   isGroup: false
                   initials: AL
                   isBlocked: false
                   isDeleted: false
                 maxPlayers: 4
-                playerCount: 3
-              - id: 00000000-0000-0000-0000-00000000b002
-                date: Sun, 11 Oct
+                playerCount: 1
+              - id: dd91a180-fe08-405a-8c38-74aec48f5f2a
+                date: Thu, 8 Oct
                 rank: Any Rank
-                time: 10:00 AM – 11:00 AM
+                time: 9:40 PM – 10:40 PM
                 style: Social
                 title: Badminton game
-                endsAt: '2026-10-11T00:00:00+00:00'
+                endsAt: '2026-10-08T11:40:50.120911+00:00'
                 format: Singles
                 status: open
-                suburb: Blackburn North
-                mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.799510,145.144072
+                suburb: Carlton
+                mapsUrl: 
                 imageUrl: 
                 isInvite: false
-                location: Melbourne Badminton Centre, Blackburn North
+                location: Carlton
                 myStatus: 
-                startsAt: '2026-10-10T23:00:00+00:00'
+                startsAt: '2026-10-08T10:40:50.120911+00:00'
                 organiser:
-                  id: 00000000-0000-0000-0000-00000000a002
-                  name: bob
+                  id: 39d39d10-2b6f-4000-8754-2829cf80f0a4
+                  name: t7221_host
                   isGroup: false
-                  initials: BO
+                  initials: TH
                   isBlocked: false
                   isDeleted: false
-                maxPlayers: 2
+                maxPlayers: 4
                 playerCount: 1
         '401':
           "$ref": "#/components/responses/Unauthorized"
@@ -3321,71 +3321,251 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/GameDetails"
-              example:
-                id: 00000000-0000-0000-0000-00000000b001
-                date: Sat, 10 Oct
-                host:
-                  id: 00000000-0000-0000-0000-00000000a001
-                  name: alice
-                  rating: 1240
-                  isGroup: false
-                  initials: AL
-                  isBlocked: false
-                  isDeleted: false
-                  reliability: 100
-                  verifiedMatches: 4
-                rank: Intermediate
-                time: 6:00 PM – 7:30 PM
-                notes: Bring your own racquet. Shuttles provided.
-                style: Social
-                title: Friday Night Doubles
-                endsAt: '2026-10-10T08:30:00+00:00'
-                format: Doubles
-                invite: 
-                status: open
-                suburb: Albert Park
-                address: 30 Aughtie Dr, Albert Park
-                mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
-                matchId: b4529725-25df-4d20-a61b-e289a999d803
-                players:
-                - id: 00000000-0000-0000-0000-00000000a001
-                  host: true
-                  name: alice
-                  initials: AL
-                  isBlocked: false
-                  isDeleted: false
-                - id: 00000000-0000-0000-0000-00000000a003
-                  host: false
-                  name: carol
-                  initials: CA
-                  isBlocked: false
-                  isDeleted: false
-                - id: 00000000-0000-0000-0000-00000000a005
-                  host: false
-                  name: erin
-                  initials: ER
-                  isBlocked: false
-                  isDeleted: false
-                venueId: 3b46eece-7f3b-4743-ba25-2cee4ad9181e
-                duration: 90 mins
-                imageUrl: 
-                isInvite: false
-                location: Melbourne Sports and Aquatic Centre@ MSAC
-                myStatus: pending
-                startsAt: '2026-10-10T07:00:00+00:00'
-                canManage: false
-                organiser:
-                  id: 00000000-0000-0000-0000-00000000a001
-                  name: alice
-                  isGroup: false
-                  initials: AL
-                  isBlocked: false
-                  isDeleted: false
-                maxPlayers: 4
-                playerCount: 3
-                abilityLevel: intermediate
-                locationDetail: Albert Park
-                durationMinutes: 90
+              examples:
+                requested:
+                  summary: A game the caller asked to join
+                  value:
+                    id: 00000000-0000-0000-0000-00000000b001
+                    date: Sat, 10 Oct
+                    host:
+                      id: 00000000-0000-0000-0000-00000000a001
+                      name: alice
+                      rating: 1240
+                      isGroup: false
+                      initials: AL
+                      isBlocked: false
+                      isDeleted: false
+                      reliability: 100
+                      verifiedMatches: 4
+                    rank: Intermediate
+                    time: 6:00 PM – 7:30 PM
+                    notes: Bring your own racquet. Shuttles provided.
+                    style: Social
+                    title: Friday Night Doubles
+                    endsAt: '2026-10-10T08:30:00+00:00'
+                    format: Doubles
+                    invite: 
+                    status: open
+                    suburb: Albert Park
+                    address: 30 Aughtie Dr, Albert Park
+                    mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
+                    matchId: b4529725-25df-4d20-a61b-e289a999d803
+                    players:
+                    - id: 00000000-0000-0000-0000-00000000a001
+                      host: true
+                      name: alice
+                      initials: AL
+                      isBlocked: false
+                      isDeleted: false
+                    - id: 00000000-0000-0000-0000-00000000a003
+                      host: false
+                      name: carol
+                      initials: CA
+                      isBlocked: false
+                      isDeleted: false
+                    - id: 00000000-0000-0000-0000-00000000a005
+                      host: false
+                      name: erin
+                      initials: ER
+                      isBlocked: false
+                      isDeleted: false
+                    venueId: 3b46eece-7f3b-4743-ba25-2cee4ad9181e
+                    duration: 90 mins
+                    imageUrl: 
+                    isInvite: false
+                    location: Melbourne Sports and Aquatic Centre@ MSAC
+                    myStatus: pending
+                    startsAt: '2026-10-10T07:00:00+00:00'
+                    canManage: false
+                    organiser:
+                      id: 00000000-0000-0000-0000-00000000a001
+                      name: alice
+                      isGroup: false
+                      initials: AL
+                      isBlocked: false
+                      isDeleted: false
+                    maxPlayers: 4
+                    playerCount: 3
+                    abilityLevel: intermediate
+                    locationDetail: Albert Park
+                    durationMinutes: 90
+                groupGame:
+                  summary: A group's game
+                  value:
+                    id: 00000000-0000-0000-0000-00000000b004
+                    date: Wed, 14 Oct
+                    host:
+                      id: 00000000-0000-0000-0000-00000000c001
+                      name: Smash Group
+                      isGroup: true
+                      initials: SG
+                      isActive: true
+                      isVerified: true
+                    rank: Any Rank
+                    time: 7:00 PM – 9:00 PM
+                    notes: All levels welcome.
+                    style: Social
+                    title: Smash Group social night
+                    endsAt: '2026-10-14T10:00:00+00:00'
+                    format: Doubles
+                    invite: 
+                    status: open
+                    suburb: Parkville
+                    address: 103 Tin Alley, Parkville VIC 3010
+                    mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.796360,144.960652
+                    matchId: 0b22d1a8-f113-4ca8-877b-1ac53acf5177
+                    players:
+                    - id: 00000000-0000-0000-0000-00000000a001
+                      host: false
+                      name: alice
+                      initials: AL
+                      isBlocked: false
+                      isDeleted: false
+                    - id: 00000000-0000-0000-0000-00000000a005
+                      host: false
+                      name: erin
+                      initials: ER
+                      isBlocked: false
+                      isDeleted: false
+                    venueId: c4d01640-2254-43f9-b697-8d011631f95a
+                    duration: 120 mins
+                    imageUrl: 
+                    isInvite: false
+                    location: Melbourne University Badminton Club
+                    myStatus: accepted
+                    startsAt: '2026-10-14T08:00:00+00:00'
+                    canManage: true
+                    organiser:
+                      id: 00000000-0000-0000-0000-00000000c001
+                      name: Smash Group
+                      isGroup: true
+                      initials: SG
+                      isActive: true
+                    maxPlayers: 8
+                    playerCount: 2
+                    abilityLevel: any
+                    locationDetail: Parkville
+                    durationMinutes: 120
+                inviteOrganiser:
+                  summary: An invitation (Request Game), the organiser's view
+                  value:
+                    id: 00000000-0000-0000-0000-00000000b009
+                    date: Tue, 13 Oct
+                    host:
+                      id: 00000000-0000-0000-0000-00000000a003
+                      name: carol
+                      rating: 1310
+                      isGroup: false
+                      initials: CA
+                      isBlocked: false
+                      isDeleted: false
+                      reliability: 100
+                      verifiedMatches: 2
+                    rank: Any Rank
+                    time: 6:00 PM – 7:00 PM
+                    notes: 
+                    style: Social
+                    title: Singles hit?
+                    endsAt: '2026-10-13T08:00:00+00:00'
+                    format: Singles
+                    invite:
+                      name: ivy
+                      status: invited
+                      message: Welcome to Melbourne! Keen for a friendly singles game?
+                      initials: IV
+                      playerId: 00000000-0000-0000-0000-00000000a009
+                    status: open
+                    suburb: Blackburn North
+                    address: 16 Joseph Street
+                    mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.799510,145.144072
+                    matchId: 
+                    players:
+                    - id: 00000000-0000-0000-0000-00000000a003
+                      host: true
+                      name: carol
+                      initials: CA
+                      isBlocked: false
+                      isDeleted: false
+                    venueId: 93524291-92b8-4392-873e-60af5b5a1b0b
+                    duration: 60 mins
+                    imageUrl: 
+                    isInvite: true
+                    location: Melbourne Badminton Centre
+                    myStatus: accepted
+                    startsAt: '2026-10-13T07:00:00+00:00'
+                    canManage: true
+                    organiser:
+                      id: 00000000-0000-0000-0000-00000000a003
+                      name: carol
+                      isGroup: false
+                      initials: CA
+                      isBlocked: false
+                      isDeleted: false
+                    maxPlayers: 2
+                    playerCount: 1
+                    abilityLevel: any
+                    locationDetail: Blackburn North
+                    durationMinutes: 60
+                inviteInvitedPlayer:
+                  summary: 'An invitation (Request Game), the invited player''s view: myStatus is invited'
+                  value:
+                    id: 00000000-0000-0000-0000-00000000b009
+                    date: Tue, 13 Oct
+                    host:
+                      id: 00000000-0000-0000-0000-00000000a003
+                      name: carol
+                      rating: 1310
+                      isGroup: false
+                      initials: CA
+                      isBlocked: false
+                      isDeleted: false
+                      reliability: 100
+                      verifiedMatches: 2
+                    rank: Any Rank
+                    time: 6:00 PM – 7:00 PM
+                    notes: 
+                    style: Social
+                    title: Singles hit?
+                    endsAt: '2026-10-13T08:00:00+00:00'
+                    format: Singles
+                    invite:
+                      name: ivy
+                      status: invited
+                      message: Welcome to Melbourne! Keen for a friendly singles game?
+                      initials: IV
+                      playerId: 00000000-0000-0000-0000-00000000a009
+                    status: open
+                    suburb: Blackburn North
+                    address: 16 Joseph Street
+                    mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.799510,145.144072
+                    matchId: 
+                    players:
+                    - id: 00000000-0000-0000-0000-00000000a003
+                      host: true
+                      name: carol
+                      initials: CA
+                      isBlocked: false
+                      isDeleted: false
+                    venueId: 93524291-92b8-4392-873e-60af5b5a1b0b
+                    duration: 60 mins
+                    imageUrl: 
+                    isInvite: true
+                    location: Melbourne Badminton Centre
+                    myStatus: invited
+                    startsAt: '2026-10-13T07:00:00+00:00'
+                    canManage: false
+                    organiser:
+                      id: 00000000-0000-0000-0000-00000000a003
+                      name: carol
+                      isGroup: false
+                      initials: CA
+                      isBlocked: false
+                      isDeleted: false
+                    maxPlayers: 2
+                    playerCount: 1
+                    abilityLevel: any
+                    locationDetail: Blackburn North
+                    durationMinutes: 60
         '401':
           "$ref": "#/components/responses/Unauthorized"
       requestBody:
@@ -3913,18 +4093,18 @@ paths:
                 items:
                   "$ref": "#/components/schemas/PlayerCard"
               example:
-              - id: 00000000-0000-0000-0000-00000000a002
-                name: bob
+              - id: 8b280cb0-64dd-4757-8b47-ca78050d082c
+                name: ada_13336_585
                 rank: Beginner
-                initials: BO
-                location: Clayton
+                initials: AD
+                location: 
                 isBlocked: false
-                reliability: 89
-              - id: 00000000-0000-0000-0000-00000000a003
-                name: carol
-                rank: Upper Intermediate
-                initials: CA
-                location: Box Hill
+                reliability: 100
+              - id: c0cb3520-6038-4ca5-b1c4-f1e3586dd8d9
+                name: Alice_28115
+                rank: Beginner
+                initials: AL
+                location: 
                 isBlocked: false
                 reliability: 100
         '401':
@@ -8014,9 +8194,20 @@ components:
         format:
           type: string
         invite:
-          type: string
+          type: object
+          properties:
+            name:
+              type: string
+            status:
+              type: string
+            message:
+              type: string
+            initials:
+              type: string
+            playerId:
+              type: string
+              format: uuid
           nullable: true
-          description: Null in every sample (not built yet).
         status:
           type: string
         suburb:
@@ -8234,6 +8425,7 @@ components:
           type: string
         location:
           type: string
+          nullable: true
         isBlocked:
           type: boolean
         reliability:
@@ -8420,7 +8612,7 @@ components:
           description: Null in every sample (not built yet).
         confirmed_results:
           type: integer
-    MatchMessageCreate:
+    MatchMessage:
       type: object
       properties:
         messageId:
@@ -8431,6 +8623,10 @@ components:
           type: string
           format: uuid
           description: Match this message belongs to (FK to match.matchId).
+        senderId:
+          type: string
+          format: uuid
+          description: Player who sent it (FK to player.playerId).
         templateCode:
           type: string
           description: >-
@@ -8441,6 +8637,8 @@ components:
           type: string
           format: date-time
           description: When the message was sent.
+      required:
+      - messageId
     ActivityLog:
       type: object
       properties:
@@ -8470,7 +8668,7 @@ components:
           description: When the action was logged.
       required:
       - logId
-    MatchMessage:
+    MatchMessageCreate:
       type: object
       properties:
         messageId:
@@ -8481,10 +8679,6 @@ components:
           type: string
           format: uuid
           description: Match this message belongs to (FK to match.matchId).
-        senderId:
-          type: string
-          format: uuid
-          description: Player who sent it (FK to player.playerId).
         templateCode:
           type: string
           description: >-
@@ -8495,8 +8689,6 @@ components:
           type: string
           format: date-time
           description: When the message was sent.
-      required:
-      - messageId
     Error:
       type: object
       description: PostgREST error. `code` is the Postgres error code; `message` is written to be shown

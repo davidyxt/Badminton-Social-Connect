@@ -3,7 +3,7 @@
 what the frontend can call:
   * docs/badminton-social-connect-api_v1.2.yaml, everything, with the
     design's not-yet-built endpoints tagged Planned;
-  * docs/badminton-social-connect-api_implemented.yaml, only what is built.
+  * docs/badminton-social-connect-api_implemented-playerBE1.yaml, only what is built.
 
     npx supabase db reset                      # migrations + dev seed
     python3 supabase/scripts/build_openapi.py
@@ -35,7 +35,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SPEC = ROOT / "docs" / "badminton-social-connect-api_v1.2.yaml"
 # The same, with only what has been built: no Planned endpoints.
-BUILT_SPEC = ROOT / "docs" / "badminton-social-connect-api_implemented.yaml"
+BUILT_SPEC = ROOT / "docs" / "badminton-social-connect-api_implemented-playerBE1.yaml"
 VERSION = "0.3.0"
 
 # ---------------------------------------------------------------------------
@@ -353,7 +353,10 @@ RPCS = OrderedDict([
                                                      ("bob", {"p_query": "msac"})])),
     ("search_games", ("Find games", "GameCard", [("alice", {"p_limit": 50}), ("bob", {"p_limit": 50})])),
     ("get_game_details", ("Find games", "GameDetails", [
-        ("bob", {"p_post_id": G("b001")}), ("alice", {"p_post_id": G("b004")}),
+        ("bob", {"p_post_id": G("b001")}, "requested|A game the caller asked to join"),
+        ("alice", {"p_post_id": G("b004")}, "groupGame|A group's game"),
+        ("carol", {"p_post_id": G("b009")}, "inviteOrganiser|An invitation (Request Game), the organiser's view"),
+        ("ivy", {"p_post_id": G("b009")}, "inviteInvitedPlayer|An invitation (Request Game), the invited player's view: myStatus is invited"),
         ("carol", {"p_post_id": G("b008")}), ("alice", {"p_post_id": G("b007")})])),
     ("request_to_join", ("Join requests", None, [])),
     ("withdraw_request", ("Join requests", None, [])),
@@ -435,7 +438,10 @@ def rpc_paths(components):
         if result == "void":
             responses["204"] = {"description": "Done. No body."}
         else:
-            values = [call_rpc(name, tokens.get(acct), params) for acct, params in samples]
+            # A sample is (account, params) or (account, params, "key|summary");
+            # labelled samples become named examples.
+            values = [call_rpc(name, tokens.get(smp[0]), smp[1]) for smp in samples]
+            labelled = [(smp[2], v) for smp, v in zip(samples, values) if len(smp) > 2 and v is not None]
             if result == "jsonb":
                 is_list = any(isinstance(v, list) for v in values)
                 items = [x for v in values if isinstance(v, list) for x in v] if is_list else values
@@ -449,7 +455,12 @@ def rpc_paths(components):
                 if not is_list and any(v is None for v in values):
                     schema = {"allOf": [ref], "nullable": True}
                 content = {"schema": schema}
-                if example is not None:
+                if labelled:
+                    content["examples"] = OrderedDict(
+                        (label.split("|", 1)[0],
+                         {"summary": label.split("|", 1)[-1], "value": v[:2] if isinstance(v, list) else v})
+                        for label, v in labelled)
+                elif example is not None:
                     content["example"] = example[:2] if isinstance(example, list) else example
                 responses["200"] = {"description": "OK.", "content": {"application/json": content}}
             elif schema_name:

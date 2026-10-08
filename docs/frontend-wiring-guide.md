@@ -4,7 +4,7 @@ How each screen connects to the backend, what the frontend has to change, and wh
 
 Everything here is on the branch `M4-M6-M1-M3-M5`, which combines the backend work from M1, M3, M4, M5 and M6.
 
-- **Exact calls, parameters, responses and errors:** [the implemented API spec](badminton-social-connect-api_implemented.yaml) (open it in https://editor.swagger.io). It has only what's built, and every response has a real example. [The full spec](badminton-social-connect-api_v1.2.yaml) also lists the design's endpoints that are still Planned.
+- **Exact calls, parameters, responses and errors:** [the implemented API spec](badminton-social-connect-api_implemented-playerBE1.yaml) (open it in https://editor.swagger.io). It has only what's built, and every response has a real example. [The full spec](badminton-social-connect-api_v1.2.yaml) also lists the design's endpoints that are still Planned.
 - **Proof that the calls work:** [API test report](api-test-report.md).
 
 ## Contents
