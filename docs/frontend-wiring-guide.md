@@ -30,12 +30,12 @@ Sign in as any of these test accounts. Each one's password is `Passw0rd!`.
 | Account | Use it to see |
 |---|---|
 | `alice@example.com` | An organiser with requests to answer, a club she admins (Smash Club) and a league. Alice blocked Frank. |
-| `bob@example.com` | A pending club join request and a late cancellation (reliability 89%, "Reliable"). |
+| `bob@example.com` | A pending club join request and a late cancellation (89% reliable). |
 | `carol@example.com` | A disputed result, and a notification that a deleted player's game was cancelled. |
 | `dan@example.com` | A hidden profile and a no-show (80%). |
 | `frank@example.com` | Being blocked: Alice and her games are invisible to him. |
 | `grace@example.com` | A Google-style account with no username that has not passed the age gate, so she lands on `/complete-registration`. |
-| `ivy@example.com` | A brand-new player with no games ("New player"). |
+| `ivy@example.com` | A brand-new player with no games (100% reliable). |
 | `admin@example.com` | The platform admin. |
 
 The seed is described at the top of [`supabase/seeds/dev/01_accounts.sql`](../supabase/seeds/dev/01_accounts.sql).
@@ -62,11 +62,18 @@ The seed is described at the top of [`supabase/seeds/dev/01_accounts.sql`](../su
 
 ✅ The backend covers the screen. 🟡 Partly covered. ❌ No backend yet.
 
+Each screen ends with **Frontend adjustments**: what has to change in the existing page. The number in brackets points to the item in [Changes the frontend must make](#changes-the-frontend-must-make).
+
 ### Sign up, log in, age gate (M4) ✅ wired
 
 The sign-up form, `/complete-registration`, idle sign-out and the auth routes are already wired on this branch.
 
 The age gate now saves the username together with the date of birth: `registerPlayer({ dateOfBirth, stateCode, username })`.
+
+**Frontend adjustments**
+
+- None needed: the username field and the age gate are already in place (1).
+- If the sign-up form changes, keep sending `username` in `options.data`. A sign-up without it fails.
 
 ### Home (`DashboardPage`) ✅
 
@@ -89,6 +96,12 @@ Call `rpc('get_my_home')`.
 
 Admin announcements for the home page come from `from('admin_post').select('title,body,image_url').order('display_order')`. Players get the published ones only.
 
+**Frontend adjustments**
+
+- Replace the `dashboardData` sample with `get_my_home`.
+- Show `nextGame` in the "upcoming match" card: title, date, time, location, and an "Open in Maps" link from `mapsUrl`.
+- Hide the league and recent activity cards, or keep their empty states, until they have a backend.
+
 ### Find Games, Matches tab (`FindGamesPage`) ✅
 
 Call `rpc('search_games', { p_query, p_level, p_format, p_suburb, p_from, p_to, p_limit, p_offset })`.
@@ -105,12 +118,28 @@ Changes from the sample data:
 - **Levels:** `rankFilter` values `beginner | intermediate | advanced` go in `p_level`.
 - **Formats:** `formatFilter` `singles | doubles` goes in `p_format`.
 
+**Frontend adjustments**
+
+- Replace the sample `games` array with `search_games`. Pass the search box and filters as parameters rather than filtering in the browser.
+- Change the "Friendly" label and filter value to **"Social"** (2).
+- Show a **Blocked** badge on the organiser when `organiser.isBlocked` is true (6).
+- When `organiser.isDeleted` is true, show "Deleted User" with no link (4).
+- When `organiser.isClub` is true, show the club as the host. If `organiser.isActive` is false, mark it inactive (3).
+- Optional: an "Open in Maps" link from `mapsUrl`.
+
 ### Find Games, Players tab ✅
 
 Call `rpc('search_players', { p_query, p_level })`. It returns `id`, `name`, `initials`, `rank`, `location`, `reliability` (a %) and `isBlocked`.
 
 - Show a **Blocked** badge when `isBlocked` is true.
 - **Request to Play** has no backend; see [screens with no backend](#screens-with-no-backend-yet).
+
+**Frontend adjustments**
+
+- Replace the sample `players` array with `search_players`.
+- Show the **Blocked** badge from `isBlocked` (6).
+- Show reliability as it is now: `{reliability}% reliable` (7).
+- Remove or hide **Request to Play** until there's an invitations story.
 
 ### Game Details (`GameDetailsPage`) ✅
 
@@ -134,6 +163,26 @@ Buttons:
 | Organiser: delete | `rpc('delete_game_post', { p_post_id })` |
 
 Cancelling and deleting are refused within 4 hours of the start, with a message to show.
+
+**Frontend adjustments**
+
+- Load the game with `get_game_details(gameId)`, not from `location.state`, so links and refreshes work. If it returns `null`, show "This game is not available".
+- Add an **"Open in Maps"** link on the venue from `mapsUrl`.
+- Drive the main button from `myStatus`:
+
+  | `myStatus` | Button |
+  |---|---|
+  | null | Request to join |
+  | pending | Withdraw request |
+  | accepted | Leave game, with the late-withdrawal warning within 24 hours |
+  | declined | Nothing; the player can't ask again |
+
+- When `canManage` is true, show the organiser actions instead: **View requests** (opens `PlayRequestPage`), **Cancel game** with an optional reason, and **Delete game**.
+- Badges on the host and the player list:
+  - **Blocked** where `isBlocked` is true (6);
+  - **"Deleted User"**, with no profile link, where `isDeleted` is true (4).
+- Show the host's reliability as `{reliability}%` (7); the bar already does this.
+- Show the error `message` when a call is refused, for example the 4-hour rule.
 
 ### Post a Game (`PostGamePage`) 🟡 form changes needed
 
@@ -168,6 +217,18 @@ Save with `from('game_post').insert({...}).select()`:
 
 Replace `services/gameService.js`'s fake `createGame`. On success, go to `/post-game/confirmation/:gameId` with the returned `post_id`.
 
+**Frontend adjustments**
+
+- Add a **Title** field, optional and up to 80 characters, with "Badminton game" as the placeholder (2).
+- Change the style option "Friendly" to **"Social"** (2).
+- Replace the hard-coded venue `<select>` (three venues and "Other") with a **searchable dropdown** backed by `search_venues`. Keep an **"Other venue"** option that reveals a **Suburb** field (2).
+- Add **Post as** (me, or a club I admin) from `postAs`, shown only when the player admins a club (2, 3).
+- Fill the format, style, level and duration options from `get_game_form_options` instead of hard-coding them. The duration options can stay as they are, within 15–240 minutes.
+- Add a **Players** number when needed. It defaults to 2 for singles and 4 for doubles (`defaultPlayers`).
+- Send `ability_level` values in snake_case, e.g. `lower_intermediate`, not labels.
+- Combine the date and start time into one `proposed_time` with the Melbourne offset.
+- Show the error `message` if the insert is refused, e.g. a start time in the past.
+
 ### Play Request, the organiser's view (`PlayRequestPage`) ✅
 
 Call `rpc('get_join_requests', { p_post_id })`. Each item has `status`, `game` (the card), `host` and `requester`. The requester has:
@@ -180,6 +241,13 @@ Call `rpc('get_join_requests', { p_post_id })`. Each item has `status`, `game` (
 That's the same shape as `fallbackRequest`, plus the reliability details.
 
 To respond, call `rpc('accept_request' | 'decline_request', { p_post_id, p_player_id })`. Accepting a full game is refused, with a message to show.
+
+**Frontend adjustments**
+
+- Replace `fallbackRequest` with the `get_join_requests` list. The page currently shows one request; show every pending one, or open one by id.
+- Show reliability as `{reliability}%` (7). Optionally add the no-shows and late withdrawals under it.
+- Use `game.location`, `game.date` and `game.time` from the card. The sample's `venueDetail` distance ("2.4 km") has no backend; drop it.
+- After accepting or declining, reload the list. Show the error `message` when the game is full.
 
 ### Another player's profile (`PlayerProfilePage`) ✅
 
@@ -197,6 +265,17 @@ Buttons:
 - **Block:** see [Block](#changes-the-frontend-must-make).
 - **Report (flag icon):** `rpc('report_player', { p_player_id, p_category, p_reason })`. The reason is required.
 - **Request Game:** no backend.
+
+**Frontend adjustments**
+
+- Load the profile with `get_player_profile(playerId)`. If it returns `null`, show "This profile is private or not available".
+- Wire **Block** to a small form with an optional category and reason (6). When `isBlocked` is true:
+  - show a **Blocked** badge;
+  - swap the button for **Unblock** (`unblock_player`).
+- Wire the **Report** flag to a form with a category picker and a **required** reason (5).
+- Show reliability as `{reliability}%` (7). The counts behind it are optional.
+- Remove or hide **Request Game** until there's an invitations story.
+- Add a match history list from `get_player_history`, if the design has room for it.
 
 ### Profile (`ProfilePage`) 🟡 menu screens needed
 
@@ -224,6 +303,22 @@ Menu items:
 | Delete account (new) | `rpc('delete_my_account')`, then sign out |
 | Terms & Privacy Policy | Pages don't exist yet |
 
+**Frontend adjustments**
+
+- Replace the `profile` sample with `get_my_profile`.
+- Build the menu screens that don't exist yet:
+  - **Your Profile** and **Playing Preferences**: an edit form calling `update_my_profile` with only the changed fields;
+  - **Match History**;
+  - **Reliability**: the % and the counts (7);
+  - **Privacy Settings**: the discoverable toggle;
+  - **Notifications**: an **email notifications** toggle (8);
+  - **Blocked Users**: name, category, reason and an Unblock button (6);
+  - **Report a Problem**: category plus a required reason (5).
+- Update the "0 users blocked" subtitle from the length of `get_blocked_players`.
+- Add **My groups** with a Leave button (3).
+- Add **Delete account**, behind a clear warning that it can't be undone. Call `delete_my_account`, then sign out (4).
+- Make **Sign Out** go to `/signout`.
+
 ### Notifications (`NotificationsPage`) ✅
 
 Call `rpc('get_notifications', { p_limit, p_offset })`. It returns `id`, `type`, `title`, `message`, `unread`, `createdAt`, `postId` and `matchId`.
@@ -242,6 +337,14 @@ Call `rpc('get_notifications', { p_limit, p_offset })`. It returns `id`, `type`,
 | other | `no_show`, `system` |
 | reminder, game, rating | Not sent yet |
 
+**Frontend adjustments**
+
+- Replace `initialNotifications` with `get_notifications`.
+- Map the backend `type` values to the existing icons using the table above.
+- Build each notification's link from `postId` / `matchId`, since there's no `target` field.
+- Wire **Mark all as read**.
+- Update the unread badge in the top bar from `unreadNotifications` (in `get_my_home` and `get_my_profile`), or live over Realtime.
+
 ### Match Details (`MatchDetailsPage`) 🟡
 
 There's no screen function yet. Read the tables directly:
@@ -254,6 +357,31 @@ Buttons:
 - **Cancel Match:** that's the game's `cancel_game_post`. The page says 24 hours, but the rule is: refused within **4 hours**, and within 24 hours it counts as a late cancellation.
 - **Host marks a no-show:** `rpc('mark_no_show' | 'clear_no_show', { p_post_id, p_player_id })`. Allowed from the start until 48 hours after the game.
 - **Message:** no backend.
+
+**Frontend adjustments**
+
+- Replace `fallbackMatch` with the match tables (or `get_game_details` plus `matchId`).
+- Change the cancellation text from "24 hours" to the real rule:
+  - cancelling isn't possible within **4 hours** of the start;
+  - cancelling within 24 hours counts against reliability.
+- Add **Mark as no-show** and **Undo** for the host after the start, using `mark_no_show` / `clear_no_show`.
+- Hide **Message** until messaging has a backend.
+
+### Groups (new screens) ✅ backend, ❌ no screens yet
+
+Groups use the `club` and `club_representative` tables (see item 3 in [Changes the frontend must make](#changes-the-frontend-must-make)).
+
+**Frontend adjustments**
+
+- Build these screens:
+  - **create a group**;
+  - **group page**: members, and pending requests for its admins;
+  - **ask to join** / **leave**;
+  - **approve or decline** a request;
+  - **promote** a member to admin;
+  - **deactivate** the group (3).
+- Don't build an "add member" button. Players must ask, and admins approve (3).
+- Show inactive groups as inactive. A group with upcoming games can't be deactivated; show the error `message`.
 
 ### Rankings, Mini Leagues, Record Result, Result Submitted and Confirmed ❌
 
