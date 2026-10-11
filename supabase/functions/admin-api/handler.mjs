@@ -1,6 +1,13 @@
 // HTTP contract for the existing schema. All database calls retain the admin's
 // JWT so existing RLS and updated_by triggers still apply.
 import { ContractError, handleContract, isContractRoute } from "./contract.mjs";
+import {
+  consoleFilters,
+  handleConsole,
+  listSelection,
+  mapLimited,
+  relatedFilters,
+} from "./console.mjs";
 class ApiError extends Error {
   constructor(status, code, message) {
     super(message);
@@ -158,10 +165,6 @@ function validatePatch(resource, body) {
   const allowed = {
     reports: ["status"],
     disputes: ["status"],
-    games: ["status"],
-    leagues: ["status"],
-    results: ["status", "score", "winning_side"],
-    rankings: ["ranking_points"],
     announcements: ["title", "body", "status", "display_order"],
   }[resource];
   if (!allowed) fail(405, "method_not_allowed", "This resource is read-only.");
@@ -187,12 +190,10 @@ function validatePatch(resource, body) {
     if (!(key in body)) continue;
     const value = body[key];
     if (key === "status") patch[key] = choice(value, statuses[resource], key);
-    else if (key === "winning_side") {
-      patch[key] = value === null ? null : choice(value, ["a", "b"], key);
-    } else if (["ranking_points", "display_order"].includes(key)) {
+    else if (key === "display_order") {
       if (
         !Number.isSafeInteger(value) ||
-        value < (key === "ranking_points" ? 0 : -2147483648) ||
+        value < -2147483648 ||
         value > 2147483647
       ) {
         fail(400, "invalid_field", `Invalid ${key}.`);
@@ -248,7 +249,8 @@ export function createHandler(
         fail(401, "unauthenticated", "A user access token is required.");
       }
       // getContext must validate against Supabase Auth, never decode a JWT alone.
-      const { user, db, getAccount } = await getContext(bearer[1]);
+      const context = await getContext(bearer[1]);
+      const { user, db, getAccount } = context;
       if (!user) {
         fail(401, "unauthenticated", "The session is invalid or expired.");
       }
@@ -263,6 +265,13 @@ export function createHandler(
       const base = parts.indexOf("admin-api");
       if (base < 0) fail(404, "not_found", "Endpoint not found.");
       const route = parts.slice(base + 1);
+      const consoleResponse = await handleConsole(
+        request,
+        route,
+        context,
+        send,
+      );
+      if (consoleResponse) return consoleResponse;
       if (route.length === 1 && route[0] === "me" && request.method === "GET") {
         return send({
           data: { id: user.id, email: user.email, role: "admin" },
@@ -306,7 +315,9 @@ export function createHandler(
         });
       }
       const [resource, id, child] = route;
-      const spec = resources[resource];
+      const spec = Object.hasOwn(resources, resource)
+        ? resources[resource]
+        : null;
       if (!spec || route.length > 3) {
         fail(404, "not_found", "Endpoint not found.");
       }
@@ -333,12 +344,31 @@ export function createHandler(
         if (!relation || !id) fail(404, "not_found", "Endpoint not found.");
         await one(db.from(spec.table).select(spec.key).eq(spec.key, id));
         const { page, limit, from } = pageFor(url);
-        let query = db.from(relation[0]).select("*", { count: "exact" }).eq(
+        const relationSelect = [
+            "ranking",
+            "league_standing",
+            "game_participant",
+            "match_participant",
+          ].includes(relation[0])
+          ? `*,player:player!${
+            relation[0]
+          }_player_id_fkey(player_id,display_name)`
+          : "*";
+        let query = db.from(relation[0]).select(relationSelect, {
+          count: "exact",
+        }).eq(
           relation[1],
           id,
         );
         if (resource === "users" && child === "reports") {
           query = query.eq("target_type", "player");
+        }
+        ({ query } = await relatedFilters(url, relation[0], query, db));
+        if (relation[0] === "league_standing") {
+          query = query.order("position", { nullsFirst: false }).order(
+            "points",
+            { ascending: false },
+          );
         }
         query = query.order(relation[1]).order(
           relation[0] === "match_result"
@@ -356,7 +386,10 @@ export function createHandler(
         });
       }
       if (request.method === "GET") {
-        let query = db.from(spec.table).select("*", { count: "exact" });
+        let query = db.from(spec.table).select(
+          id ? "*" : listSelection(resource),
+          { count: "exact" },
+        );
         if (id) {
           query = query.eq(spec.key, id);
           if (resource === "rankings") query = query.eq("format", child);
@@ -390,20 +423,6 @@ export function createHandler(
             choice(url.searchParams.get("format"), formats, "format"),
           );
         }
-        if (url.searchParams.has("q")) {
-          if (!spec.search) {
-            fail(
-              400,
-              "invalid_filter",
-              "Text search is not supported for this resource.",
-            );
-          }
-          const term = text(url.searchParams.get("q"), "q", 100).replace(
-            /[\\%_]/g,
-            "\\$&",
-          );
-          query = query.ilike(spec.search, `%${term}%`);
-        }
         if (resource === "reports" && url.searchParams.has("target_type")) {
           query = query.eq(
             "target_type",
@@ -412,6 +431,7 @@ export function createHandler(
               "game_post",
               "match",
               "admin_post",
+              "club",
             ], "target_type"),
           );
         }
@@ -421,15 +441,43 @@ export function createHandler(
             uuid(url.searchParams.get("player_id")),
           );
         }
-        query = query.order(spec.order, { ascending: false }).order(spec.key);
-        if (resource === "rankings") query = query.order("format");
+        ({ query } = await consoleFilters(url, resource, spec, query, context));
         const r = resultOrThrow(await query.range(from, from + limit - 1));
+        if (
+          resource === "users" && url.searchParams.get("include") === "account"
+        ) {
+          if (!getAccount) {
+            fail(
+              503,
+              "account_lookup_unavailable",
+              "Account lookup is unavailable.",
+            );
+          }
+          r.data = await mapLimited(
+            r.data,
+            async (row) => ({
+              ...row,
+              account: await getAccount(row.player_id),
+            }),
+          );
+        }
         return send({
           data: r.data,
           pagination: { page, limit, total: r.count },
         });
       }
       if (request.method === "PATCH" && id) {
+        if (
+          ["games", "leagues", "matches", "results", "rankings"].includes(
+            resource,
+          )
+        ) {
+          fail(
+            405,
+            "method_not_allowed",
+            "Final v6 makes this operation read-only. Moderation is separate from lifecycle, scores and ratings.",
+          );
+        }
         const { patch, stamp } = validatePatch(
           resource,
           await bodyFor(request),
@@ -442,14 +490,12 @@ export function createHandler(
           patch.published_at = current.published_at ?? new Date().toISOString();
         }
         // Distinguish missing records from a stale optimistic concurrency token.
-        let exists = db.from(spec.table).select(spec.key).eq(spec.key, id);
-        if (resource === "rankings") exists = exists.eq("format", child);
+        const exists = db.from(spec.table).select(spec.key).eq(spec.key, id);
         await one(exists);
-        let query = db.from(spec.table).update(patch).eq(spec.key, id).eq(
+        const query = db.from(spec.table).update(patch).eq(spec.key, id).eq(
           "updated_at",
           stamp,
         );
-        if (resource === "rankings") query = query.eq("format", child);
         const r = resultOrThrow(await query.select("*").maybeSingle());
         if (!r.data) {
           fail(

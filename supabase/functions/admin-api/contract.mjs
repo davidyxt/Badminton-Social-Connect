@@ -116,6 +116,29 @@ const keys = {
   match_participant: ["matchId", "playerId"],
   check_in: ["matchId", "playerId"],
 };
+// Read extensions expose existing schema fields and optimistic version tokens.
+for (const fields of Object.values(definitions)) {
+  fields.push("updatedAt", "updatedBy");
+}
+for (
+  const table of [
+    "venue",
+    "mini_league",
+    "game_post",
+    "match",
+    "match_result",
+    "dispute",
+    "notification",
+    "report",
+    "admin_post",
+  ]
+) definitions[table].push("createdAt");
+definitions.game_post.push("organiserClubId", "playerLimit");
+definitions.match.push("postId", "createdBy");
+definitions.match_participant.push("side");
+definitions.match_result.push("submittedBy");
+definitions.dispute.push("raisedBy");
+definitions.notification.push("matchId");
 const uuid = (value) => {
   if (
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
@@ -287,11 +310,13 @@ function column(resource, name) {
   if (!definitions[resource].includes(name)) {
     invalid(`Unsupported column: ${name}.`);
   }
-  if (name === "winnerId") {
+  if (name === "winnerId" || name === "groupId") {
     fail(
       501,
       "schema_extension_required",
-      "winnerId cannot be queried or ordered: the database represents a winning side, including doubles. Select winningSide instead.",
+      name === "winnerId"
+        ? "winnerId cannot be queried or ordered: the database represents a winning side, including doubles. Select winningSide instead."
+        : "groupId was replaced by organiserClubId in the current database. Select organiserClubId instead.",
     );
   }
   return snake(name);
@@ -373,6 +398,13 @@ export async function handleContract(request, route, { db, user }, send) {
     }
     if (request.method !== "POST") {
       fail(405, "method_not_allowed", "Use POST for RPC operations.");
+    }
+    if (command === "resolve_dispute") {
+      fail(
+        405,
+        "method_not_allowed",
+        "Final v6 does not allow administrator result corrections or rating recalculation. Match data is read-only.",
+      );
     }
     const body = await jsonBody(request);
     const args = rpcArguments[command];

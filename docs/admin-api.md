@@ -6,8 +6,124 @@ database policies are changed. The team specification in
 `badminton-social-connect-api_v1.2.yaml` defines the requested contract. The
 function now includes an adapter for its table paths, camelCase fields, response
 shapes and announcement operations. It does **not** implement the complete team
-specification: all eight moderation RPC actions require missing database
-capabilities and return 501 without making changes.
+specification: seven moderation RPC actions require missing database
+capabilities and return 501 without making changes. The old dispute-resolution
+RPC returns 405 because Final v6 prohibits admin score/rating corrections.
+
+## Final v6 admin design
+
+The authoritative prototype is `Badminton Connect — Admin Web · Final v6.pdf`
+in the outer project folder. Rankings, scores, winning sides and result
+confirmation are read-only. Admins cannot confirm for players. Content
+moderation must preserve game participants and match history; cancellation or
+completion is not hiding/suspension. Consequently the former plural-route
+PATCH operations for games, leagues, results and rankings now return 405,
+before reading their body or issuing a database write. Match writes also
+return 405. Existing stored doubles rows remain readable for compatibility;
+the Final v6 personal ranking screen should request `format=singles`.
+
+This restriction applies to the Edge Function. The existing direct PostgREST
+grants/RLS still permit some administrative writes. No migration or policy has
+been changed, so this API is not a database-level revocation of those grants.
+The admin frontend should use this function and disable unavailable actions.
+
+| Final v6 area | Available with the current schema | Missing data/processing |
+|---|---|---|
+| Overview | Current counts, unresolved report and pending/disputed result queues | Historical resolution events |
+| Usage & Analytics | New users and reports received by complete Melbourne day, comparison with previous equal period | Foreground view events, first publication and Mini League activity events |
+| Users | Name/email/ID search, identity/profile, accepted joins, stored singles rank, participation lists, reports | Suspension enforcement/history, rating history |
+| Rankings | Stored singles points/bands and league standings, participant search | Algorithm integration and rating history; admin editing is prohibited |
+| Reports | Filters, reporter and current target context, separate status-only updates | Private decision notes, evidence snapshots, atomic review/log/notification workflow, league targets |
+| Content moderation | Current game/league records, organisers, rosters and matches | Hidden/deleted state, league suspension, registration closure, retained deletion |
+| Games & results | Read-only match context, sides, submissions and disputes | Per-player confirmation history |
+| Activity log | Explicit 501 | Append-only events; updated_at/updated_by are only the latest row edit |
+| Sign-in | Existing Supabase Auth login/session/reset facilities | No new admin registration or role-grant endpoint |
+
+Announcements and explicit inbox notifications remain available for the team
+contract. Sending a notification separately does not complete a moderation
+workflow. Status-only report/dispute updates do not save a private decision or
+apply a restriction and must not be presented as the Final v6 review action.
+
+### Console read endpoints
+
+These additional endpoints use the plural-route `{data: ...}` envelope:
+
+| GET path | Response |
+|---|---|
+| `/capabilities` | Design name, supported operations, read-only rules and missing-schema reasons |
+| `/overview/attention?page=1&limit=25` | Independently paginated oldest unresolved reports and pending/disputed results; results read-only |
+| `/analytics?start=2026-10-01&end=2026-10-07` | Daily/total new users and reports, previous period, absolute and percentage changes |
+| `/users/{id}/summary` | Stored singles ranking, tied competition position, accepted game joins, unresolved reports targeting player |
+| `/users/{id}/games` | Game participation rows and embedded current game |
+| `/users/{id}/matches` | Match participation rows and embedded current match |
+| `/users/{id}/leagues` | Stored standings and embedded current league |
+| `/reports/{id}/context` | Report, reporter identity and current player/game/match/announcement/club target |
+| `/matches/{id}/context` | Match, named participants/sides, result submissions and disputes; read-only |
+
+Participation lists support `page`, `limit`, exact game/match/league UUID `q`,
+and stored participation `status` for games/matches. League standing entries
+are not a complete accepted-join history. Match context includes the first 100
+rows per related collection with `related_counts` and `related_limit`; use
+`/matches/{id}/participants`, `/matches/{id}/results`, or
+`/disputes?match_id={id}` to page further. Missing parents return 404. Report
+targets may have disappeared; `target_missing=true` and `target=null` express
+that explicitly. Related context is current data, not submission-time evidence.
+
+Analytics defaults to the last seven **complete** calendar days in
+`Australia/Melbourne`. Start/end dates are inclusive, must be past dates and
+span at most 90 days. The preceding equal-length interval is compared.
+Boundaries follow daylight saving, including 23/25-hour days. Counts are exact
+database counts, requested with bounded concurrency, not truncated row scans.
+New users use `player.joined_at` from the signup trigger; reports use original
+`report.created_at`. A zero previous total gives `percent_change=null`.
+Deleted rows cannot be recovered from the current schema, so these are counts
+of retained records. Unavailable usage/publication/activity/resolution metrics
+return null plus a reason, never zero or sample chart values.
+
+### Console list filters
+
+Plural lists accept `page`, `limit`, `sort`, `direction=asc|desc`, plus their
+existing status/format filters. Date bounds are `created_from` (inclusive) and
+`created_to` (exclusive), both ISO timestamps with timezone. Users apply these
+to `joined_at`; rankings have no creation-date filter. Sort columns are
+whitelisted (defaults retain creation/join/points ordering); unknown and
+duplicate parameters are rejected.
+
+| List | Additional filters/search |
+|---|---|
+| `/users` | `q` name, email substring or UUID; `is_verified`, `self_rating_band`; `include=account` adds whitelisted Auth summaries |
+| `/reports` | `q` report/target UUID, reporter/player name or reason; `target_type` including club, `target_id`, `reported_by_player_id` |
+| `/disputes` | `q` dispute UUID, `match_id`, `raised_by` |
+| `/games` | `q` post UUID, individual/club host name or suburb; `organiser_id`, `organiser_club_id`, `suburb` |
+| `/leagues` | `q` league UUID/name or organiser name; `organiser_id` |
+| `/matches` | `q` match UUID or participant name/ID; `league_id`, `post_id`, `created_by`, `suburb` |
+| `/results` | `q` result UUID or participant name/ID; `match_id`, `submitted_by` |
+| `/rankings` | `q` player name/ID; `player_id`, `band`, `format` |
+| `/notifications` | `player_id`, `is_read`, `type`, notification UUID `q` |
+| `/announcements` | `q` title or announcement UUID |
+
+Name filters treat wildcard and PostgREST expression characters literally.
+Cross-resource name searches reject more than 200 matching players/matches/
+clubs rather than return a truncated subset. Auth email searches paginate
+server-side Auth users (100/page, at most 100 pages); an excessive scan or more
+than 200 email matches fails rather than silently omitting users. Name/ID
+lookup and all application-table queries retain the caller's JWT. Table lists
+include safe display-name embeds for organisers, players, reporters and match
+participants. Related rosters/standings accept player name/ID `q` and applicable
+stored `status` filters, retaining the parent ID boundary.
+
+Frontend helpers include `capabilities`, `overview`, `attention`, `analytics`,
+`userSummary`, `userParticipation`, `reportContext`, `matchContext`,
+`updateReportStatus` and `sendNotification`. For example:
+
+```js
+const { data: users } = await adminApi.list("users", {
+  q: "alex@example.com", include: "account", limit: 25,
+});
+const { data: summary } = await adminApi.userSummary(users.data[0].player_id);
+const { data: capabilities } = await adminApi.capabilities();
+const { data: chart } = await adminApi.analytics({ start: "2026-10-01", end: "2026-10-07" });
+```
 
 ## Team contract interface
 
@@ -75,13 +191,14 @@ database mutation:
 - `POST /rpc/admin_suspend_account`, `/rpc/admin_restore_account`
 - `POST /rpc/admin_hide_post`, `/rpc/admin_restore_post`
 - `POST /rpc/admin_suspend_league`, `/rpc/admin_resume_league`
-- `POST /rpc/admin_review_report`, `/rpc/resolve_dispute`
+- `POST /rpc/admin_review_report`
 - `GET /activity_log`
 
-All eight action definitions promise ActivityLog events, but no ActivityLog
+All eight team action definitions promise ActivityLog events, but no ActivityLog
 table exists. Account/content suspension state is also absent. Dispute
 resolution promises atomic result correction, ranking processing and
-notifications; those processors do not exist. The adapter does not report
+notifications; Final v6 prohibits that admin operation, so
+`POST /rpc/resolve_dispute` returns 405 even for a valid request. The adapter does not report
 success for only one piece of a promised action. Legacy status updates remain
 available as explicitly separate operations, not as replacements for these
 business actions.
@@ -96,6 +213,12 @@ than hidden:
 - `MatchResult.winnerId` is obsolete: doubles have a winning side. Default
   result reads expose `winningSide` instead; explicitly selecting/ordering
   `winnerId` returns 501. No single winning player is invented.
+- `GamePost.groupId` was replaced by `organiserClubId`; explicitly selecting
+  or ordering groupId returns 501. Existing read extensions include
+  `playerLimit`, match `postId`/`createdBy`, participant `side`, result
+  `submittedBy`, dispute `raisedBy` and notification `matchId`.
+- Team reads expose real `updatedAt`/`updatedBy` and `createdAt` where the
+  table has it. These are current version fields, not ActivityLog records.
 - League, match, match-participant and dispute status values otherwise remain
   the actual database values. In particular `resolved` cannot safely be
   interpreted as the specification's `upheld`. Suspended states cannot be
@@ -165,8 +288,8 @@ policies also receive the updated role.
 
 Database reads and writes use the caller's JWT, preserving existing RLS checks
 and `updated_by` triggers. A server-only service-role client is used solely for
-the Auth account summary on the user detail endpoint. That summary exposes only
-email, last sign-in time and email confirmation time.
+Auth email search and account summaries, after administrator authorization.
+Summaries expose only email, last sign-in time and email confirmation time.
 
 All responses use `Cache-Control: no-store`. Browser origins must match
 `ADMIN_ALLOWED_ORIGINS`, a comma-separated allowlist of complete origins. Its
@@ -190,7 +313,7 @@ SQL details and Auth metadata are not returned in errors.
 |---|---|
 | `GET /me` | Current administrator ID, email and role |
 | `GET /overview` | Registered players, unresolved reports, pending results, upcoming open/full game posts, active leagues |
-| `GET /users` | Players; `q` searches display name |
+| `GET /users` | Players; `q` searches name/email/ID; optional account summaries |
 | `GET /users/{player_id}` | Player and whitelisted Auth account summary |
 | `GET /users/{player_id}/profile` | Extended player profile |
 | `GET /users/{player_id}/rankings` | Current ranking rows |
@@ -227,10 +350,10 @@ Status filters match the exact existing schema:
 | Announcements | `draft`, `published`, `archived` |
 
 Games, matches and rankings also accept `format=singles|doubles|mixed_doubles`.
-Reports accept `target_type=player|game_post|match|admin_post`. The current
+Reports accept `target_type=player|game_post|match|admin_post|club`. The current
 report constraint does not support `mini_league`. Invalid filters return 400.
-Name/title search treats `%` and `_` literally. Email search and account-state
-filters are not implemented because those values are not in the player table.
+Name/title search treats `%` and `_` literally. Account suspension-state
+filters remain unsupported because the database has no such state.
 
 ## Write endpoints
 
@@ -244,23 +367,13 @@ bodies are limited to 16 KiB.
 |---|---|
 | `PATCH /reports/{report_id}` | `status` |
 | `PATCH /disputes/{dispute_id}` | `status` |
-| `PATCH /games/{post_id}` | `status` using the game lifecycle values above |
-| `PATCH /leagues/{league_id}` | `status` using the league lifecycle values above |
-| `PATCH /results/{result_id}` | `status`, `score` (non-empty text), `winning_side` (`a`, `b`, or null) |
-| `PATCH /rankings/{player_id}/{format}` | `ranking_points` (non-negative integer) |
 | `PATCH /announcements/{admin_post_id}` | `title`, `body`, `status`, `display_order` |
 | `POST /announcements` | Required `title`, optional `body`; created as a draft by the caller |
 | `POST /notifications` | Required `player_id`, `type`, `message`; optional `match_id` |
 
-Result changes follow the existing admin policy. A confirmed result needs a
-winning side; at most one result per match may be confirmed. Database integrity
-violations return 400; a conflicting confirmed result returns 409. Participant
-attendance is distinct from result confirmation in this schema.
-
-Manual result changes do **not** automatically recalculate ranking points or
-league standings: those processors do not exist in the current database.
-Ranking corrections are separate explicit operations. This API also does not
-claim that report review automatically suspends accounts or notifies reporters.
+The Final v6 API exposes results and rankings read-only. Existing points are
+displayed without running a new ranking algorithm. This API does not claim
+that report status updates automatically suspend accounts or notify reporters.
 Administrators can create an in-app notification as a separate operation with
 type `system`, `match_reminder`, `match_invite`, `result_submitted`,
 `dispute_update`, or `league_update`. A combined atomic report/notification
@@ -319,7 +432,7 @@ the frontend or in a committed file. Platform JWT verification remains enabled.
 With the frontend dependencies installed, run the HTTP/SDK contract tests:
 
 ```powershell
-node --test supabase/tests/admin-api.test.mjs supabase/tests/admin-api-contract.test.mjs
+node --test supabase/tests/admin-api.test.mjs supabase/tests/admin-api-contract.test.mjs supabase/tests/admin-api-console.test.mjs
 ```
 
 From `supabase/functions/admin-api`, type-check and lock the function dependency:
@@ -334,12 +447,66 @@ exercise camelCase mapping, Range/offset pagination, flat errors, announcement
 publication/deletion, blocked partial moderation, and the frontend client. They
 cover authorization, CORS, query serialization, pagination, constraints,
 concurrency, schema field compatibility, server-key isolation, and malformed
-requests. They do not replace real database/RLS tests. Run the existing
-`supabase/tests/rls_test.sh` and exercise authenticated GET/PATCH calls against
-the local stack before deploying. No hosted deployment or live database
-validation has been performed as part of this implementation.
+requests. They do not replace real database/RLS tests.
+
+For real Auth, database/RLS and Edge Function integration checks, keep Docker,
+`supabase start` and `supabase functions serve admin-api` running, then run from
+the repository root:
+
+```powershell
+node supabase/tests/admin-api-live.test.mjs
+```
+
+The script obtains local keys from `supabase status`, refuses remote API URLs,
+creates temporary confirmed accounts, and signs in with real user JWTs. It
+checks both API contracts, profile privacy, privilege escalation, announcement
+creation/publication/deletion, audit identity, stale-write rejection, report
+status mapping, private notifications and explicit unsupported moderation.
+It cleans up only its own fixtures and never prints passwords or API keys.
+Email confirmation remains enabled; test accounts are confirmed through the
+local Auth admin API. Google OAuth is outside this test's scope.
+
+The live checks exercise blocked game/league lifecycle writes, result
+confirmation and ranking correction, and verify that persisted values remain
+unchanged. Database uniqueness is checked using privileged fixture setup,
+separately from the read-only API. Additional checks cover real Auth email
+search, name/ID filters, participation embeds, context, attention queues,
+version extensions and exact daily statistics. Ranking processing and the
+blocked moderation RPCs remain unimplemented, as documented above.
+
+If Windows reserves the default ports, a temporary local CLI working directory
+can use available ports while leaving the repository configuration unchanged.
+Set `SUPABASE_WORKDIR` to that directory when running the integration script;
+it obtains the correct local endpoint/keys from that CLI configuration and
+still refuses remote projects. No credentials are printed or committed.
+
+Final v6 validation on 2026-10-11 passed 127 HTTP/SDK tests, 99 real local
+Auth/database/RLS/Edge Function checks, Deno check/lint, and the frontend
+production build. Windows had reserved ports 54321–54324, so the live checks
+used a temporary configuration with ports 55321–55324. Test accounts/fixtures
+were removed. Hash comparisons confirmed all four migrations, the repository
+configuration, and 57 pre-existing user files stayed unchanged. The temporary
+stack was stopped after verification, preserving the local database backup.
+
+Local Supabase Studio is at `http://127.0.0.1:54323`; the API is at
+`http://127.0.0.1:54321`. Run `supabase stop` from the repository root to stop
+the local stack while preserving its data. Stop the function-serving process
+with Ctrl+C if running it in your own terminal.
+
+On this Windows machine, Supabase CLI 2.120.0 and Deno 2.9.6 are installed under
+`%LOCALAPPDATA%\BadmintonDevTools\node_modules\.bin`. Open a new terminal to
+pick up the added user PATH. `SUPABASE_CLI` can override the CLI path used by
+the test script. Docker Desktop 4.94.0 uses the existing WSL 2 backend.
+
+The older `supabase/tests/rls_test.sh` assumes immediate sessions after signup;
+that assumption does not match the current email-confirmation configuration.
+Use the Node integration script above for the current configuration. Hosted
+deployment still requires separate validation in the team's Supabase project.
 
 ## Features requiring a later schema change
+
+See [the database handoff](admin-database-handoff.md) for task coverage, proposed
+tables/fields, permissions, processing requirements and acceptance criteria.
 
 - Account suspension state/history and enforcement across all database entry points.
 - Hidden/deleted game listings, league suspension and registration restrictions.

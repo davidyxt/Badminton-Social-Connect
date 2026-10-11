@@ -2,8 +2,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fixture, id, stamp, admin } from "./helpers/admin-api-fixture.mjs";
 
-const rowReply = (call) => ({ body: call.method === "PATCH" ? [{ result_id: id, ...call.body, updated_at: stamp }] : [{ result_id: id, updated_at: stamp }] });
-
 test("missing token is rejected before Auth or database access", async () => {
   const f = fixture(); const r = await f.request("overview", { token: null });
   assert.equal(r.response.status, 401); assert.equal(f.calls.length, 0);
@@ -54,9 +52,9 @@ test("list requests retain user JWT and support count, filters and pagination", 
 });
 test("name search escapes wildcard characters", async () => {
   const f = fixture(); await f.request("users?q=Alex%25_");
-  assert.equal(f.calls.at(-1).url.searchParams.get("display_name"), "ilike.%Alex\\%\\_%");
+  assert.equal(f.calls.at(-1).url.searchParams.get("or"), '(display_name.ilike."%Alex\\\\%\\\\_%")');
 });
-for (const path of ["reports?limit=101", "reports?page=0", "reports?page=1.5", "reports?status=hidden", "users?status=suspended", "reports?target_type=mini_league", "results?format=singles", "games?q=title", "rankings?format=triples"]) {
+for (const path of ["reports?limit=101", "reports?page=0", "reports?page=1.5", "reports?status=hidden", "users?status=suspended", "reports?target_type=mini_league", "results?format=singles", "games?title=title", "rankings?format=triples"]) {
   test(`unsupported filter or pagination is rejected: ${path}`, async () => {
     const f = fixture(); assert.equal((await f.request(path)).response.status, 400);
     assert.equal(f.calls.filter((c) => c.url.pathname.startsWith("/rest")).length, 0);
@@ -88,12 +86,10 @@ test("related reports constrain both target ID and type", async () => {
   assert.equal(f.calls.at(-1).url.searchParams.get("target_type"), "eq.player");
   assert.equal(f.calls.at(-1).url.searchParams.get("target_id"), `eq.${id}`);
 });
-test("admin can confirm a result using the real final schema's winning_side", async () => {
-  const f = fixture({ dbReply: rowReply });
+test("Final v6 prohibits admin score changes and result confirmation before database access", async () => {
+  const f = fixture();
   const r = await f.request(`results/${id}`, { method: "PATCH", body: { expected_updated_at: stamp, status: "confirmed", winning_side: "a" } });
-  assert.equal(r.response.status, 200); assert.equal(r.json.data.winning_side, "a");
-  const call = f.calls.at(-1); assert.equal(call.url.searchParams.get("updated_at"), `eq.${stamp}`);
-  assert.deepEqual(call.body, { status: "confirmed", winning_side: "a" });
+  assert.equal(r.response.status, 405); assert.equal(f.calls.length, 1);
 });
 test("changed record returns 409 instead of reporting a successful write", async () => {
   const f = fixture({ dbReply: (call) => ({ body: call.method === "PATCH" ? [] : [{ report_id: id }] }) });
@@ -102,13 +98,13 @@ test("changed record returns 409 instead of reporting a successful write", async
 });
 test("database constraint errors are mapped without leaking SQL details", async () => {
   const f = fixture({ dbReply: (call) => call.method === "PATCH" ? { status: 400, body: { code: "23514", message: "secret SQL detail" } } : { body: [{ result_id: id }] } });
-  const r = await f.request(`results/${id}`, { method: "PATCH", body: { expected_updated_at: stamp, status: "confirmed" } });
+  const r = await f.request(`reports/${id}`, { method: "PATCH", body: { expected_updated_at: stamp, status: "resolved" } });
   assert.equal(r.response.status, 400); assert.equal(r.json.error.code, "constraint_violation");
   assert.doesNotMatch(JSON.stringify(r.json), /secret/);
 });
-test("one confirmed result per match conflict returns 409", async () => {
+test("write uniqueness conflict returns 409", async () => {
   const f = fixture({ dbReply: (call) => call.method === "PATCH" ? { status: 409, body: { code: "23505" } } : { body: [{ result_id: id }] } });
-  assert.equal((await f.request(`results/${id}`, { method: "PATCH", body: { expected_updated_at: stamp, status: "confirmed", winning_side: "b" } })).response.status, 409);
+  assert.equal((await f.request(`reports/${id}`, { method: "PATCH", body: { expected_updated_at: stamp, status: "resolved" } })).response.status, 409);
 });
 for (const body of [{ status: "resolved" }, { expected_updated_at: stamp }, { expected_updated_at: stamp, status: "resolved", updated_by: id }, { expected_updated_at: stamp, status: "resolved", decision_note: "Not stored" }]) {
   test(`invalid report patch cannot write: ${Object.keys(body).join(",")}`, async () => {
@@ -117,12 +113,12 @@ for (const body of [{ status: "resolved" }, { expected_updated_at: stamp }, { ex
   });
 }
 test("unsupported moderation state is not translated into cancellation", async () => {
-  const f = fixture(); assert.equal((await f.request(`games/${id}`, { method: "PATCH", body: { expected_updated_at: stamp, status: "hidden" } })).response.status, 400);
+  const f = fixture(); assert.equal((await f.request(`games/${id}`, { method: "PATCH", body: { expected_updated_at: stamp, status: "hidden" } })).response.status, 405);
 });
-test("ranking correction is scoped to one player and format", async () => {
+test("Final v6 prohibits manual ranking corrections before database access", async () => {
   const f = fixture({ dbReply: (call) => ({ body: [{ player_id: id, format: "singles", ...call.body }] }) });
   const r = await f.request(`rankings/${id}/singles`, { method: "PATCH", body: { expected_updated_at: stamp, ranking_points: 1248 } });
-  assert.equal(r.response.status, 200); assert.equal(f.calls.at(-1).url.searchParams.get("format"), "eq.singles");
+  assert.equal(r.response.status, 405); assert.equal(f.calls.length, 1);
 });
 test("announcement creation uses the caller as creator and begins as draft", async () => {
   const f = fixture({ dbReply: (call) => ({ body: { admin_post_id: id, ...call.body } }) });
@@ -146,8 +142,8 @@ test("malformed, oversized and non-JSON bodies are rejected", async () => {
   assert.equal((await f.request(`reports/${id}`, { method: "PATCH", raw: "x".repeat(17000) })).response.status, 413);
   assert.equal((await f.request(`reports/${id}`, { method: "PATCH", raw: "{}", contentType: "text/plain" })).response.status, 415);
 });
-test("unimplemented resources return 404 and never pretend to provide analytics", async () => {
-  const f = fixture(); assert.equal((await f.request("analytics")).response.status, 404);
+test("unknown resources return 404", async () => {
+  const f = fixture(); assert.equal((await f.request("unknown")).response.status, 404);
   assert.equal((await f.request("activity-log")).response.status, 404);
 });
 test("admin can send an in-app notice using supported notification fields", async () => {

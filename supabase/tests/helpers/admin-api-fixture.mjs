@@ -24,6 +24,7 @@ export function fixture(
     dbReply = () => ({ body: [] }),
     authStatus = 200,
     account = admin,
+    accounts = [admin],
   } = {},
 ) {
   const calls = [];
@@ -44,6 +45,10 @@ export function fixture(
     }
     if (url.pathname.startsWith("/auth/v1/admin/users/")) {
       return Promise.resolve(Response.json({ user: account }));
+    }
+    if (url.pathname === "/auth/v1/admin/users") {
+      const page = Number(url.searchParams.get("page") ?? 1);
+      return Promise.resolve(Response.json({ users: accounts.slice((page - 1) * 100, page * 100), aud: "authenticated" }));
     }
     assert.match(url.pathname, /^\/rest\/v1\//);
     const reply = dbReply(call);

@@ -194,7 +194,11 @@ test("announcement creation follows the supplied schema and sets creator on serv
   assert.equal(Array.isArray(r.json), false);
   assert.ok(r.json.publishedAt);
   for (const key of Object.keys(r.json)) {
-    assert.ok(key in contract.schemas.AdminPost.properties, key);
+    assert.ok(
+      key in contract.schemas.AdminPost.properties ||
+        ["updatedAt", "updatedBy", "createdAt"].includes(key),
+      key,
+    );
   }
   const call = f.calls.at(-1);
   assert.equal(call.body.created_by, id);
@@ -354,7 +358,8 @@ test("SQL errors use the team error shape and never expose SQL text", async () =
   assert.doesNotMatch(JSON.stringify(r.json), /sensitive/);
 });
 for (const [path, operation] of Object.entries(contract.paths)) {
-  test(`team moderation operation refuses incomplete schema without mutations: ${path}`, async () => {
+  test(`team operation rejects retired or unsupported mutations: ${path}`, async () => {
+    const retired = path === "/rpc/resolve_dispute";
     const body = Object.fromEntries(
       Object.entries(
         operation.post.requestBody.content["application/json"].schema
@@ -365,13 +370,16 @@ for (const [path, operation] of Object.entries(contract.paths)) {
     );
     const f = fixture();
     const r = await f.request(path.slice(1), { method: "POST", body });
-    assert.equal(r.response.status, 501);
-    assert.equal(r.json.code, "schema_extension_required");
+    assert.equal(r.response.status, retired ? 405 : 501);
+    assert.equal(
+      r.json.code,
+      retired ? "method_not_allowed" : "schema_extension_required",
+    );
     assert.equal(f.calls.length, 1);
     assert.equal(
       (await f.request(path.slice(1), { method: "POST", body: {} })).response
         .status,
-      422,
+      retired ? 405 : 422,
     );
   });
 }

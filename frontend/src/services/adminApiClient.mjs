@@ -8,8 +8,13 @@ export function createAdminApiClient(
     path,
     { method = "GET", body, query, headers: extraHeaders = {} } = {},
   ) {
-    if (!/^\/(?:[a-z_]+|rpc\/[a-z_]+)$/.test(path)) {
-      throw new Error("Use a table path or /rpc/function name.");
+    if (
+      !/^\/[a-z_]+(?:\/(?:[a-z_]+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})){0,2}$/i
+        .test(path)
+    ) {
+      throw new Error(
+        "Use a documented admin endpoint path; pass filters through query.",
+      );
     }
     const token = await getAccessToken();
     if (!token) throw new Error("Sign in before calling the admin API.");
@@ -31,8 +36,11 @@ export function createAdminApiClient(
         ? null
         : await response.text().then((text) => text ? JSON.parse(text) : null);
     if (!response.ok) {
-      const error = new Error(data?.message ?? "The admin API request failed.");
-      error.code = data?.code ?? "request_failed";
+      const detail = data?.error ?? data;
+      const error = new Error(
+        detail?.message ?? "The admin API request failed.",
+      );
+      error.code = detail?.code ?? "request_failed";
       error.status = response.status;
       throw error;
     }
@@ -42,6 +50,22 @@ export function createAdminApiClient(
     request,
     list: (table, query, headers) => request(`/${table}`, { query, headers }),
     rpc: (name, body) => request(`/rpc/${name}`, { method: "POST", body }),
+    capabilities: () => request("/capabilities"),
+    overview: () => request("/overview"),
+    attention: (query) => request("/overview/attention", { query }),
+    analytics: (query) => request("/analytics", { query }),
+    userSummary: (id) => request(`/users/${id}/summary`),
+    userParticipation: (id, kind, query) =>
+      request(`/users/${id}/${kind}`, { query }),
+    reportContext: (id) => request(`/reports/${id}/context`),
+    matchContext: (id) => request(`/matches/${id}/context`),
+    updateReportStatus: (id, status, expectedUpdatedAt) =>
+      request(`/reports/${id}`, {
+        method: "PATCH",
+        body: { status, expected_updated_at: expectedUpdatedAt },
+      }),
+    sendNotification: (body) =>
+      request("/notifications", { method: "POST", body }),
     createAnnouncement: (body) =>
       request("/admin_post", { method: "POST", body }),
     updateAnnouncement: (id, body) =>

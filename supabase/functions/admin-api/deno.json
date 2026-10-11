@@ -3,6 +3,6 @@
   "lock": true,
   "tasks": {
     "check": "deno check index.ts",
-    "test": "node --test ../../tests/admin-api.test.mjs ../../tests/admin-api-contract.test.mjs"
+    "test": "node --test ../../tests/admin-api.test.mjs ../../tests/admin-api-contract.test.mjs ../../tests/admin-api-console.test.mjs"
   }
 }
