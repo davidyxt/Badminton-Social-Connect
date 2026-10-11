@@ -1,0 +1,568 @@
+{
+  "source": "team-shared file.zip / 04. Design Phase/api-specification_v1.2.yaml",
+  "paths": {
+    "/rpc/admin_hide_post": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "[Postgres RPC] Admin hides a game post.",
+        "x-implementation": "postgres-rpc",
+        "description": "Updates GamePost status and writes ActivityLog.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "postId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "postId",
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GamePost"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/rpc/admin_restore_account": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "[Edge Function] Admin restores a suspended player's account.",
+        "x-implementation": "edge-function",
+        "description": "Reverses admin_suspend_account and writes ActivityLog. Implemented as a Supabase Edge Function (not a plain Postgres RPC) because it needs the service_role key to update rows the caller does not own across multiple tables — see the Secrets convention above.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "playerId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "playerId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/rpc/admin_restore_post": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "[Postgres RPC] Admin restores a hidden game post.",
+        "x-implementation": "postgres-rpc",
+        "description": "Reverses admin_hide_post and writes ActivityLog.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "postId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "postId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GamePost"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/rpc/admin_resume_league": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "[Postgres RPC] Admin resumes a suspended mini league.",
+        "x-implementation": "postgres-rpc",
+        "description": "Reverses admin_suspend_league and writes ActivityLog.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "leagueId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "leagueId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MiniLeague"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/rpc/admin_review_report": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "[Postgres RPC] Admin reviews a report and records an outcome.",
+        "x-implementation": "postgres-rpc",
+        "description": "Updates Report status (resolved or dismissed) and writes ActivityLog. Does not itself change any account or content — suspending a player, hiding a post or suspending a league is always a separate admin action (admin_suspend_account, admin_hide_post, admin_suspend_league).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reportId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "outcome": {
+                    "type": "string",
+                    "enum": [
+                      "resolved",
+                      "dismissed"
+                    ]
+                  }
+                },
+                "required": [
+                  "reportId",
+                  "outcome"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Report"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/rpc/admin_suspend_account": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "[Edge Function] Admin suspends a player's account.",
+        "x-implementation": "edge-function",
+        "description": "Elevated-privilege update across Player, GamePost and MiniLeague so a suspended player's active content is hidden; writes ActivityLog. Implemented as a Supabase Edge Function (not a plain Postgres RPC) because it needs the service_role key to update rows the caller does not own across multiple tables — see the Secrets convention above.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "playerId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "playerId",
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/rpc/admin_suspend_league": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "[Postgres RPC] Admin suspends a mini league.",
+        "x-implementation": "postgres-rpc",
+        "description": "Updates MiniLeague status and writes ActivityLog.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "leagueId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "leagueId",
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MiniLeague"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/rpc/resolve_dispute": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "[Postgres RPC] Admin resolves a dispute.",
+        "x-implementation": "postgres-rpc",
+        "description": "Updates Dispute status and, if upheld, corrects the MatchResult and downstream Ranking; notifies participants.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "disputeId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "outcome": {
+                    "type": "string",
+                    "enum": [
+                      "upheld",
+                      "dismissed"
+                    ]
+                  }
+                },
+                "required": [
+                  "disputeId",
+                  "outcome"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dispute"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    }
+  },
+  "schemas": {
+    "Error": {
+      "type": "object",
+      "description": "Standard error shape returned to the frontend (see API Specification → Conventions in the Technical Design Document).",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Machine-readable error code, e.g. 'forbidden', 'validation_failed', 'not_found'."
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable error message."
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ]
+    },
+    "AdminPost": {
+      "type": "object",
+      "properties": {
+        "adminPostId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Unique admin post id."
+        },
+        "title": {
+          "type": "string",
+          "description": "Headline shown on the home page."
+        },
+        "body": {
+          "type": "string",
+          "description": "Body text (announcement, promo, notice)."
+        },
+        "imageUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "Image shown on this carousel card, alongside title/body (Supabase Storage public URL). Required to publish (v1.2: the home page carousel is text-and-image, not text-only)."
+        },
+        "displayOrder": {
+          "type": "integer",
+          "description": "Position of this card in the home page carousel (ascending; lower shows first). Admin-set; only applied among published items."
+        },
+        "status": {
+          "type": "string",
+          "description": "draft | published."
+        },
+        "createdBy": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Admin who authored this item (FK to player.playerId)."
+        },
+        "publishedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When status last changed to published (null while draft)."
+        }
+      },
+      "required": [
+        "adminPostId"
+      ]
+    },
+    "Report": {
+      "type": "object",
+      "properties": {
+        "reportId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Unique report id."
+        },
+        "reportedByPlayerId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Player who filed the report (FK)."
+        },
+        "targetType": {
+          "type": "string",
+          "description": "What is being reported: player | game_post | mini_league."
+        },
+        "targetId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Id of the reported player, game post or mini league. Polymorphic — no single FK can reference three different tables, so this is enforced in RLS/RPC logic, not a drawn constraint."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reporter-supplied reason."
+        },
+        "status": {
+          "type": "string",
+          "description": "open | reviewing | resolved | dismissed."
+        }
+      },
+      "required": [
+        "reportId"
+      ]
+    },
+    "Dispute": {
+      "type": "object",
+      "properties": {
+        "disputeId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Unique dispute id."
+        },
+        "matchId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Disputed match (FK)."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reason for the dispute."
+        },
+        "status": {
+          "type": "string",
+          "description": "open | upheld | dismissed."
+        }
+      },
+      "required": [
+        "disputeId"
+      ]
+    }
+  }
+}
