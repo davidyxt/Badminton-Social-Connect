@@ -4,7 +4,8 @@ Starter repository structure for the Badminton Social Connect platform.
 
 ## Structure
 
-- `frontend/` — React frontend
+- `frontend/` — React frontend (player app)
+- `admin/` — Admin web console (Next.js, mock data only for now; see [admin/README.md](admin/README.md))
 - `supabase/` — Supabase database migrations, functions, and seed data
 - `docs/` — Project documentation
 

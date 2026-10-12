@@ -1,0 +1,99 @@
+# Badminton Social Connect: Admin console
+
+Administrator web console (Next.js App Router, TypeScript, Tailwind CSS). It runs in one of two modes:
+
+- **mock** (default): every screen and action works against an in-memory mock data layer. No backend needed.
+- **api**: reads and writes the real `admin-api` Supabase Edge Function (branch `admin-api/database-handoff`). Only what the backend supports today works; the rest is disabled with an explanation.
+
+This is a separate app from the player app in `../frontend` (Vite + React).
+
+## Run it
+
+```bash
+cd admin
+npm install
+npm run dev        # http://localhost:3000
+```
+
+Sign in with any email and password. An email starting with `player` signs in as a non-admin and shows the access-restricted screen.
+
+Other scripts: `npm run build`, `npm run lint`.
+
+## Running against the real admin API
+
+1. From a checkout of the `admin-api/database-handoff` branch (the function isn't on `main` yet), start Supabase locally and serve the function, allowing the console's origin (the function only allows `http://localhost:5173` by default):
+
+   ```bash
+   npx supabase start
+   echo "ADMIN_ALLOWED_ORIGINS=http://localhost:3000" > /tmp/admin-api.env
+   npx supabase functions serve admin-api --env-file /tmp/admin-api.env
+   ```
+
+2. Give your account the admin role. There is no admin registration endpoint: set `app_metadata.role = "admin"` on the user in Supabase Studio (Authentication → Users) or through the Auth admin API, then sign in again.
+
+3. Copy `.env.example` to `.env.local` and set:
+
+   ```
+   NEXT_PUBLIC_ADMIN_DATA_SOURCE=api
+   NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key from `npx supabase status`>
+   ```
+
+4. `npm run dev` and sign in with that account. A "Live API" badge shows in the header.
+
+What works in API mode today:
+
+| Area | API mode |
+| --- | --- |
+| Sign in / access restricted / session expired | Real Supabase Auth; `app_metadata.role = admin` required |
+| Overview, Users, Reports, Games & results, Rankings, Mini Leagues, Disputes | Read-only, real data, refreshed every 20s |
+| Home carousel (`/content`) | Create, edit, publish/unpublish, reorder, remove. Images must be `https://` URLs (no upload endpoint yet) |
+| Analytics | New users and reports received only; other metrics show "Not tracked yet" |
+| Suspend/restore account, hide/restore/delete post, suspend/resume/close/delete league, resolve/dismiss report | Disabled: the backend returns 501 until the database changes in `docs/admin-database-handoff.md` (DB02–DB06) land |
+| Activity log, deleted records, ranking history | Empty with a notice (DB01, DB05, DB07) |
+| Disputes | Read-only in both modes: Final v6 lets admins review disputes but not resolve them (the API returns 405) |
+
+When the backend adds a capability, remove it from `lib/api/capabilities.ts` and the existing UI starts calling it.
+
+## Mock controls
+
+In mock mode, the **Mock controls** button (bottom left) is demo tooling for states a real backend would produce:
+
+| Control | What it shows |
+| --- | --- |
+| Fail the next save | Save-failed toast with Retry; the dialog keeps your input |
+| Next save hits a "record changed" conflict | Simulates another admin session changing the record first |
+| Random failure rate | 10 / 25 / 50% of saves fail |
+| Simulate latency | 300–800ms per call (on by default) |
+| New player report every 20s | Live Reports queue (stands in for the `admin:reports` Realtime channel) |
+| Expire session / Lose admin access | Session-expired and access-restricted screens |
+| Reset mock data | Restores the original fixtures |
+
+Mock data and the mock session persist in `localStorage`, so a reload keeps your changes. Changes made in one tab show up live in other open tabs.
+
+## Where things live
+
+```
+app/(auth)/            sign-in, session-expired, access-restricted
+app/(admin)/           every admin route; layout.tsx is the mock auth guard + shell
+components/layout/     shell, sidebar, mock controls, providers
+components/shared/     DataTable, ConfirmDialog, FeedbackToast, StatusBadge, EmptyState, PlayerProfileCard, charts…
+components/modals/     one confirmation component per flow
+lib/types/             entity types (snake_case, from the v1.2 API spec)
+lib/mock-data/         fixtures
+lib/mock-api/          RPCs (same names and arguments as the spec), selectors, store; each RPC delegates to lib/api in API mode
+lib/api/               real admin-api client, table sync + field mapping, capabilities (what the backend supports today)
+lib/config.ts          data source switch
+lib/hooks/useAdminAction.ts   runs every mutation through the shared feedback states
+lib/auth/              session: mock, or Supabase Auth in API mode (the real security boundary is always the backend)
+```
+
+## How the real API is wired
+
+Pages only import from `@/lib/mock-api`, so they don't know which backend is active.
+
+- `lib/api/sync.ts` loads the team-contract table routes (`/player`, `/report`, `/game_post`, …) into the same store the mock uses, mapping camelCase API fields to the console's snake_case types. It re-reads on sign-in, every 20 seconds and after each write (in place of Realtime channels).
+- `lib/api/actions.ts` holds the write side: the spec RPCs plus PostgREST-style `/admin_post` CRUD for the carousel.
+- `lib/api/capabilities.ts` lists the actions and screens the backend can't support yet; the UI disables or annotates them.
+
+Fields the database doesn't have are left empty or labelled, never invented. Every player shows as active because there's no suspension state yet. Game posts have no title column, so the console labels them from their format and suburb ("Doubles game in Parramatta"). Reports have no description.
