@@ -4,6 +4,7 @@ import {
   signIn,
   signInWithGoogle,
   resendVerificationEmail,
+  completePlayerRegistration,
 } from "../services/authService";
 import Captcha, { useCaptcha } from "../components/auth/Captcha";
 import { getAuthErrorMessage } from "../utils/authErrors";
@@ -54,6 +55,7 @@ function LoginPage() {
 
     try {
       await signIn(formData.email, formData.password, captcha.token);
+      await completePlayerRegistration();
 
       navigate("/dashboard");
     } catch (err) {
