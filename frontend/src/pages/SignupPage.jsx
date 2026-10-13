@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { signUp, signInWithGoogle } from "../services/authService";
+import { signUp, signInWithGoogle, completePlayerRegistration } from "../services/authService";
 import Captcha, { useCaptcha } from "../components/auth/Captcha";
 import { getAuthErrorMessage } from "../utils/authErrors";
 import { PASSWORD_HINT, getPasswordError } from "../utils/passwordPolicy";
@@ -16,6 +16,9 @@ function SignupPage() {
     email: "",
     password: "",
     confirmPassword: "",
+    dateOfBirth: "",
+    selfRatingBand: "Beginner",
+    state: "VIC",
   });
 
   const [error, setError] = useState("");
@@ -57,9 +60,13 @@ function SignupPage() {
         firstName: formData.firstName,
         lastName: formData.lastName,
         captchaToken: captcha.token,
+        dateOfBirth: formData.dateOfBirth,
+        selfRatingBand: formData.selfRatingBand,
+        state: formData.state,
       });
 
       if (session) {
+        await completePlayerRegistration();
         navigate("/dashboard");
       } else {
         // Email verification is on: no session until the link is clicked.
@@ -156,6 +163,24 @@ function SignupPage() {
               </div>
             </div>
 
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="dateOfBirth">Date of birth</label>
+                <input id="dateOfBirth" name="dateOfBirth" type="date" value={formData.dateOfBirth} onChange={handleChange} max={new Date().toISOString().slice(0,10)} required />
+              </div>
+              <div className="form-group">
+                <label htmlFor="state">Playing state</label>
+                <select id="state" name="state" value={formData.state} onChange={handleChange} required>
+                  {['VIC','NSW','QLD','SA','WA','TAS','ACT','NT'].map(value=><option key={value} value={value}>{value}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="form-group">
+              <label htmlFor="selfRatingBand">Playing level</label>
+              <select id="selfRatingBand" name="selfRatingBand" value={formData.selfRatingBand} onChange={handleChange}>
+                {['Beginner','Intermediate','Advanced'].map(value=><option key={value} value={value}>{value}</option>)}
+              </select>
+            </div>
             <div className="form-group">
               <label htmlFor="email">Email address</label>
 
