@@ -82,6 +82,11 @@ may need to sign out and back in.
 | `match_result` | Players in that match, plus whoever manages it |
 | `dispute` | Players in that match, the person who raised it, plus whoever manages it |
 | `ranking` | Any signed-in player (leaderboards) |
+| `rating_history` | Your own rows, plus admins. Other players' rating changes reach the screens only through the functions |
+| `result_flag` | Admins only |
+| `match_message` | Players in that match |
+| `match_message_template` | Any signed-in player |
+| (rating state) | `private.rating_state`, `rating_covariance`, `rating_clock`, `rating_batch` are in the `private` schema: never readable through the API |
 | `notification` | Yours only |
 | `report` | Only the person who filed it, plus admins |
 | `blocks` | Only the blocker, plus admins. The blocked player cannot tell |
@@ -107,12 +112,13 @@ Admins can read everything in every table.
 | `cancellation_record` | Organiser of the post (player or group admin), or admin | Admin | Admin |
 | `groups` | Any player, as themselves (they become its first group admin) | Group admins or platform admin (including `is_active`), and not `is_verified` | Nobody. Groups are deactivated, not deleted |
 | `group_member` | Request to join as yourself, forced to `pending` / `member`. Nobody can add someone else (team item 4) | Group admins approve requests and promote members; only `role` and `status`; never another admin's row | Yourself (leave or withdraw), group admins removing a non-admin, or platform admin. The last group admin cannot leave |
-| `match` | Anyone on the game's roster, or the league organiser for a fixture (matches and results are being built by a teammate) | Creator, game organiser, league organiser or admin | Same |
-| `match_participant` | Yourself, or the match manager adding you. Must be on the game's roster | Your own attendance, or the manager's | Yourself, or the manager |
+| `match`, `match_participant` | Nobody directly. `submit_result` creates both, from players on the game's accepted roster | Admin | Admin |
 | `check_in` | Yourself, only if you are a participant, only unverified | Admin | Admin |
-| `match_result` | Participants, `status` forced to `pending` | Admin | Admin |
-| `dispute` | Participants, `status` forced to `open` | Admin | Admin |
-| `ranking` | Nobody | Admin | Nobody |
+| `match_result` | Nobody directly (`submit_result`, always `pending`) | Admin. Players confirm only through `confirm_result` (the opposing side) and dispute through `raise_dispute`; the hourly expiry job sets `expired` | Admin |
+| `dispute` | Nobody directly (`raise_dispute`) | Admin (resolving disputes belongs to the admin lane) | Admin |
+| `ranking` | Nobody (the nightly rating run) | Admin | Nobody |
+| `rating_history`, `result_flag` | Nobody (the nightly rating run, `private.check_result`) | Nobody | Nobody |
+| `match_message` | As yourself, a player in the match, with a preset `template_code` only; at most 20 per 10 minutes | Nobody | Nobody |
 | `notification` | Admin | Own row, and only `is_read` | Own row |
 | `report` | Nobody directly. Only `report_player` / `report_post` / `report_league` / `report_group`, which capture the evidence | Admin | Admin |
 | `blocks` | Nobody directly (`block_player`) | Nobody | Nobody directly (`unblock_player`) |
@@ -181,13 +187,21 @@ Four more rules are enforced in the policies rather than by grants:
   `withdrawn`.
 - A player can only insert a `check_in` for themselves, for a match they are
   in, and only with `verified = false`. Staff verify separately.
-- A submitted `match_result` must start as `pending`. Confirming it is a
-  separate, privileged step.
+- A result is only created by `submit_result`, as `pending`, after checking the
+  roster, the format and the scores. Confirming it needs a player on the
+  **opposing** side (`confirm_result`); the submitter and their partner cannot.
 - A `report` and a `dispute` must start as `open`, and the person who filed it
-  cannot edit it afterwards, so the moderation trail holds.
+  cannot edit it afterwards, so the moderation trail holds. A dispute is only
+  raised through `raise_dispute`, by the opposing side, on a pending result.
+- A quick message (`match_message`) is a preset `template_code`, never free
+  text, sent as yourself by a player in the match.
 
 There is also a partial unique index ensuring **at most one `confirmed` result
 per match**, no matter how many are submitted.
+
+Realtime: quick messages are broadcast on the private channel
+`match:{matchId}:messages`. A policy on `realtime.messages` lets only that
+match's players join it.
 
 ## Integrity enforced by triggers
 
@@ -202,14 +216,17 @@ the API as well.
 | `game_post_validate` | Suburb required (copied from the venue); start time in the future; `status = cancelled` and `deleted_*` can only be set by `cancel_game_post`, `delete_game_post` and `admin_delete_game_post` |
 | `group_has_no_upcoming_games` | A group cannot be deactivated while it has upcoming games |
 | `game_participant_validate_change` | Join requests and responses only while the game is open (not cancelled, deleted or started) |
-| `game_participant_first_acceptance` | The first accepted player creates the game's match |
 | `match_participant_validate` | Players must be on the game's accepted roster; one per side for singles, two for doubles |
 | `match_completion_validate` | A match cannot become `completed` with sides that are not full |
+| `match_result_flag_ratings_for_rebuild` | A result that counted stops counting (rejected, or excluded when its game is deleted): the next nightly rating run replays every rating |
+| `match_message_limit` | At most 20 quick messages per player per 10 minutes |
+| `match_message_broadcast` | Sends each new quick message on `match:{matchId}:messages` |
 | `<table>_set_updated_metadata` | Stamps `updated_at` and `updated_by` on all 18 changeable tables, ignoring anything the client sent |
 
 Sides can be filled one player at a time, so the exact count is only required at
-completion. All three raise `23514` (check violation), which PostgREST returns
-as a `400` with the message intact, so the frontend can show it.
+completion. The validation triggers raise `23514` (check violation) and the
+message limit `54000`; PostgREST returns them with the message intact, so the
+frontend can show it.
 
 ## Helper functions
 

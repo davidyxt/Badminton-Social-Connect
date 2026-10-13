@@ -65,7 +65,7 @@ Useful commands (from the repo root):
 | Folder | What | Reaches the hosted project? |
 |---|---|---|
 | `supabase/seeds/production/` | Real reference data: states, all Australian suburbs and postcodes, 142 badminton venues with coordinates | Yes, through the CI deploy job. Files must be safe to run again (upserts) |
-| `supabase/seeds/dev/` | Dummy data in every table: accounts, groups, upcoming and past games, results, blocks, reports, notifications | **Never** |
+| `supabase/seeds/dev/` | Dummy data in every table: accounts, groups, upcoming and past games, results, ratings, blocks, reports, notifications | **Never** |
 
 Dev accounts, all with the password `Passw0rd!`:
 
@@ -73,16 +73,23 @@ Dev accounts, all with the password `Passw0rd!`:
 |---|---|
 | `admin@example.com` | Platform admin |
 | `alice@example.com` | Organiser, Smash Group admin, runs the Spring Singles Ladder, blocked Frank |
-| `bob@example.com` | Pending request to join Smash Group, one late cancellation |
+| `bob@example.com` | Pending request to join Smash Group, one late cancellation, a result waiting for Alice to confirm |
 | `carol@example.com` | Northside Shuttlers admin, a disputed result |
 | `dan@example.com` | Profile hidden from other players, one no-show |
 | `erin@example.com` | Smash Group member, one late withdrawal |
 | `frank@example.com` | Blocked by Alice, reported by Carol |
 | `grace@example.com` | Google-style sign-up, no username, not past the age gate |
 | `ivy@example.com` | New player, no games |
+| `rally01@example.com` ... `rally30@example.com` | 30 extra players (`rally_01` ... `rally_30`) with 450 confirmed singles matches over the last 70 days, so the leaderboards have established players. Alice to Frank play some of them too |
 
 `henry@example.com` is deleted by the seed, so he appears as "Deleted User".
-The full story is at the top of `supabase/seeds/dev/01_accounts.sql`.
+The full story is at the top of `supabase/seeds/dev/01_accounts.sql`, and the
+rally players' at the top of `07_rankings.sql`.
+
+Ratings are worked out by a nightly job (2 am Melbourne). The seed replays them
+once at the end, so they are ready after `db reset`. After recording and
+confirming results locally, run them straight away with
+`select private.rate_new_results();` in the SQL editor (Studio) or psql.
 
 ### Tests
 

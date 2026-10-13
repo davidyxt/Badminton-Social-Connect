@@ -193,7 +193,7 @@ Times are Melbourne time. Level words also match games open to any level, as the
 
 ## Matches and deleting games, 2026-10-08
 
-- **Matches** within a game are being built by a teammate, with results and rankings. Games don't create or link matches, and `get_game_details` returns `matches: []`.
+- **Matches** within a game are being built by a teammate, with results and rankings. Games don't create or link matches, and `get_game_details` returns `matches: []`. (Since 2026-10-12, recording a result creates its match and `matches[]` lists them: see [M2-results-and-rankings.md](./M2-results-and-rankings.md).)
 - **Deleting a game** (`delete_game_post`) is refused once anyone other than the host has asked to join, been invited or been accepted. The host cancels instead. `hostActions.canDelete` says whether it's still possible.
 
 Built in `20261008101800_matches_left_out_delete_needs_empty_game.sql`.

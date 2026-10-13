@@ -47,6 +47,12 @@ Implemented across forty-four migrations in `supabase/migrations/`:
 | `..._game_details_host_actions.sql` | Game Details' `hostActions` (when the host can cancel, delete and mark no-shows) and no-show players on the host's roster |
 | `..._games_hold_matches.sql` | `create_match` / `remove_match` and `matches[]` on Game Details (removed again by the next migration) |
 | `..._matches_left_out_delete_needs_empty_game.sql` | Matches left to the teammate building results: no `create_match` / `remove_match`, no automatic match on acceptance, `matches: []` on Game Details. `delete_game_post` refused once anyone has asked to join |
+| `..._bl003_results_ratings_messages_schema.sql` | Player BE-2 schema: `match_result.games`, `confirmed_by`, `confirmed_at`, status `expired`; `dispute.result_id`; the private rating state; `rating_history`; `result_flag`; `match_message` and its templates; writes to match, result and dispute tables only through functions |
+| `..._bl021_bl023_result_flow.sql` | `submit_result` (creates the match), `confirm_result`, `get_match`, `get_my_pending_results`, `matches[]` and `canRecordResult` on Game Details |
+| `..._bl024_bl062_rating_engine.sql` | The rating engine and its nightly pg_cron run, starting ratings, grades, the rating card, `ratingChange` in history, `admin_rebuild_ratings` |
+| `..._bl056_bl058_disputes_checks_expiry.sql` | `raise_dispute`, result flags, hourly expiry of pending results |
+| `..._bl025_rankings.sql` | `get_rating_summary`, `get_rating_trend`, `get_leaderboard` |
+| `..._bl085_match_messages.sql` | Quick messages: access rules, send limit, private Realtime channel, `get_match_messages` |
 | `..._venue_search_and_no_reliability_band.sql` | `search_venues` for the venue dropdown (trigram indexes on venue and suburb names); `get_game_form_options` no longer lists venues; no reliability band, the screens show a % |
 
 Access rules are documented separately in [rls-policies.md](./rls-policies.md),
@@ -361,10 +367,13 @@ erDiagram
     MATCH_RESULT {
         uuid result_id PK
         uuid match_id FK
-        text score
+        text score "display text, side a first"
+        jsonb games "points per game, side a first"
         text winning_side "a or b, not a player"
         uuid submitted_by FK "added, see note 3"
-        text status
+        text status "pending/confirmed/disputed/rejected/expired"
+        uuid confirmed_by FK
+        timestamptz confirmed_at
         boolean excluded_from_ranking "game deleted by an admin"
         timestamptz created_at
         timestamptz updated_at
@@ -374,6 +383,7 @@ erDiagram
     DISPUTE {
         uuid dispute_id PK
         uuid match_id FK
+        uuid result_id FK
         uuid raised_by FK "added, see note 3"
         text reason
         text status
@@ -390,6 +400,42 @@ erDiagram
         int verified_games_count
         timestamptz updated_at
         uuid updated_by
+    }
+
+    RATING_HISTORY {
+        uuid history_id PK
+        uuid player_id FK
+        uuid result_id FK
+        uuid match_id FK
+        timestamptz played_at "when the engine processed it"
+        float rating_before
+        float rating_after
+        float rd_before
+        float rd_after
+        boolean is_established
+    }
+
+    RESULT_FLAG {
+        uuid flag_id PK
+        uuid result_id FK
+        uuid match_id FK
+        text kind "repeat_pairing/unusual_win_pattern/rating_swing"
+        jsonb detail
+        timestamptz created_at
+    }
+
+    MATCH_MESSAGE_TEMPLATE {
+        text template_code PK
+        text label
+        smallint sort_order
+    }
+
+    MATCH_MESSAGE {
+        uuid message_id PK
+        uuid match_id FK
+        uuid sender_id FK
+        text template_code FK "preset only, no free text"
+        timestamptz created_at
     }
 
     PLAYER ||--|| PLAYER_PROFILE : has
@@ -424,6 +470,12 @@ erDiagram
     MATCH ||--o{ MATCH_PARTICIPANT : includes
     MATCH ||--o{ MATCH_RESULT : produces
     MATCH ||--o{ DISPUTE : may_raise
+    MATCH_RESULT ||--o{ DISPUTE : challenged_by
+    MATCH_RESULT ||--o{ RATING_HISTORY : moves_ratings
+    MATCH_RESULT ||--o{ RESULT_FLAG : flagged_by
+    PLAYER ||--o{ RATING_HISTORY : has
+    MATCH ||--o{ MATCH_MESSAGE : carries
+    MATCH_MESSAGE_TEMPLATE ||--o{ MATCH_MESSAGE : worded_by
 ```
 
 ## The game lifecycle
@@ -545,7 +597,7 @@ twenty.
 
 ## Notes on the tables
 
-**Games and matches.** A game (`game_post`) is the session. Matches (`match`, side `a` against side `b`, with `match_result` for the score) are being built by a teammate along with results and rankings. Games don't create or link matches: `get_game_details` returns `matches: []`.
+**Games and matches.** A game (`game_post`) is the session. A match (`match`, side `a` against side `b`) is created by `submit_result` when a player records a result, from players on the game's accepted roster, together with its `match_result`. Nobody writes `match`, `match_participant`, `match_result` or `dispute` directly: every change goes through `submit_result`, `confirm_result`, `raise_dispute` and the hourly expiry job. `get_game_details` lists the caller's matches in `matches[]`. See [features/M2-results-and-rankings.md](./features/M2-results-and-rankings.md).
 
 **Usernames are chosen by the player; real names are private.** `player.username`
 is the only name other players see: 3-20 letters, digits, `_` or `.`, unique
@@ -682,10 +734,13 @@ Its game posts, matches and results stay; it cannot post games or take members
 until reactivated. `game_post.organiser_group_id` is `on delete restrict`, so a
 group with posts cannot be deleted even by `service_role`.
 
-**`match_result` allows several rows per match**, read from the diagram as "each
-side submits a score and one gets confirmed". A partial unique index enforces at
-most one `confirmed` result per match, and a check constraint stops a result
-being confirmed without a `winning_side`.
+**`match_result` has one row per match** in practice: `submit_result` creates
+the match and its result together, and the same two sides cannot be recorded
+twice in a game unless the earlier result expired. The table still allows
+several rows, read from the diagram as "each side submits a score and one gets
+confirmed", and a partial unique index keeps at most one `confirmed` result per
+match as a backstop. `games` holds the structured score, side `a` first;
+`score` is the same as display text.
 
 **The organiser of a game joins it automatically.** When an individual posts a
 game, the `on_game_post_created` trigger adds them to the roster as `accepted`,
@@ -696,8 +751,15 @@ including the organiser. A group post has no such person, so all places are open
 so Postgres cannot enforce a foreign key. Application code must check the target
 exists.
 
-**`ranking` and `league_standing` are derived**, recalculated from confirmed
-results. Nothing computes them yet.
+**`ranking` and `league_standing` are derived.** The singles row of `ranking`
+is a rounded copy of the rating, written by the nightly rating run (pg_cron
+`rate-confirmed-results`, 2 am Melbourne). The full-precision state is in the
+`private` schema, out of reach of the API: `private.rating_state` (mean,
+variance and placement counters per player), `private.rating_covariance` (one
+row per pair of players with a non-zero covariance), `private.rating_clock` and
+`private.rating_batch` (last run, and whether a replay is due).
+`rating_history` keeps the before and after of every rated result. Doubles are
+never rated. `league_standing` waits for Mini Leagues.
 
 ## Differences from the original ER diagram
 
@@ -730,6 +792,7 @@ that correcting a venue is a seed-file edit, not a new migration.
 | `seeds/production/02_suburbs.sql` | 18,087 Australian suburbs with postcodes and approximate coordinates. Generated by `seeds/scripts/generate_suburbs.py` from GeoNames (CC BY 4.0); mail-only postcode ranges excluded | Same |
 | `seeds/production/03_venues.sql` | 142 venues across Australia with coordinates, from BadmintonHub (permission pending); pins missing or wrong there come from OpenStreetMap Nominatim. Generated by `seeds/scripts/generate_venues.py`; checked by `tests/venue_maps_check.py` | Same |
 | `seeds/dev/01_accounts.sql` … `06_deleted_account.sql` | Dummy data in every table (password `Passw0rd!`): accounts, groups, upcoming and past games, matches, results, a dispute, no-shows, a league, blocks, reports, admin posts, notifications, the geocoding queue, one deleted account | `db reset` locally only |
+| `seeds/dev/07_rankings.sql` | 30 extra players (`rally_01` ... `rally_30`) and 450 confirmed singles matches over 70 days, then a full rating replay, so the leaderboards have established players | `db reset` locally only |
 
 Production seed files are upserts, so the deploy job can run them on every
 merge. They never delete: a suburb dropped from the source stays, because venues

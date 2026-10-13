@@ -24,7 +24,7 @@ A short version for whoever, or whatever AI assistant, picks this up.
 **Scope.** Wire the existing React pages to the Supabase backend, and build the few new screens listed below.
 
 - **In scope:** sign-in and registration are already wired. Everything else in [Screen by screen](#screen-by-screen) is to do.
-- **Out of scope:** matches, results, rankings and mini leagues are being built by a teammate. Leave those pages on their sample data.
+- **Out of scope:** mini leagues are not built yet; leave those pages on their sample data. Results and rankings now have a backend: see [features/M2-results-and-rankings.md](./features/M2-results-and-rankings.md).
 
 **Sources of truth.**
 
@@ -573,9 +573,18 @@ Groups use the `groups` and `group_member` tables (see item 3 in [Changes the fr
 - Don't build an "add member" button. Players must ask, and admins approve (3).
 - Show inactive groups as inactive. A group with upcoming games can't be deactivated; show the error `message`.
 
-### Rankings, Mini Leagues, Match Details and results ❌
+### Rankings, Match Details and results: backend ready (M2)
 
-Matches, results, rankings and leagues are being built by a teammate, so they aren't covered in this guide. See [Screens with no backend yet](#screens-with-no-backend-yet).
+The backend for results and rankings is ready; Mini Leagues are not. The calls, shapes and rules are in [features/M2-results-and-rankings.md](./features/M2-results-and-rankings.md).
+
+| Screen | Call |
+|---|---|
+| Record Result (`RecordResultPage`) | `submit_result({ p_post_id, p_opponent_ids, p_partner_id, p_games })`. Show the button when `get_game_details().canRecordResult` |
+| Result Submitted (`ResultSubmittedPage`) | `get_match({ p_match_id })` with the `matchId` from `submit_result` |
+| Match Details (`MatchDetailsPage`) | `get_match`; Confirm and Dispute buttons from `result.canConfirm` / `result.canDispute`, calling `confirm_result` / `raise_dispute`. Quick messages: `match_message_template`, `match_message`, `get_match_messages` |
+| Result Confirmed (`ResultConfirmedPage`) | The match returned by `confirm_result`. While `result.ratingPending` is true, say "Your rating updates overnight" instead of a rating change |
+| Rankings (`RankingsPage`) | `get_rating_summary`, `get_rating_trend`, `get_leaderboard({ p_scope: 'state' \| 'nearby' })`. Show "Updated <date>" from `ratingsUpdatedAt`. No League tab yet |
+| Pending results (Home or Notifications) | `get_my_pending_results` |
 
 ## Changes the frontend must make
 
@@ -668,6 +677,10 @@ Report and block categories:
 | Live notifications | Realtime on `notification` |
 | Venue Maps links | `mapsUrl` on cards, details and venues |
 | Admin: delete a played game, with a warning | `admin_game_post_deletion_impact`, `admin_delete_game_post` |
+| Results waiting on me (a Home card or a list) | `get_my_pending_results` |
+| Verification badge on results (BL-057) | `verificationStatus` on `get_match` and `get_player_history` |
+| Quick messages on Match Details | `match_message_template`, `match_message`, `get_match_messages`, Realtime `match:{matchId}:messages` |
+| Admin: replay all ratings now | `admin_rebuild_ratings` |
 
 ## Screens with no backend yet
 
@@ -675,9 +688,9 @@ These are outside the BE-1 stories, or need a team decision first.
 
 | Screen or button | What's missing |
 |---|---|
-| Rankings (`RankingsPage`) | Leaderboards by state, nearby and league; rating history; weekly change. The `ranking` table is readable, but nothing calculates ratings yet (BL-024/025). |
+| Rankings League tab | Waits for Mini Leagues |
 | Mini Leagues, Create League, League Details | League screens and functions. The `mini_league` table lacks format, style, rounds, skill level, venue, max players and description. |
-| Match Details, Record Result, Result Submitted, Result Confirmed | Matches within a game and their results: being built by a teammate. `get_game_details` returns `matches: []` until then |
 | Dashboard league and recent activity | No functions yet |
-| Notification types reminder, new game nearby, rating change | Not sent yet |
+| Notification types reminder, new game nearby, rating change | Not sent yet. Result notifications (`result_submitted`, `result_confirmed`, `dispute_update`, `result_expired`) are sent |
+| Resolving disputes, reviewing result flags | Admin lane |
 | Terms and privacy pages | The documents and their version labels |
