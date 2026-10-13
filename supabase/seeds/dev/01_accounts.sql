@@ -140,19 +140,10 @@ from (values
 where player_id = v.id;
 
 -- ---------------------------------------------------------------------------
--- Rankings (BL-025 will calculate these; fixed numbers for now)
+-- Rankings
 -- ---------------------------------------------------------------------------
-
-insert into public.ranking (player_id, format, ranking_points, band, verified_games_count)
-values
-  ('00000000-0000-0000-0000-00000000a001', 'singles', 1240, 'intermediate', 3),
-  ('00000000-0000-0000-0000-00000000a001', 'doubles', 1185, 'intermediate', 1),
-  ('00000000-0000-0000-0000-00000000a002', 'doubles', 980, 'beginner', 1),
-  ('00000000-0000-0000-0000-00000000a003', 'singles', 1310, 'upper_intermediate', 1),
-  ('00000000-0000-0000-0000-00000000a003', 'doubles', 1205, 'upper_intermediate', 1),
-  ('00000000-0000-0000-0000-00000000a004', 'singles', 1405, 'advanced', 1),
-  ('00000000-0000-0000-0000-00000000a005', 'doubles', 1050, 'lower_intermediate', 1),
-  ('00000000-0000-0000-0000-00000000a008', 'singles', 1100, 'intermediate', 1);
+-- Calculated, not seeded: 07_rankings.sql adds matches and replays them through
+-- the rating engine (BL-024).
 
 -- Availability (when they usually play).
 update public.player_profile set availability = v.slots, availability_note = v.note

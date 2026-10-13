@@ -21,6 +21,11 @@
 --   ...c106  alice v dan singles, 5 days ago: dan won; erin gave up her place
 --            the evening before (late withdrawal)
 --   ...c107  Old Court Group doubles, 30 days ago, before the group closed
+--   ...c108  bob v alice singles, 2 days ago: bob recorded 21-17 18-21 21-19
+--            yesterday and it is waiting for alice to confirm or dispute
+--
+-- alice, carol and their quick messages on the c101 match show the Match
+-- Details messages (BL-085).
 
 set session_replication_role = replica;
 
@@ -69,7 +74,12 @@ values
   ('00000000-0000-0000-0000-00000000c107', null, '00000000-0000-0000-0000-00000000c003',
    'Old Court farewell night', 'doubles', 'social', 'any',
    null, 'Footscray', (date_trunc('day', now() at time zone 'Australia/Melbourne') - interval '30 days' + interval '19 hours') at time zone 'Australia/Melbourne', 120, 8,
-   'completed', now() - interval '35 days');
+   'completed', now() - interval '35 days'),
+  ('00000000-0000-0000-0000-00000000c108', '00000000-0000-0000-0000-00000000a002', null,
+   'Evening singles', 'singles', 'social', 'any',
+   (select venue_id from public.venue where name = 'Melbourne Badminton Centre'),
+   'Blackburn North', (date_trunc('day', now() at time zone 'Australia/Melbourne') - interval '2 days' + interval '19 hours') at time zone 'Australia/Melbourne', 60, 2,
+   'completed', now() - interval '6 days');
 
 -- Rosters, with the history rows the history trigger would have written.
 insert into public.game_participant (post_id, player_id, status, requested_at, responded_at, late_withdrawal)
@@ -91,7 +101,9 @@ values
   ('00000000-0000-0000-0000-00000000c106', '00000000-0000-0000-0000-00000000a004', 'accepted', now() - interval '8 days', now() - interval '8 days', false),
   ('00000000-0000-0000-0000-00000000c106', '00000000-0000-0000-0000-00000000a005', 'withdrawn', now() - interval '8 days', now() - interval '8 days', true),
   ('00000000-0000-0000-0000-00000000c107', '00000000-0000-0000-0000-00000000a004', 'accepted', now() - interval '35 days', now() - interval '35 days', false),
-  ('00000000-0000-0000-0000-00000000c107', '00000000-0000-0000-0000-00000000a005', 'accepted', now() - interval '34 days', now() - interval '34 days', false);
+  ('00000000-0000-0000-0000-00000000c107', '00000000-0000-0000-0000-00000000a005', 'accepted', now() - interval '34 days', now() - interval '34 days', false),
+  ('00000000-0000-0000-0000-00000000c108', '00000000-0000-0000-0000-00000000a002', 'accepted', now() - interval '6 days', now() - interval '6 days', false),
+  ('00000000-0000-0000-0000-00000000c108', '00000000-0000-0000-0000-00000000a001', 'accepted', now() - interval '5 days', now() - interval '5 days', false);
 
 insert into public.game_participant_history (post_id, player_id, from_status, to_status, changed_by, changed_at)
 select x.post_id, x.player_id, null, 'requested', x.player_id, x.requested_at
@@ -133,7 +145,8 @@ from (values
   ('00000000-0000-0000-0000-00000000d103'::uuid, '00000000-0000-0000-0000-00000000c103'::uuid, '00000000-0000-0000-0000-00000000e001'::uuid),
   ('00000000-0000-0000-0000-00000000d104'::uuid, '00000000-0000-0000-0000-00000000c104'::uuid, null),
   ('00000000-0000-0000-0000-00000000d106'::uuid, '00000000-0000-0000-0000-00000000c106'::uuid, '00000000-0000-0000-0000-00000000e001'::uuid),
-  ('00000000-0000-0000-0000-00000000d107'::uuid, '00000000-0000-0000-0000-00000000c107'::uuid, null)
+  ('00000000-0000-0000-0000-00000000d107'::uuid, '00000000-0000-0000-0000-00000000c107'::uuid, null),
+  ('00000000-0000-0000-0000-00000000d108'::uuid, '00000000-0000-0000-0000-00000000c108'::uuid, null)
 ) as m (match_id, post_id, league_id)
 join public.game_post gp on gp.post_id = m.post_id;
 
@@ -152,20 +165,35 @@ values
   ('00000000-0000-0000-0000-00000000d106', '00000000-0000-0000-0000-00000000a001', 'a', 'playing'),
   ('00000000-0000-0000-0000-00000000d106', '00000000-0000-0000-0000-00000000a004', 'b', 'playing'),
   ('00000000-0000-0000-0000-00000000d107', '00000000-0000-0000-0000-00000000a004', 'a', 'playing'),
-  ('00000000-0000-0000-0000-00000000d107', '00000000-0000-0000-0000-00000000a005', 'b', 'playing');
+  ('00000000-0000-0000-0000-00000000d107', '00000000-0000-0000-0000-00000000a005', 'b', 'playing'),
+  ('00000000-0000-0000-0000-00000000d108', '00000000-0000-0000-0000-00000000a002', 'a', 'playing'),
+  ('00000000-0000-0000-0000-00000000d108', '00000000-0000-0000-0000-00000000a001', 'b', 'playing');
 
-insert into public.match_result (match_id, score, status, winning_side, submitted_by, created_at)
+-- games are [side a points, side b points] for each game. The rating engine
+-- reads the confirmed singles results in 07_rankings.sql.
+insert into public.match_result (match_id, score, games, status, winning_side, submitted_by, confirmed_by, confirmed_at, created_at)
 values
-  ('00000000-0000-0000-0000-00000000d101', '21-15 21-17', 'confirmed', 'a', '00000000-0000-0000-0000-00000000a001', now() - interval '14 days'),
-  ('00000000-0000-0000-0000-00000000d102', '21-18 19-21 21-16', 'confirmed', 'b', '00000000-0000-0000-0000-00000000a003', now() - interval '10 days'),
-  ('00000000-0000-0000-0000-00000000d103', '21-19 21-19', 'disputed', 'a', '00000000-0000-0000-0000-00000000a003', now() - interval '7 days'),
-  ('00000000-0000-0000-0000-00000000d104', '15-21 18-21', 'confirmed', 'b', '00000000-0000-0000-0000-00000000a001', now() - interval '20 days'),
-  ('00000000-0000-0000-0000-00000000d106', '17-21 21-23', 'confirmed', 'b', '00000000-0000-0000-0000-00000000a004', now() - interval '5 days'),
-  ('00000000-0000-0000-0000-00000000d107', '21-12 21-14', 'pending', 'a', '00000000-0000-0000-0000-00000000a004', now() - interval '30 days');
+  ('00000000-0000-0000-0000-00000000d101', '21-15 21-17', '[[21,15],[21,17]]', 'confirmed', 'a',
+   '00000000-0000-0000-0000-00000000a001', '00000000-0000-0000-0000-00000000a003', now() - interval '14 days' + interval '1 hour', now() - interval '14 days'),
+  ('00000000-0000-0000-0000-00000000d102', '18-21 21-19 16-21', '[[18,21],[21,19],[16,21]]', 'confirmed', 'b',
+   '00000000-0000-0000-0000-00000000a003', '00000000-0000-0000-0000-00000000a002', now() - interval '10 days' + interval '1 hour', now() - interval '10 days'),
+  ('00000000-0000-0000-0000-00000000d103', '21-19 21-19', '[[21,19],[21,19]]', 'disputed', 'a',
+   '00000000-0000-0000-0000-00000000a003', null, null, now() - interval '7 days'),
+  ('00000000-0000-0000-0000-00000000d104', '15-21 18-21', '[[15,21],[18,21]]', 'confirmed', 'b',
+   '00000000-0000-0000-0000-00000000a001', '00000000-0000-0000-0000-00000000a008', now() - interval '20 days' + interval '1 hour', now() - interval '20 days'),
+  ('00000000-0000-0000-0000-00000000d106', '17-21 21-23', '[[17,21],[21,23]]', 'confirmed', 'b',
+   '00000000-0000-0000-0000-00000000a004', '00000000-0000-0000-0000-00000000a001', now() - interval '5 days' + interval '1 hour', now() - interval '5 days'),
+  -- Nobody confirmed this one; it expires at the end of the dev seeds.
+  ('00000000-0000-0000-0000-00000000d107', '21-12 21-14', '[[21,12],[21,14]]', 'pending', 'a',
+   '00000000-0000-0000-0000-00000000a004', null, null, now() - interval '30 days'),
+  -- Waiting for alice: she can confirm or dispute it for another 6 days.
+  ('00000000-0000-0000-0000-00000000d108', '21-17 18-21 21-19', '[[21,17],[18,21],[21,19]]', 'pending', 'a',
+   '00000000-0000-0000-0000-00000000a002', null, null, now() - interval '1 day');
 
-insert into public.dispute (match_id, raised_by, reason, status, created_at)
-values ('00000000-0000-0000-0000-00000000d103', '00000000-0000-0000-0000-00000000a002',
-        'The score was 21-19 19-21 21-17. I won the third game.', 'open', now() - interval '6 days');
+insert into public.dispute (match_id, result_id, raised_by, reason, status, created_at)
+select r.match_id, r.result_id, '00000000-0000-0000-0000-00000000a002',
+       'The score was 21-19 19-21 21-17. I won the third game.', 'open', now() - interval '6 days'
+from public.match_result r where r.match_id = '00000000-0000-0000-0000-00000000d103';
 
 insert into public.check_in (match_id, player_id, checked_in_at, method, verified)
 values
@@ -173,6 +201,13 @@ values
   ('00000000-0000-0000-0000-00000000d101', '00000000-0000-0000-0000-00000000a003', now() - interval '14 days', 'qr', true),
   ('00000000-0000-0000-0000-00000000d102', '00000000-0000-0000-0000-00000000a002', now() - interval '10 days', 'geolocation', true),
   ('00000000-0000-0000-0000-00000000d102', '00000000-0000-0000-0000-00000000a003', now() - interval '10 days', 'manual', false);
+
+-- Quick messages around the c101 match (BL-085).
+insert into public.match_message (match_id, sender_id, template_code, created_at)
+values
+  ('00000000-0000-0000-0000-00000000d101', '00000000-0000-0000-0000-00000000a003', 'running_late_5', now() - interval '14 days' - interval '20 minutes'),
+  ('00000000-0000-0000-0000-00000000d101', '00000000-0000-0000-0000-00000000a001', 'court_booked', now() - interval '14 days' - interval '15 minutes'),
+  ('00000000-0000-0000-0000-00000000d101', '00000000-0000-0000-0000-00000000a003', 'good_game', now() - interval '14 days' + interval '1 hour');
 
 set session_replication_role = origin;
 

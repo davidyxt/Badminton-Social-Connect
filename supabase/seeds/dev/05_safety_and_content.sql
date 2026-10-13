@@ -57,6 +57,9 @@ values
    '00000000-0000-0000-0000-00000000c102', null, false, now() - interval '10 days'),
   ('00000000-0000-0000-0000-00000000a001', 'league_update',
    'You are top of the Spring Singles Ladder.', null, null, null, false, now() - interval '5 days'),
+  ('00000000-0000-0000-0000-00000000a001', 'result_submitted',
+   'bob submitted the result of your Singles game: 21-17 18-21 21-19.', 'Confirm or dispute it.',
+   '00000000-0000-0000-0000-00000000c108', '00000000-0000-0000-0000-00000000d108', false, now() - interval '1 day'),
   ('00000000-0000-0000-0000-00000000a009', 'system',
    'Welcome to Badminton Social Connect! Find your first game.', null, null, null, false, now() - interval '2 days');
 
