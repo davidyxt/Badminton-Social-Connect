@@ -55,6 +55,14 @@ export function createAdminApiClient(
     attention: (query) => request("/overview/attention", { query }),
     analytics: (query) => request("/analytics", { query }),
     userSummary: (id) => request(`/users/${id}/summary`),
+    userRegistration: (id) => request(`/users/${id}/registration`),
+    userRating: (id) => request(`/users/${id}/rating`),
+    userRatingTrend: (id, query) =>
+      request(`/users/${id}/rating_trend`, { query }),
+    userRatingHistory: (id, query) =>
+      request(`/users/${id}/rating_history`, { query }),
+    resultFlags: (query) => request("/result_flags", { query }),
+    leaderboard: (query) => request("/rankings/leaderboard", { query }),
     userParticipation: (id, kind, query) =>
       request(`/users/${id}/${kind}`, { query }),
     reportContext: (id) => request(`/reports/${id}/context`),

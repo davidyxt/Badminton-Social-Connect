@@ -64,12 +64,13 @@ function success(reply, expected = 200) {
 async function createUser(role) {
   const password = `LocalTest9!${randomUUID()}`;
   const email = `admin-live-${role}-${randomUUID()}@example.com`;
+  const username = `adm04_${role}_${randomUUID().slice(0, 6)}`;
   const created = success(await request("/auth/v1/admin/users", {
     privileged: true, method: "POST",
     body: {
       email, password, email_confirm: true,
       app_metadata: role === "admin" ? { role: "admin" } : {},
-      user_metadata: { display_name: `Local ${role}`, role: "admin" },
+      user_metadata: { username, role: "admin", date_of_birth: "2000-01-01", age_declared: true, terms_version: "2026-10", privacy_version: "2026-10", state: "VIC" },
     },
   }));
   users.push(created.id);
@@ -77,7 +78,7 @@ async function createUser(role) {
     method: "POST", body: { email, password },
   }));
   assert.ok(login.access_token, "Local sign-in failed.");
-  return { id: created.id, token: login.access_token, email };
+  return { id: created.id, token: login.access_token, email, username };
 }
 
 try {
@@ -129,7 +130,7 @@ try {
   check("profile reliability score uses contract scale", () => assert.equal(profile[0].reliabilityScore, 1));
 
   const own = success(await rest(`player?player_id=eq.${player.id}`, player.token));
-  check("signup creates player with display name", () => assert.equal(own[0].display_name, "Local player"));
+  check("signup creates player with display name", () => assert.equal(own[0].username, player.username));
   success(await rest(`player_profile?player_id=eq.${other.id}`, other.token, "PATCH", { is_discoverable: false }));
   const hidden = success(await rest(`player_profile?player_id=eq.${other.id}`, player.token));
   check("RLS hides another player's private profile", () => assert.equal(hidden.length, 0));
@@ -182,10 +183,10 @@ try {
   const reset = success(await rest(`admin_post?admin_post_id=eq.${postId}`, undefined, "GET", undefined, true))[0];
   check("unpublishing clears published_at in database", () => assert.equal(reset.published_at, null));
 
-  const report = success(await rest("report", player.token, "POST", {
-    reported_by_player_id: player.id, target_type: "player", target_id: other.id,
-    reason: "Temporary live test report",
-  }), 201)[0];
+  success(await rest(`player_profile?player_id=eq.${other.id}`, other.token, "PATCH", { is_discoverable: true }));
+  const reportId = success(await rest("rpc/report_player", player.token, "POST", { p_player_id: other.id, p_category: "harassment", p_reason: "Temporary live test report" }));
+  const report = success(await rest(`report?report_id=eq.${reportId}`, admin.token))[0];
+  fixtures.unshift(["report", "report_id", reportId]);
   const updated = success(await api(`reports/${report.report_id}`, admin.token, "PATCH", {
     status: "under_review", expected_updated_at: report.updated_at,
   })).data;
@@ -225,7 +226,7 @@ try {
     })).data;
   }
   const game = await seed("game_post", "post_id", {
-    organiser_id: player.id, format: "singles", proposed_time: new Date(Date.now() + 86_400_000).toISOString(),
+    organiser_id: player.id, format: "singles", suburb: "Carlton", proposed_time: new Date(Date.now() + 86_400_000).toISOString(),
   });
   const gameBlocked = await api(`games/${game.post_id}`, admin.token, "PATCH", { status: "cancelled", expected_updated_at: game.updated_at });
   check("Final v6 blocks lifecycle changes as a substitute for hiding a game", () => assert.equal(gameBlocked.status, 405));
@@ -295,22 +296,22 @@ try {
   });
   const exactSearch = success(await api(`users?q=${player.id}`, admin.token));
   check("exact ID search finds a player", () => assert.equal(exactSearch.data[0].player_id, player.id));
-  const namedRanking = success(await api("rankings?q=Local%20player&format=singles", admin.token));
+  const namedRanking = success(await api(`rankings?q=${player.username}&format=singles`, admin.token));
   check("ranking name search includes joined player identity", () => {
-    assert.equal(namedRanking.data[0].player.display_name, "Local player"); assert.equal(namedRanking.data[0].ranking_points, 100);
+    assert.equal(namedRanking.data[0].player.username, player.username); assert.equal(namedRanking.data[0].ranking_points, 100);
   });
   const noRankings = success(await api(`rankings?q=Absent-${randomUUID()}`, admin.token));
   check("no matching name returns an empty filtered ranking list", () => assert.equal(noRankings.data.length, 0));
   const gameSearch = success(await api(`games?q=${game.post_id}`, admin.token));
   check("game ID search includes organiser identity", () => assert.equal(gameSearch.data[0].organiser.player_id, player.id));
-  const nameMatches = success(await api("matches?q=Local%20other", admin.token));
+  const nameMatches = success(await api(`matches?q=${other.username}`, admin.token));
   check("match search resolves participant names", () => assert.ok(nameMatches.data.some((row) => row.match_id === match.match_id)));
-  const nameResults = success(await api("results?q=Local%20other", admin.token));
+  const nameResults = success(await api(`results?q=${other.username}`, admin.token));
   check("result search resolves participant names", () => assert.ok(nameResults.data.some((row) => row.result_id === pending.result_id)));
   const reportContext = success(await api(`reports/${report.report_id}/context`, admin.token)).data;
   check("report context links reporter and current target without inventing evidence", () => {
     assert.equal(reportContext.reporter.player_id, player.id); assert.equal(reportContext.target.player_id, other.id);
-    assert.equal(reportContext.evidence_snapshot, null);
+    assert.equal(reportContext.evidence_snapshot.username, other.username);
   });
   const matchContext = success(await api(`matches/${match.match_id}/context`, admin.token)).data;
   check("match context returns sides, scores and disputes read-only", () => {
@@ -324,11 +325,11 @@ try {
   success(await rest("league_standing", undefined, "POST", { league_id: league.league_id, player_id: player.id, points: 10, position: 1 }, true), 201);
   const userLeagues = success(await api(`users/${player.id}/leagues`, admin.token));
   check("user league history returns stored standings and league identity", () => assert.equal(userLeagues.data[0].league.league_id, league.league_id));
-  const standings = success(await api(`leagues/${league.league_id}/standings?q=Local%20player`, admin.token));
+  const standings = success(await api(`leagues/${league.league_id}/standings?q=${player.username}`, admin.token));
   check("league standings search returns real participant names", () => assert.equal(standings.data[0].player.player_id, player.id));
   const summary = success(await api(`users/${player.id}/summary`, admin.token)).data;
   check("user summary reads stored singles ranking and accepted joins", () => {
-    assert.equal(summary.singles_ranking.ranking_points, 100); assert.ok(summary.games_joined >= 1); assert.equal(summary.ranking_history, null);
+    assert.equal(summary.singles_ranking.ranking_points, 100); assert.ok(summary.games_joined >= 1); assert.equal(summary.ranking_history.paginated, true);
   });
   const attention = success(await api("overview/attention", admin.token)).data;
   check("attention queues include unresolved report and read-only result", () => {
@@ -343,11 +344,77 @@ try {
   const resolutionBlocked = await api("rpc/resolve_dispute", admin.token, "POST", { disputeId: dispute.dispute_id, outcome: "upheld" });
   check("Final v6 also blocks obsolete dispute resolution with score/rating changes", () => assert.equal(resolutionBlocked.status, 405));
 
+  const registration = success(await api(`users/${player.id}/registration`, admin.token)).data;
+  check("registration endpoint exposes only state and safe timestamps", () => {
+    assert.equal(registration.state, "registered");
+    assert.deepEqual(Object.keys(registration).sort(), ["deleted_at", "registered_at", "state"]);
+  });
+  const rating = success(await api(`users/${player.id}/rating`, admin.token)).data;
+  check("rating summary comes from the shared starting-rating calculation", () => {
+    assert.equal(rating.rating, 1100); assert.equal(rating.status, "Provisional"); assert.equal(rating.grade, null);
+  });
+  const trend = success(await api(`users/${player.id}/rating_trend?days=7`, admin.token)).data;
+  check("rating trend accepts an explicit bounded window", () => assert.equal(trend.days, 7));
+  const leaderboard = success(await api("rankings/leaderboard?state=VIC&limit=5&offset=0", admin.token)).data;
+  const sharedLeaderboard = success(await rest("rpc/get_leaderboard", admin.token, "POST", { p_scope: "state", p_state: "VIC", p_limit: 5, p_offset: 0 }));
+  check("admin leaderboard matches the shared RPC without a second algorithm", () => assert.deepEqual(leaderboard, sharedLeaderboard));
+  const history = await seed("rating_history", "history_id", {
+    player_id: player.id, result_id: pending.result_id, match_id: match.match_id,
+    played_at: new Date().toISOString(), rating_before: 1100, rating_after: 1120,
+    rd_before: 350, rd_after: 340, is_established: false,
+  });
+  const flag = await seed("result_flag", "flag_id", { result_id: pending.result_id, match_id: match.match_id, kind: "rating_swing", detail: { change: 200 } });
+  const histories = success(await api(`users/${player.id}/rating_history?result_id=${pending.result_id}&limit=1`, admin.token));
+  check("rating history reads actual before/after values and preserves player scope", () => {
+    assert.equal(histories.data[0].history_id, history.history_id); assert.equal(histories.data[0].rating_after, 1120);
+    assert.equal(histories.pagination.total, 1);
+  });
+  const flags = success(await api(`result_flags?result_id=${pending.result_id}&kind=rating_swing`, admin.token));
+  check("result flag query reads real detail and embedded result", () => {
+    assert.equal(flags.data[0].flag_id, flag.flag_id); assert.equal(flags.data[0].result.result_id, pending.result_id);
+  });
+  success(await rest(`match_result?result_id=eq.${pending.result_id}`, undefined, "PATCH", { confirmed_by: other.id, confirmed_at: new Date().toISOString(), games: [[21, 15], [21, 17]] }, true));
+  const confirmedContext = success(await api(`matches/${match.match_id}/context`, admin.token)).data;
+  check("match monitoring returns structured scores and actual opposing confirmation", () => {
+    const r = confirmedContext.results.find((r) => r.result_id === pending.result_id);
+    assert.deepEqual(r.games, [[21, 15], [21, 17]]);
+    assert.equal(confirmedContext.confirmations.find((r) => r.result_id === pending.result_id).confirmed_by, other.id);
+  });
+  const initialEvidence = reportContext.evidence_snapshot;
+  success(await rest(`player?player_id=eq.${other.id}`, undefined, "PATCH", { username: `changed_${randomUUID().slice(0, 6)}` }, true));
+  const revisedContext = success(await api(`reports/${report.report_id}/context`, admin.token)).data;
+  check("report evidence remains unchanged after the target profile changes", () => {
+    assert.deepEqual(revisedContext.evidence_snapshot, initialEvidence);
+    assert.notEqual(revisedContext.target.username, initialEvidence.username);
+  });
+  const deletedPlayer = await createUser("deleted");
+  success(await request(`/auth/v1/admin/users/${deletedPlayer.id}`, { privileged: true, method: "DELETE" }));
+  users.splice(users.indexOf(deletedPlayer.id), 1);
+  fixtures.unshift(["player", "player_id", deletedPlayer.id]);
+  const deletedDetail = success(await api(`users/${deletedPlayer.id}`, admin.token)).data;
+  check("retained deleted player can be inspected without an Auth identity", () => {
+    assert.equal(deletedDetail.account, null); assert.equal(deletedDetail.account_state.state, "deleted");
+  });
+  const deletedList = success(await api(`users?q=${deletedPlayer.id}&is_deleted=true&include=account`, admin.token));
+  check("deleted-user list filters and account enrichment remain available", () => assert.equal(deletedList.data[0].account, null));
+  const completedList = success(await api(`users?q=${player.id}&registered=true&is_deleted=false`, admin.token));
+  check("registered-only directory filter uses safe inner registration data", () => assert.equal(completedList.data[0].registration.registered_at !== null, true));
+  for (const route of [`users/${player.id}/rating`, `users/${player.id}/rating_trend`, `users/${player.id}/rating_history`, "result_flags", "rankings/leaderboard", `users/${player.id}/registration`]) {
+    const denied = await api(route, player.token);
+    check(`non-admin denied for new endpoint ${route}`, () => assert.equal(denied.status, 403));
+    const write = await api(route, admin.token, "POST", {});
+    check(`new read-only endpoint refuses writes ${route}`, () => assert.equal(write.status, 405));
+  }
+  for (const operation of ["admin_rebuild_ratings", "admin_delete_game_post"]) {
+    const denied = await api(`rpc/${operation}`, admin.token, "POST", {});
+    check(`Final v6 blocks upstream rating-affecting operation ${operation}`, () => assert.equal(denied.status, 405));
+  }
+
   // Controlled historical fixtures verify inclusive local days and raw counts.
-  success(await rest(`player?player_id=eq.${player.id}`, undefined, "PATCH", { joined_at: "2026-02-01T00:00:00Z" }, true));
+  success(await rest(`player_private?player_id=eq.${player.id}`, undefined, "PATCH", { registered_at: "2026-02-01T00:00:00Z" }, true));
   success(await rest(`report?report_id=eq.${report.report_id}`, undefined, "PATCH", { created_at: "2026-02-01T00:00:00Z" }, true));
   const analytics = success(await api("analytics?start=2026-02-01&end=2026-02-01", admin.token)).data;
-  for (const [name, table, field] of [["new_users", "player", "joined_at"], ["reports_received", "report", "created_at"]]) {
+  for (const [name, table, field] of [["new_users", "player_private", "registered_at"], ["reports_received", "report", "created_at"]]) {
     const direct = await request(`/rest/v1/${table}?select=*&${field}=gte.2026-01-31T13:00:00Z&${field}=lt.2026-02-01T13:00:00Z`, { method: "HEAD", token: admin.token, headers: { Prefer: "count=exact" } });
     success(direct);
     check(`analytics ${name} equals exact real database count`, () => {
@@ -378,7 +445,10 @@ try {
     catch { console.error(`Cleanup failed for a test ${table} fixture.`); process.exitCode = 1; }
   }
   for (const id of users.reverse()) {
-    try { success(await request(`/auth/v1/admin/users/${id}`, { privileged: true, method: "DELETE" })); }
+    try {
+      success(await request(`/auth/v1/admin/users/${id}`, { privileged: true, method: "DELETE" }));
+      success(await rest(`player?player_id=eq.${id}`, undefined, "DELETE", undefined, true));
+    }
     catch { console.error("Cleanup failed for a test user."); process.exitCode = 1; }
   }
   console.log("Temporary test account and data cleanup finished.");

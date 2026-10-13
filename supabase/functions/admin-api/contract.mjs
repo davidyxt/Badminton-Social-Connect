@@ -1,4 +1,4 @@
-// Team OpenAPI adapter. Database names remain unchanged; all queries use the
+// Compatibility adapter for Player BE-2 0.4; all queries use the
 // caller's JWT. This adapter is hosted under /functions/v1/admin-api, not /rest/v1.
 export class ContractError extends Error {
   constructor(status, code, message) {
@@ -139,6 +139,71 @@ definitions.match_participant.push("side");
 definitions.match_result.push("submittedBy");
 definitions.dispute.push("raisedBy");
 definitions.notification.push("matchId");
+// Read compatibility aliases for the pre-0.4 admin frontend. SQL always uses the new schema.
+function databaseColumn(resource, name) {
+  if (resource === "player" && name === "displayName") return "username";
+  if (resource === "game_post" && name === "organiserClubId") {
+    return "organiser_group_id";
+  }
+  return snake(name);
+}
+definitions.player.push("username", "deletedAt");
+definitions.game_post.push(
+  "organiserGroupId",
+  "deletedAt",
+  "deletedBy",
+  "deletionReason",
+  "title",
+  "venueId",
+  "durationMinutes",
+);
+definitions.report.push("category", "evidence");
+definitions.dispute.push("resultId");
+definitions.match_result.push(
+  "games",
+  "confirmedBy",
+  "confirmedAt",
+  "excludedFromRanking",
+);
+definitions.groups = [
+  "groupId",
+  "name",
+  "slug",
+  "description",
+  "suburb",
+  "state",
+  "isVerified",
+  "status",
+  "createdBy",
+  "createdAt",
+  "updatedAt",
+  "updatedBy",
+];
+keys.groups = ["groupId"];
+definitions.rating_history = [
+  "historyId",
+  "playerId",
+  "resultId",
+  "matchId",
+  "playedAt",
+  "ratingBefore",
+  "ratingAfter",
+  "rdBefore",
+  "rdAfter",
+  "isEstablished",
+  "createdAt",
+];
+keys.rating_history = ["historyId", "playerId", "resultId", "matchId"];
+definitions.result_flag = [
+  "flagId",
+  "resultId",
+  "matchId",
+  "kind",
+  "detail",
+  "createdAt",
+];
+keys.result_flag = ["flagId", "resultId", "matchId"];
+
 const uuid = (value) => {
   if (
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
@@ -155,6 +220,8 @@ const rpcArguments = {
   admin_suspend_league: { leagueId: "uuid", reason: "text" },
   admin_resume_league: { leagueId: "uuid" },
   admin_review_report: { reportId: "uuid", outcome: ["resolved", "dismissed"] },
+  admin_rebuild_ratings: {},
+  admin_delete_game_post: {},
   resolve_dispute: { disputeId: "uuid", outcome: ["upheld", "dismissed"] },
 };
 export const isContractRoute = (route) =>
@@ -316,10 +383,10 @@ function column(resource, name) {
       "schema_extension_required",
       name === "winnerId"
         ? "winnerId cannot be queried or ordered: the database represents a winning side, including doubles. Select winningSide instead."
-        : "groupId was replaced by organiserClubId in the current database. Select organiserClubId instead.",
+        : "groupId is obsolete. Select organiserGroupId (or its organiserClubId compatibility alias) instead.",
     );
   }
-  return snake(name);
+  return databaseColumn(resource, name);
 }
 function projection(resource, raw) {
   if (!raw || raw === "*") return null;
@@ -334,7 +401,7 @@ function serialize(resource, row, fields) {
   const output = {};
   for (const field of fields ?? definitions[resource]) {
     if (resource === "match_result" && field === "winnerId") continue;
-    let value = row[snake(field)];
+    let value = row[databaseColumn(resource, field)];
     if (
       resource === "player_profile" && field === "reliabilityScore" &&
       value != null
@@ -370,7 +437,7 @@ function filter(url, resource, query, requireKey = false) {
         invalid("Invalid format.");
       }
     } else uuid(value);
-    query = query.eq(snake(name), value);
+    query = query.eq(databaseColumn(resource, name), value);
   }
   return query;
 }
@@ -399,7 +466,10 @@ export async function handleContract(request, route, { db, user }, send) {
     if (request.method !== "POST") {
       fail(405, "method_not_allowed", "Use POST for RPC operations.");
     }
-    if (command === "resolve_dispute") {
+    if (
+      ["resolve_dispute", "admin_rebuild_ratings", "admin_delete_game_post"]
+        .includes(command)
+    ) {
       fail(
         405,
         "method_not_allowed",
@@ -414,12 +484,12 @@ export async function handleContract(request, route, { db, user }, send) {
       else if (type === "text") requiredText(body[name], name);
       else if (!type.includes(body[name])) invalid(`Invalid ${name}.`);
     }
-    // Each promised action needs an event log; dispute resolution additionally
-    // needs atomic result/rating/notification processing. No partial success.
+    // Complete moderation needs attributable event transactions and private decisions.
+    // The upstream rating engine is already implemented; it does not supply these.
     fail(
       501,
       "schema_extension_required",
-      "This operation requires moderation state, ActivityLog or atomic result processing absent from the current schema. No changes were made.",
+      "This operation requires missing moderation state, private decisions or ActivityLog transactions. No changes were made.",
     );
   }
   if (route.length !== 1) fail(404, "not_found", "Endpoint not found.");

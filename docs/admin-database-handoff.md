@@ -1,260 +1,143 @@
 # Admin backend database handoff
 
-Updated 11 October 2026. Audience: the database and Supabase maintainer, Admin BE, Player BE and Admin FE.
+Updated 13 October 2026. Audience: the database/Supabase maintainer, Admin BE, Player BE and Admin FE.
 
-The Admin API now implements the operations supported by the repository's current schema. This branch includes that API, its frontend client and tests. Completing account suspension, content moderation, report decisions and activity history requires new migrations and database permissions, followed by API integration. The database changes described below are proposed requirements; they have not been applied by this branch.
+The Admin API now targets **Player BE-2 0.4.0**, imported at `e69ea7a`, with all **50 existing migration files**. This supersedes the earlier four-migration handoff. Query compatibility, evidence reads, rating history/trend, result confirmations and anomaly queries are implemented. Remaining moderation actions still need database state, trusted transactions and audit events. This integration imports the team's SQL without editing it or adding migrations.
 
-## Scope and current database
+The authoritative admin design remains **Badminton Connect Admin Web Final v6**. Backlog IDs are from the Admin BE rows of `Sprint Backlog v1.2.xlsx`. The source PDF/workbook are not committed. Current endpoints and test instructions are in [admin-api.md](admin-api.md), and upstream changes are in [api-changes-0.4.0.md](api-changes-0.4.0.md) and [M2 results and rankings](features/M2-results-and-rankings.md).
 
-The authoritative admin design is **Badminton Connect Admin Web Final v6**. The original source file is `Badminton Connect — Admin Web · Final v6.pdf`. Task IDs below come from `Sprint Backlog v1.2.xlsx`, the `Sprint 1-2 Backlog` sheet, filtered to `Owner = Admin BE`. Neither source file is included in this branch. The API contract is [badminton-social-connect-api_v1.2.yaml](badminton-social-connect-api_v1.2.yaml); detailed current endpoint documentation is [admin-api.md](admin-api.md).
+## What changed since the first handoff
 
-The database baseline is the four existing files in [supabase/migrations](../supabase/migrations):
-
-- `20260924054959_initial_schema.sql`
-- `20260924061726_clubs_as_organisers.sql`
-- `20260924062939_game_participants_and_match_sides.sql`
-- `20260924064025_audit_columns.sql`
-
-These migrations are unchanged. They provide identity/profile, clubs, game posts and join requests, leagues/standings, matches/participants/results/disputes, rankings, notifications, reports and announcements. `updated_at` and `updated_by` record the latest row change; they do not retain an activity history. The published implementation has been verified against local Supabase, not the team's hosted database.
-
-Final v6 makes scores, winning sides, player result confirmations and personal rankings **read-only for administrators**. Admins cannot confirm results for players or override ratings. Hiding, suspending or deleting a listing must preserve participants, matches, results and pending confirmations. Ranking calculation belongs to one shared trusted result-processing workflow, rather than separate Player API and Admin API implementations.
-
-## Functions already implemented
-
-| Area | Available now | Relevant limitation |
+| Requirement | Support now available | Remaining limitation |
 |---|---|---|
-| Authorization | Validates the user through Supabase Auth and checks current `app_metadata.role = admin`; ordinary users are denied. Application queries retain the caller's JWT and RLS. | Admin provisioning is a trusted manual operation; invitation/hook requirements need configuration. |
-| Overview | Current user/report/result/game/league counts and paginated needs-attention queues. | No recent event history, suspended-user count or historical resolved-report count. |
-| Users | Name/email/UUID search, filters, pagination, profile, safe Auth summaries, accepted game joins, stored singles ranking and linked reports/participation. | No suspension status or rating-change history. League standings do not provide a full membership/join history. |
-| Reports | Queue filters/search, detail, reporter and current target context; separate version-checked status updates. | Current context is not submission-time evidence. Status updates are not the complete review workflow. |
-| Games and results | Read-only games, leagues, rosters, standings, matches, sides, result submissions and disputes; related context and pagination. | Result status exists, but individual players' confirmation decisions/times do not. |
-| Rankings | Reads stored points/bands/counts and league standings; singles leaderboard search. | The API does not execute the ranking algorithm or compare historical snapshots. |
-| Analytics | Daily new-profile and received-report counts and previous-period comparisons using complete `Australia/Melbourne` days. | Counts use retained records. No foreground-usage, first-publication, league-activity or resolution history. Admin/test-profile exclusion is not implemented. |
-| Home carousel | `admin_post` creation, edit, publish/draft, ordering, image URL validation and deletion through the team adapter. | No image-file upload endpoint. Existing RLS lets admins see all drafts; the backlog describes their own drafts. |
-| Notifications | Reads notifications and allows an admin to send an explicit inbox notification. | Moderation does not automatically create notifications. |
-| Save conflicts | Existing report/dispute writes check `expected_updated_at`; announcement writes check the database version atomically. Conflicts return 409. | New moderation operations must adopt a client-visible version check too. The announcement adapter cannot detect an edit that became stale before its request started. |
-| Frontend integration | Authenticated `adminApi` client helpers, both contract shapes and console reads. | The admin screens have not been connected to these helpers. |
+| Naming and directory | Real `username`, `groups`, `group_member`, `organiser_group_id`; compatible old display/group aliases; registration/deletion reads and filters | Suspension status/enforcement still absent |
+| Report evidence | Server-captured `report.evidence`, category and Mini League/group targets; API distinguishes original evidence from current target | No private review note, reviewer/outcome history or atomic audit workflow |
+| Result monitoring | Structured `match_result.games`, `confirmed_by`, `confirmed_at`, `expired` status; disputes reference a result | Opposing confirmer/time is stored, not a separate decision event per player |
+| Ratings | Shared SQL rating processor, state/covariance, `rating_history`, summary/trend and state/Nearby leaderboard functions; Admin API reads these | No immutable daily leaderboard snapshot or two-date comparison |
+| Result anomalies | `result_flag` and administrator query with kind/result/match/date filters | Flags are informational; no review/resolve workflow is implemented |
+| Post deletion | `deleted_at/by`, `deletion_reason`, retained game records and an upstream deletion function | Full audit is absent, and upstream deletion changes ranking eligibility, conflicting with Final v6 |
+| Account deletion | Anonymized retained players and related match/rating history | No deletion-request failure monitor or retry queue |
+| Analytics | Counts completed registrations using `registered_at`, excludes deleted players, and reports received; separates pending/deleted/current users | No reliable admin/test classification, deletion-proof events, foreground usage, first publication or resolution history |
+| Notifications | Additional result/join/invitation/game notice types; explicit admin sending remains available | Admin restriction notices cannot be complete while restriction actions are unavailable |
 
-### Current unavailable and prohibited operations
-
-These recognized team-contract routes validate their current arguments and then return **501**, without a partial write:
-
-- `POST /rpc/admin_suspend_account` and `/rpc/admin_restore_account`
-- `POST /rpc/admin_hide_post` and `/rpc/admin_restore_post`
-- `POST /rpc/admin_suspend_league` and `/rpc/admin_resume_league`
-- `POST /rpc/admin_review_report`
-- `GET /activity_log`
-
-Closing registration, retained listing deletion, ranking snapshots/history and deletion-request monitoring also have no implemented admin workflow. They need both database support and API work.
-
-`POST /rpc/resolve_dispute` and legacy game/league/match/result/ranking writes return **405** under Final v6. These are deliberately prohibited admin actions, not features waiting to be enabled by a migration. Legacy report/dispute status-only PATCH endpoints remain separate compatibility operations; they do not correct scores, record a private review note, or complete moderation.
+The imported migrations are intact: four original September migrations, forty inherited Player BE-1/integration migrations and six results/rating/message migrations added on 12 October. Having these files in GitHub does not establish that the hosted database has applied them.
 
 ## Admin backlog coverage
 
-“Partial” means some functionality exists but the entire acceptance criterion is not met. Spreadsheet scheduling labels do not establish implementation completion.
+“Partial” means the full acceptance criterion has not been met. Spreadsheet scheduling labels do not establish completion.
 
-| Task | Priority | Current status | Remaining work |
+| Task | Priority | Current coverage | Next requirement |
 |---|---|---|---|
-| BL-030 Sign in and access control | Must | Partial | Invitation-only admin provisioning, Auth hook agreement and hosted session configuration; see DB10. |
-| BL-032 Activity log | Must | Not implemented | Append-only events, trusted writes, system events and paginated reads; DB01. |
-| BL-034 User directory and profile | Must | Partial | Add reliable account restriction status/history; DB02. |
-| BL-036 Suspend and restore accounts | Must | Not implemented | State, enforcement, Auth ban/unban, mandatory reasons, logging and safe restoration; DB02. |
-| BL-038 Report review | Must | Partial | Evidence, private outcome note, reviewer/time and atomic audit; DB06. |
-| BL-040 Hide and restore game posts | Must | Not implemented | Visibility restriction, reason, enforcement, restoration, audit and notices; DB03/DB09. |
-| BL-082 Home carousel | Must | Functionality implemented with contract differences | Agree `HomeContent` versus existing `admin_post`, draft ownership and storage/upload scope; DB10. |
-| BL-048 Permission and audit tests | Must | Partial | Existing API access tests pass; log completeness and suspension tests depend on the missing workflows. |
-| BL-042 Suspend and resume leagues | Should | Not implemented | Separate restriction state, membership enforcement, audit and notices; DB04/DB09. |
-| BL-065 Overview | Should | Partial | Recent activity and restriction/resolution totals; DB01/DB02/DB06. |
-| BL-067 Soft delete posts and leagues | Should | Not implemented | Retained records, typed confirmation, reason, permission rules and audit; DB05. |
-| BL-069 Games and results monitoring | Should | Partial | Per-player result-confirmation history; DB07. |
-| BL-071 Singles leaderboard history | Should | Not implemented | Daily snapshots, scheduling and date comparisons; DB07. Current leaderboard reads already work. |
-| BL-073 Activity log filters | Should | Not implemented | Action, actor, target/record, reason and time filters; DB01. |
-| BL-075 Save-state feedback | Should | Implemented for current writes within the limits above | Carry version guards into future RPCs and align the frontend request contract. |
-| BL-077 In-app moderation notices | Should | Not implemented | Create notices as part of restrictions; DB09. Manual sending is already available. |
-| BL-078 Account deletion monitoring | Should | Not implemented | Requests, failure state and worker integration; DB11. |
+| BL-030 Sign in/access | Must | Role validation and RLS preserved | Invitation/hook and hosted session configuration |
+| BL-032 Activity log | Must | 501, no event table | DB01 |
+| BL-034 User directory/profile | Must | Search, filters, pagination, safe account/registration state, real rating card/history and reports | Suspension state from DB02 |
+| BL-036 Suspend/restore accounts | Must | 501 | DB02 plus Auth integration |
+| BL-038 Report review | Must | Queue, original evidence and current context; separate status-only compatibility update | Private note/outcome/audit from DB05 |
+| BL-040 Hide/restore posts | Must | 501 | DB03 |
+| BL-082 Home carousel | Must | Existing admin_post CRUD/publication | Agree draft ownership and HomeContent naming; DB09 |
+| BL-048 Permission/audit tests | Must | Current endpoint/RLS/role tests pass, including new reads | Audit and suspension tests once DB01/DB02 exist |
+| BL-042 Suspend/resume leagues | Should | 501 | DB04 |
+| BL-065 Overview | Should | Counts and attention queues; registered/pending/deleted distinctions | Recent activity and historical resolutions |
+| BL-067 Retained deletion | Should | Reads retained game state; upstream operation intentionally blocked | Resolve Final v6 difference, add audit/league deletion; DB06 |
+| BL-069 Games/results | Should | Read-only structured results and stored opposing confirmation | Agree whether this confirmation model meets the admin screen |
+| BL-071 Singles history | Should | Live rating card/history/trend and shared leaderboard reads | Daily snapshots/date comparison; DB07 |
+| BL-073 Log filters | Should | 501 | DB01 |
+| BL-075 Save conflicts | Should | Current writes have atomic checks; report/dispute caller versions | Caller versions for new actions and announcement edits |
+| BL-077 Restriction notices | Should | Current explicit notices and upstream player-flow notices | Atomic admin-restriction notices; DB08 |
+| BL-078 Deletion monitoring | Should | Retained deleted user reads | Failure records/worker; DB10 |
 
-## Database changes required
+## Database work still required
 
-The following names are proposed snake_case database names. Agree the final migration and API contract before implementation; the existing adapter does not automatically discover new fields or functions. Each database change below also needs corresponding API wiring, error handling and tests.
+The names below are proposed requirements for review, not migrations applied by this integration. Do not recreate capabilities already supplied by Player BE-2.
 
 ### DB01 Append-only activity log
 
-Supports BL-032, BL-073 and the recent-activity part of BL-065. Create `activity_log` with at least:
+Add `activity_log` with server-assigned `log_id`, `occurred_at`, actor identifier/type, action, target type/identifier, moderation reason, previous/new state and an operation ID for idempotency. Preserve identifiers/history when source accounts or listings are deleted; avoid cascading log deletion. `updated_at/by` only describes the last row edit and cannot supply prior events.
 
-- `log_id uuid` primary key, `occurred_at timestamptz` assigned by the server.
-- `actor_id uuid` nullable for system actions, plus `actor_type` constrained to admin/system. Preserve the actor identifier after account deletion; do not cascade-delete logs with a player.
-- `action text`, `target_type text`, `target_id uuid` and a required reason for moderation actions.
-- `previous_state jsonb`, `new_state jsonb`, and bounded details suitable for investigation. Keep sensitive report-review notes separate from notices sent to players.
-- An operation/idempotency identifier so a retried action does not create duplicate events.
+Provide trusted append functions/system triggers and administrator-only paginated reads filtered by action, actor, target, reason and time. Index time/ID, target/time and the actor/action filters actually used. Clients must not insert forged events or update/delete existing logs. Explicit grants and RLS are required. Every successful admin write, including announcements/notices, needs a log entry in the same database transaction as its domain change. Audit failure must prevent success, and retries must not duplicate events.
 
-Provide a trusted append function and paginated administrator-only read, with filters for action, actor, target, reason and time. Index `(occurred_at desc, log_id)`, `(target_type, target_id, occurred_at desc)`, and actor/action combinations used by the UI. Client roles must not INSERT arbitrary logs or UPDATE/DELETE existing logs. Use narrowly authorized functions/triggers for writes; RLS and grants must protect the table even through direct PostgREST.
+### DB02 Account suspension and Auth synchronization
 
-Every successful admin action, including announcement operations and manual notices, needs an attributable event. Define automatic events for confirmed-result/rating processing and other relevant system workflows. A domain change and its log must commit in the same database transaction; an audit failure must prevent the domain change. Avoid duplicate logging if both a trigger and action function are used. Only trusted code may identify an event as a system event.
+Add protected current suspension state, reason, suspension/restoration actor/time and a version, preferably in `account_moderation` keyed to player rather than self-editable profile columns. Preserve transitions in DB01. Check live state through a private helper across all permitted player writes/RPCs, including group-representative actions, game joins/acceptances and results. Audit permissive policies so an alternate policy cannot bypass a restriction.
 
-Acceptance: two edits create two retained events; a failed/retried action does not create a false/duplicate success event; ordinary users cannot read or forge logs; administrators cannot modify/delete log rows.
+Provide a trusted Edge workflow for Auth ban/unban and session handling. SQL state and Auth cannot commit together: store operation status/retries and reconcile failures. Apply the database restriction before Auth ban; leave it in force until unban succeeds on restore. Existing JWTs must be denied by database checks. Both transitions require a reason and version check; define self/last-admin protection and allowed support/read access with the product owner.
 
-### DB02 Account suspension and restoration
+The contract also restricts a suspended player's active content. Keep account-derived restrictions separate from manual post/league restrictions so restoring an account does not restore independently hidden/deleted content. Agree the effect on group-owned posts when one group administrator is suspended. Registration completion and account deletion are already stored and are different concepts from suspension.
 
-Supports BL-034 and BL-036. Add protected account restriction state, preferably in `account_moderation` keyed by `player_id`, rather than writable columns on the player's own profile. Store current active/suspended state, restriction reason, `suspended_at/by`, `restored_at/by`, and a version stamp. Retain every transition in DB01. If fields instead go on `player`, explicitly restrict their column privileges and updates so self-profile edits cannot alter them.
+### DB03 Post visibility
 
-Add a private helper that reads **current database state** and enforce the restriction across player writes, existing RPCs and related policies. Check game creation/join/acceptance, club-representative actions, league membership, matches/results, reports and other reachable entry points against the agreed suspension rules. Inventory each grant/policy/RPC; adding a single restrictive check is ineffective if another permissive policy still allows the write. Define the account's permitted support/read paths and keep administrator investigation access.
+Add protected visibility restriction state such as visible/hidden, hidden actor/time/reason and restoration details/history. Keep it separate from open/full/cancelled/completed lifecycle and the existing deleted fields.
 
-The team contract also hides a suspended player's active content. Apply an account-derived restriction to their game listings and applicable leagues, retaining histories. Define which club-owned listings are affected: a representative's suspension must not silently remove a whole club's independent content.
+Discovery must exclude hidden listings; existing participants retain game history with a post-unavailable notice, and admins retain investigation access. Reject new requests and acceptance of pending requests while hidden. Organisers/group representatives must not clear an admin restriction through normal edits. Transactional hide/restore needs a mandatory reason, version guard, DB01 event and DB08 notice. Restoring a post must still respect account/deletion restrictions. No match, score, participant or rating change is allowed by visibility moderation.
 
-Auth integration is **Edge Function work in addition to a migration**. A trusted server must ban/unban the Auth user and handle sessions; a PostgreSQL row update alone does not do this. Existing access tokens must not bypass suspension, which is why RLS checks live state. Auth and PostgreSQL cannot share one transaction: persist operation state and provide retries/reconciliation. Apply the database restriction before attempting the Auth ban; on restoration, keep the database restriction until Auth unban succeeds. Do not report a fully completed operation if synchronization fails.
+### DB04 League restriction and registration
 
-Both suspension and restoration require a recorded reason. Restore only restrictions caused by this suspension: independently hidden/deleted posts and manually suspended leagues must remain restricted. Reject missing targets, self-suspension/last-admin hazards according to the agreed admin policy, stale versions and invalid transitions.
+Add protected suspended/resumed state and registration closure state, each with actor/time/reason/version, independent of league lifecycle. Resuming must not reopen registration closed separately. The current standings table is not a full membership/application history: add a league membership/request model with player/league, requested/accepted/rejected/withdrawn state, request/response times and actor; index the roster, player and pending queue.
 
-Acceptance: a suspended user with an already-issued JWT cannot perform prohibited operations through either API; Auth ban failure remains visible and safely retryable; restore does not clear unrelated restrictions; every transition is logged.
+Enforce suspension/closure on new requests and acceptance, retain members/history, and send logged in-app notices. Closing registration alone keeps the league visible and lets existing members continue. The backlog describes suspended leagues as read-only; Final v6 preserves pending confirmations. Agree precisely which member actions remain possible while suspended and test that decision consistently. Do not assign winners or finish/re-rate a league as moderation.
 
-### DB03 Game post visibility
+### DB05 Private report decisions
 
-Supports BL-040. Add a protected visibility/restriction record for `game_post`, or fields such as `visibility = visible|hidden`, `hidden_at`, `hidden_by` and `hidden_reason`. Keep this separate from lifecycle `status = open|full|cancelled|completed`. Store the reason and actor for restoration in the log too.
+Evidence, categories and group/league targets already exist. Read them from `report.evidence`; keep old empty evidence unavailable instead of inventing a historical snapshot. Do not add a duplicate evidence system unless it replaces the current one through an agreed migration.
 
-Player discovery must exclude restricted posts at the database/query entry point. Administrators retain investigation access; existing participants retain game history with a post-unavailable notice. Hidden/deleted posts must reject new join requests and acceptance of pending requests, as Final v6 specifies. Organisers and club representatives must not clear administrator restrictions through ordinary post edits.
+Add administrator-private review records such as `report_review(review_id, report_id, outcome, note, reviewed_by, reviewed_at, operation_id)`. A final resolved/dismissed outcome needs a required bounded note, reviewer/time and version guard. Store notes separately from reporter-readable report rows, or explicitly restrict column access; existing own-report SELECT would otherwise reveal the note.
 
-Provide transactional hide/restore actions with a mandatory reason, version check, DB01 event and DB09 notices. Restoring a manually hidden post must not expose it while its organiser remains suspended or it is deleted. These actions must not change match scores, confirmations, participants or lifecycle status.
+Implement one transaction updating status, recording the private decision and appending DB01. Review must not automatically suspend an account or hide content. Public notification text must not contain private notes. Extend the agreed API arguments: current `admin_review_report` lacks a note/version/operation ID, and restore/resume definitions omit required reasons. Status-only legacy PATCH is not the complete review action and does not resolve a disputed result.
 
-### DB04 League restrictions and registration
+### DB06 Retained deletion and the Final v6 conflict
 
-Supports BL-042 and the additional Final v6 **close registration** action. Add moderation state independently of the league's draft/active/completed/cancelled lifecycle. Store suspension/resumption actor/time/reason and registration state such as `registration_state = open|closed` with closure actor/time/reason. Effective registration must also consider suspension and deletion; resuming a league must not reopen registration that was independently closed.
+Game deletion fields and upstream `admin_delete_game_post` already exist. That function excludes results from ranking and causes a later rating rebuild. Final v6 requires listing deletion to retain results/confirmations and preserve ratings. Agree the intended product rule before enabling an admin operation; this branch returns 405 for that upstream operation and for `admin_rebuild_ratings`/`resolve_dispute`.
 
-The current schema has standings but no full league membership/application table. Add a `league_membership` or equivalent with `league_id`, `player_id`, requested/accepted/rejected/withdrawn state, `requested_at`, `responded_at` and the responding actor. Enforce a unique league/player entry or document a request-history model. Index player lookups and pending requests per league. Do not treat `league_standing` as the membership source: a player can join before having standings.
+For the Final v6 behavior, implement a listing-only transactional action using protected deletion state, mandatory reason, typed identifier confirmation, client version, DB01 and DB08. Keep parent rows and relationships rather than running cascade deletes. Provide administrator deleted-record reads and retain participant/member access to underlying history. The console offers no restore action for deleted listings. Add equivalent retained league deletion; post deletion state alone does not cover leagues. Prototype IDs are sample labels, so agree UUID confirmation or a real unique display ID.
 
-Enforce restrictions in policies and action functions for new applications and acceptance of pending requests. Preserve member access to history. Backlog BL-042 says suspended leagues are read-only for members; Final v6 explicitly pauses joins/acceptance and preserves existing pending confirmations. Agree whether members may finish these confirmations while suspended, then test the allowed/denied operations consistently. Closing registration alone keeps the league visible and lets existing members continue scheduled games.
+### DB07 Rating history and confirmation agreement
 
-Suspend/resume/close-registration operations require reasons, optimistic concurrency, DB01 logging and DB09 notices. They must not finish the league, assign winners, recalculate standings or alter personal ratings.
+The shared rating state/algorithm/history/read functions are implemented upstream. Admin BE must reuse them, not introduce a second rating calculation. `rating_history` is rebuilt by the shared processor and is not an immutable snapshot. Add daily `ranking_snapshot` rows keyed by local date/player/format with actual points/band/count/position if BL-071 requires two-date comparison. Schedule idempotent capture using complete Melbourne days and define retention/missing-date behavior. Backfill only where real history exists.
 
-### DB05 Retained listing deletion
+Player BE-2 stores structured scores and opposing `confirmed_by/confirmed_at`; the submitter is implicitly agreeing through submission. Confirm whether this is sufficient for the admin read-only screen. If an independent per-player/revision confirmation history is required, add it with participant checks and server timestamps. Admins must not gain confirmation or score-edit permissions. Score/rebuild/exclusion permissions currently remain in upstream direct SQL/PostgREST; enforcing Final v6 at that boundary needs a reviewed permissions change, including admin accounts that also own/participate in matches.
 
-Supports BL-067. Add `deleted_at`, `deleted_by`, `deletion_reason`, or a dedicated moderation record for both `game_post` and `mini_league`. Keep the primary rows and relationships so existing `ON DELETE CASCADE` chains are never executed by the moderation action. Do not implement admin listing deletion as SQL DELETE.
+### DB08 Automatic restriction notices
 
-Add an admin-only deleted-record view/read path; remove deleted listings from discovery and prevent new registrations/acceptances. Preserve existing members/participants and their match/result/confirmation history. The Final v6 console offers no restore action for deleted listings.
+Reuse `notification` and its current types; result/join/invitation notifications are already supported. Create notices with each completed restriction and audit in one database transaction, or persist a transactional outbox for external delivery. Ensure unique operation/recipient delivery so retries do not duplicate notices.
 
-Validate typed confirmation against the actual record identifier in the server action, not just the frontend. Prototype IDs such as `ML-004` are illustrative: the current database uses UUIDs, so agree either the UUID confirmation or a durable unique display ID. Require a reason, version check, DB01 event and DB09 notices. Protect deletion fields from player/organiser edits. Typed confirmation and endpoint wiring are API work, not solved by columns alone.
+Final v6 recipients: hide post tells the host and exposes post-unavailable history to participants; restore tells host/accepted participants; delete tells host/accepted/pending applicants; suspend/resume league tells organiser/members; close registration/delete league also tells pending applicants. Agree group-host recipients using real group membership. Keep public reasons separate from private report notes. In-app notices are required; push delivery is outside this scope.
 
-### DB06 Report evidence and private review outcomes
+### DB09 Admin provisioning and home content
 
-Supports BL-038. Extend `report.target_type` to support `mini_league`; retain the already supported `player`, `game_post`, `match`, `admin_post` and `club`. Validate polymorphic targets in trusted submission code because `target_id` has no cross-table foreign key.
+Current Auth metadata/RLS helper are retained. BL-030 still requires an invitation-only admin provisioning flow, a role-hook agreement and hosted session validation. Keep authority in protected app_metadata or a protected role source, never user_metadata. Ordinary player signup may stay enabled. The local configuration has session settings; the new frontend also supplies an idle-timeout workaround. Confirm the actual hosted admin policy rather than treating local settings as proof.
 
-Create protected submission-time evidence, for example `report_evidence(report_id, captured_at, target_snapshot jsonb, snapshot_version)`. Capture relevant server data when a report is submitted, not when an administrator first opens it. Preserve that evidence if the target is edited/deleted. Mark old reports without a snapshot as unavailable; current target data cannot be backfilled as authentic past evidence.
+The carousel already uses `admin_post`; a new HomeContent table is not inherently necessary. Agree whether admins see all drafts or only their own. Keep creator/publication metadata server-owned, and add a database-level published-image rule if alternate write paths must enforce it too. Image upload/storage permissions are separate from accepting an image URL. Announcement editing currently guards concurrent changes during processing; add a caller-read version for edits already stale before the request begins.
 
-Store private review records separately, for example `report_review(review_id, report_id, outcome, note, reviewed_by, reviewed_at, operation_id)`. Notes must be mandatory for the final decision, bounded and visible only to administrators. Existing report RLS lets reporters SELECT their own reports, including fields returned by `select=*`; putting private notes on that row without changing permissions would expose them. Keep evidence access and attachments under explicit policies too.
+### DB10 Account deletion monitoring
 
-Implement one transactional `admin_review_report` operation that validates the administrator, current version and transition; records resolved/dismissed with reviewer/time/note; updates report status; and appends DB01. Reviewing a report must **not** automatically suspend an account or hide/suspend content. If a reporter receives a notification, use the agreed public message rather than the private note and create it through DB09.
+Account deletion/anonymization is implemented upstream and preserves players/history. Add a separate durable `account_deletion_request` with identifiers, pending/processing/completed/failed state, timestamps, safe failure details, attempts and retry timing. It must survive deletion of the Auth identity. Admins inspect failures; players can access only their own request through an agreed flow. Wire the deletion worker/Edge workflow to persist failures and retries. Do not replace the existing anonymization behavior with a cascading hard delete.
 
-The current YAML/adapter takes only `reportId` and `outcome`. Extend the agreed contract for the required note, reason/version/idempotency fields; the present adapter rejects unknown arguments. Likewise, restore-account/post/resume-league arguments currently omit the reasons required by the backlog/design.
+### DB11 Analytics events
 
-### DB07 Result confirmations and ranking history
+Completed registrations and received-report counts work against retained rows. A protected end-user/admin/test classification is still required for consistent exclusions. Registration metadata is cleared on deletion, so a durable profile-created event is needed for deletion-proof historical totals.
 
-Supports BL-069 and BL-071. `match_participant.status = confirmed` represents participation, not acceptance of a submitted score. `match_result.status = confirmed` alone cannot show which players agreed and when.
+Add validated foreground-screen events for active-user metrics; background refresh is excluded and users are deduplicated both per day and across the full range. Add immutable first-publication facts for games, qualifying league activity/membership events and report-resolution events. Events need server time, bounded type/entity identifiers, indexing, deduplication and explicit retention/read/write rules. Frontend event emission and trusted ingestion are additional application work. Missing old events must stay unavailable, not become fabricated zeros.
 
-Add per-player result decisions, for example `result_confirmation(result_id, player_id, decision, decided_at)`, with a unique result/player pair, participant eligibility checks and server timestamps. Tie confirmations to a specific immutable score/result revision so a changed score invalidates old approvals. Singles processing requires both eligible players' agreement; admins receive SELECT access only. Existing doubles results should remain readable without being mistaken for singles rating inputs.
+## Integration boundaries and acceptance
 
-Add an append-only rating history containing result/match/player, format, points or rating before/after, delta, applied time and algorithm version. Decide any extra algorithm state and precision with the ranking owner: current `ranking_points` is a nonnegative integer, which may be insufficient for the agreed formula. Add only the state actually required by that formula.
+All 0.4 migrations are imported unchanged. Further schema work should use new migrations with compatible defaults/backfills, reviewed grants/RLS/functions and database tests. Admin BE then wires real actions, updates capabilities/client/docs and tests the entire workflow before replacing 501 with success. Do not report success for only a state update without its required audit/notices.
 
-Implement a **single shared trusted processor** that applies an eligible confirmed singles result once, updates both players and relevant derived standings atomically, and writes history/DB01. Use result-level idempotency and deterministic locking; a retry or algorithm-version change must not silently award the same result again. A deliberate recalculation needs an explicit rebuild/version policy. Confirmation storage and algorithm integration require Player BE coordination; Admin BE only reads them.
+The adapter remains `/functions/v1/admin-api`; generated Player BE specs describe `/rest/v1`. Preserve caller JWTs for application reads and existing shared read RPCs. A trusted service client is not a shortcut around RLS. New exposed tables need explicit grants and RLS; privileged helpers need authorization, qualified names, safe search_path and narrow execution grants. An API's refusal does not revoke independent database permissions.
 
-Create `ranking_snapshot` keyed by snapshot date/player/format with stored points, band, verified count and position. Schedule an idempotent daily snapshot using Supabase Cron/`pg_cron`, with boundaries in `Australia/Melbourne`; snapshots must be retained independently of future current-ranking edits. Define historical player-label retention and the behavior for missing snapshot dates, and provide an admin read/compare operation. Backfill only where actual historical data exists.
+Acceptance for the next database iteration:
 
-### DB08 Analytics events and historical counts
+- Existing-JWT and alternate-RPC suspension denial, with safe Auth synchronization/retries.
+- Append-only, attributable, complete audit records committed with their domain action.
+- Restriction/deletion preserves participants, history, scores, confirmations and agreed rating behavior.
+- Private notes cannot be read by reporters; evidence remains unchanged when a target changes.
+- Concurrent/retried saves have version guards and one notice/event set per successful operation.
+- Daily snapshot comparison, member registration rules and missing-history behavior follow the agreed product rules.
+- Current admin reads stay available for deleted/unregistered profiles with explicit null/absent data where appropriate.
 
-Completes Final v6 metrics that currently return unavailable/null:
+## Current validation and teammate rollout
 
-| Metric | Required data | Processing rule |
-|---|---|---|
-| Foreground active users | Authenticated foreground-screen events with player, timestamp and bounded screen/event type. | Deduplicate users per day and across the selected range independently; background refresh is excluded. Requires frontend event emission and trusted ingestion too. |
-| Games published | Immutable first-publication time/event for a game listing. | Creation, reposting or editing is not automatically first publication. Agree the actual publish transition with Player BE. |
-| Mini League activity | Accepted-join and result-submission events tied to the league. | Count qualifying leagues per day and deduplicate across the whole range. Membership data is part of DB04. |
-| Reports resolved | Decision events/timestamps from DB06/DB01. | Count according to the agreed resolution/reopening rule, not current status plus last edit time. |
-| New end-user profiles | Current profile creation timestamp plus a reliable administrator/test-account classification. | Exclude admin/test profiles consistently; retain an event if historical counts must survive profile deletion. Current counts include every retained player row. |
+On 13 October 2026, 156 Admin HTTP/SDK tests, 7 inherited session-timeout tests, 124 real local integration checks, Deno check/lint and frontend production build passed. The integration is tested against an isolated local Supabase stack containing all 50 migrations and the upstream development/reference seed data. The real suite checks Auth/RLS, both response contracts, new rating/evidence/flag reads, preserved evidence, deleted-account handling, exact counts and Final v6 refusals. Fixture deletion is scoped to temporary local accounts/records and also removes their retained anonymized test players.
 
-For concrete storage, an `app_event` can carry `event_id uuid`, `event_type`, `player_id`, optional `post_id`/`league_id`/`result_id`, `occurred_at timestamptz` and a deduplication key. Separate event tables are also valid if they implement the same facts. Keep an immutable profile-created event with a trusted end-user/admin/test classification, or provide a protected classification table for existing profiles; player self-edits must not change exclusions. Historical event identifiers must not cascade away with deleted source records if those metrics are to remain reproducible.
+Run the four Node HTTP/SDK suites, Deno check/lint and frontend build as described in [admin-api.md](admin-api.md); run `admin-api-live.test.mjs` only against a local stack. Hosted deployment, external email/geocoding and Google OAuth are not established by these tests.
 
-Use server-owned timestamps, indexed event time/entity keys, validation and explicit read/write permissions. Aggregate only complete Melbourne calendar days, including daylight-saving boundaries, and compare the immediately preceding equal-length period. Missing historical events must remain unavailable, rather than fabricated as zeros. Define event retention and ingestion limits before enabling usage tracking.
-
-### DB09 Automatic in-app notifications
-
-Supports BL-077. Reuse the existing `notification` table; it already supports `system` and `league_update` types. Create inbox rows in the **same database transaction** as each completed restriction and audit event, or use a durable transactional outbox if delivery moves outside PostgreSQL. Add an operation/event recipient uniqueness key so retries do not send duplicates.
-
-Define recipients from actual membership/rosters:
-
-| Action | Final v6 inbox recipients |
-|---|---|
-| Hide game post | Host; existing participants also see the post-unavailable state in their history. |
-| Restore game post | Host and existing accepted participants. |
-| Delete game post | Host, accepted participants and pending applicants. |
-| Suspend or resume league | Organiser and registered members. |
-| Close registration or delete league | Organiser, registered members and pending applicants. |
-
-Club-owned posts require an agreed host/representative recipient rule. Keep player SELECT access restricted to their own notices and retain required moderation notices even if a listing is removed.
-
-Store a safe in-app reason separately from administrator-private review notes. The prototype specifies in-app notices; push delivery is not part of this requirement. Any external Auth synchronization needs durable operation/retry state as described in DB02; a success flag alone is insufficient.
-
-### DB10 Admin provisioning and home content agreement
-
-BL-030 requires invitation-only admin accounts and role claims from an Auth hook. The current implementation trusts `app_metadata.role`; the private `is_admin()` helper already exists. Agree whether trusted Auth metadata stays authoritative or a protected role/invitation table feeds the hook. Never source authority from player-editable `user_metadata`, and never expose the service key to the frontend. Provision invited users through a trusted server/dashboard workflow; ordinary player signup may remain enabled.
-
-Local `supabase/config.toml` already sets a 30-day session timebox and 7-day inactivity timeout. The hook sections are commented out. Confirm the admin session requirements and configure/test them on the hosted project; a checked-in local setting does not verify hosted behavior. Handle role removal and existing tokens consistently in both the Edge Function and direct database access.
-
-BL-082 calls the content entity `HomeContent`, while the team YAML and current database use `admin_post`. Reuse that existing table or agree a compatibility mapping; creating a duplicate content table is not inherently necessary. Decide whether admins can see all drafts or only their own. If the latter is required, update SELECT policies/API behavior while retaining published-only player access. Keep creator/publication timestamps server-owned, and consider a database constraint for the published-image requirement so alternate write paths enforce it too. Storage upload policies and an upload flow are separate work if images are to be uploaded rather than supplied as URLs.
-
-### DB11 Account deletion monitoring
-
-Supports BL-078. Create `account_deletion_request` with request/user identifiers, requested/started/completed timestamps, pending/processing/completed/failed state, safe failure code/message, attempt count and retry timing. Administrators may inspect failures; a player may request/inspect only their own request through the agreed flow. Preserve the request/error record after Auth/player deletion instead of using cascading foreign keys.
-
-Integrate a worker/Edge Function that records failures and retries. Review existing cascades and organiser `ON DELETE RESTRICT` dependencies before account deletion, including club handover and retained match/report/ranking evidence. Define what is removed, anonymized and retained with the product owner. Monitoring tables alone do not implement the deletion job.
-
-## Cross-cutting permissions and API contract
-
-The Edge Function has closed admin score/ranking writes, but the existing direct PostgREST grants and RLS still allow some administrative writes. Removing an admin screen/button is insufficient. Update protected-column permissions, policies and authorized write functions so Final v6 restrictions apply at the database boundary too. An administrator who is also a match owner/participant must not gain score-edit access through another permissive policy; preserve the intended ordinary-player workflow while enforcing the admin rule.
-
-For new tables, explicitly configure grants and enable RLS in exposed schemas; ordinary users should not be able to set moderation state, forge evidence/actors, read private notes or write derived rankings. New functions default to publicly executable unless privileges are revoked. Prefer invoker functions; any necessary elevated helper needs explicit authorization, a fixed safe `search_path`, qualified names and narrow grants. Use private helpers for privileged internals and expose only reviewed entry points. These requirements follow the [Supabase RLS guide](https://supabase.com/docs/guides/database/postgres/row-level-security) and [database-function guide](https://supabase.com/docs/guides/database/functions).
-
-The current transport is `/functions/v1/admin-api`, not the YAML's `/rest/v1`. No public SQL moderation RPCs are installed by this branch. Choose whether future functions remain behind the adapter or are exposed as PostgREST RPCs, and update both contract and client together. Account ban/unban still needs a trusted Edge Function; it cannot be implemented entirely as a plain SQL RPC. Any elevated worker must receive an authenticated actor through a trusted boundary, rather than accepting a client-supplied administrator ID as authority.
-
-All new writes need a version supplied from the client's last read, mandatory reasons where required, bounded input, valid state transitions, and operation IDs. Serialize concurrent target changes in one transaction. A failed operation must not leave a misleading success log or duplicate notifications. Existing `updated_at` can be the version if compared exactly; a dedicated incrementing version is also an option. Announcements currently guard a concurrent change during request processing, but need a caller-provided version to detect edits made before the request began.
-
-The current contract has other known legacy names/values: `organiserClubId` replaces obsolete `groupId`, and `winningSide` replaces obsolete single-player `winnerId`. Preserve the real sides and lifecycle values; do not model hidden/suspended content as cancelled/completed. A stale saved record should map to 409, invalid input to the agreed validation error, and unavailable operations should retain 501 until the **whole** workflow is implemented and tested.
-
-## Delivery order and acceptance
-
-1. Agree API changes, state transitions and the open product decisions above. Implement DB01 and the database boundary for Final v6 read-only rules.
-2. Implement DB02/DB03/DB06 to complete the remaining Must account, visibility and report workflows. Add DB09 notices as those actions become available.
-3. Add DB04/DB05 for league restrictions, registration and retained deletion. Coordinate shared membership/result processing with Player BE.
-4. Add DB07/DB08/DB11 for confirmations, ranking history/snapshots, analytics and deletion monitoring. Complete DB10 provisioning/content agreements alongside the relevant features.
-
-The database maintainer should deliver **new** migrations, indexes/grants/RLS, reviewed function signatures, compatible defaults/backfills and database tests. Keep existing migrations intact and confirm deployed schema drift against them before applying new ones. Admin BE then wires the real functions/state into the adapter, updates `/capabilities`, adds API tests and integrates with Admin FE. Returning success from a stub or adding columns without wiring does not complete a backlog task.
-
-Required acceptance checks include:
-
-- Ordinary/unsigned users cannot call admin actions, forge role/actor/restriction fields, read private review notes, or write rating/log/snapshot records.
-- Suspension is enforced for an existing player JWT through direct PostgREST and every relevant RPC, and failed Auth synchronization is retained/retried safely.
-- Hide/suspend/delete actions preserve participant, match, score, standings and pending-confirmation records. Existing member reads and registration restrictions follow the agreed design.
-- Stale saves, concurrent actions and retries have deterministic outcomes, with one committed log/notice set per successful action.
-- Reviewing a report retains original evidence/private notes and never automatically changes the target's account/content.
-- Both singles players must confirm the correct result revision before one rating update; administrators cannot confirm or modify results through alternate database paths.
-- Snapshots survive later edits, and analytics handle complete Melbourne days, range deduplication, administrator/test exclusions and missing history correctly.
-- Announcement operations, deleted records and failed account-deletion requests obey their agreed read/write scope.
-
-## Verification and teammate testing
-
-On 11 October 2026 the current API passed **127 HTTP/SDK tests**, **99 real local Auth/database/RLS/Edge Function checks**, Deno type/lint checks and a frontend production build. The 127-test suite, Deno checks and frontend build were rerun against the exact files selected for this branch while preparing this handoff. The build succeeded with dependency-level `use client` warnings. These results validate current functionality and explicit refusals, not the missing workflows above. Hosted deployment and UI wiring remain to be tested by the team.
-
-From the repository root, with frontend dependencies installed:
-
-```powershell
-node --test supabase/tests/admin-api.test.mjs supabase/tests/admin-api-contract.test.mjs supabase/tests/admin-api-console.test.mjs
-```
-
-For local integration, start Docker and local Supabase and serve `admin-api`, following [SETUP.md](SETUP.md) and [admin-api.md](admin-api.md). Then run:
-
-```powershell
-node supabase/tests/admin-api-live.test.mjs
-```
-
-The live script deliberately refuses remote URLs, creates temporary local fixtures and cleans up its own records. The prior Windows run used temporary ports 55321–55324 because the normal ports were reserved; this did not change repository migrations/configuration. Use the documented `SUPABASE_WORKDIR` option if testing through such a temporary configuration.
-
-A teammate with hosted Supabase access can deploy this branch's `admin-api`, configure the allowed frontend origins, provision an administrator and run a separate hosted smoke check against the existing schema. Follow the [Edge Function deployment guide](https://supabase.com/docs/guides/functions/deploy). GitHub push alone does not deploy or verify a Supabase function unless the team has configured a deployment workflow. Do not point the local fixture-creating script at the hosted project. The hosted check should verify admin/non-admin access, announcement behavior, read endpoints, version conflicts and the documented 501/405 responses; it should not claim that the proposed migrations have already been applied.
-
-Useful implementation references: [Auth custom access-token hooks](https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook), [Auth administrator updates](https://supabase.com/docs/reference/javascript/auth-admin-updateuserbyid), and [Supabase Cron](https://supabase.com/docs/guides/cron).
+A Supabase maintainer must apply the branch's migration history to the team's actual project before deploying this Admin API version. Confirm hosted drift and follow [DEPLOYMENT.md](DEPLOYMENT.md); keep development seed data local. GitHub publication alone is not proof of a deployed database or function. The new function expects the 0.4 schema and is not compatible with the old four-migration main database.

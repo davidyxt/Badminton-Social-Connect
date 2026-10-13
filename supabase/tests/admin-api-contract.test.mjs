@@ -57,7 +57,7 @@ test("team table path returns camelCase rows without an envelope", async () => {
     dbReply: () => ({
       body: [{
         player_id: id,
-        display_name: "Alex",
+        username: "Alex",
         self_rating_band: "beginner",
         is_verified: false,
         joined_at: stamp,
@@ -73,7 +73,7 @@ test("team table path returns camelCase rows without an envelope", async () => {
   assert.equal(r.response.headers.get("content-range"), "20-20/27");
   const call = f.calls.at(-1);
   assert.equal(call.url.searchParams.get("player_id"), `eq.${id}`);
-  assert.equal(call.url.searchParams.get("select"), "player_id,display_name");
+  assert.equal(call.url.searchParams.get("select"), "player_id,username");
   assert.equal(call.url.searchParams.get("offset"), "20");
   assert.equal(call.url.searchParams.get("limit"), "10");
   assert.equal(

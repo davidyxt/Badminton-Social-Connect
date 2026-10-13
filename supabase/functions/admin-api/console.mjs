@@ -1,5 +1,11 @@
 // Final v6 console queries. All table access uses the caller's RLS client.
 import { ContractError } from "./contract.mjs";
+import {
+  accountState,
+  handleUpdatedRead,
+  notificationTypes,
+  registrationCount,
+} from "./reads.mjs";
 const fail = (status, code, message) => {
   throw new ContractError(status, code, message);
 };
@@ -72,9 +78,21 @@ const bands = [
 ];
 const filters = {
   users: { is_verified: "boolean", self_rating_band: bands },
-  reports: { target_id: "uuid", reported_by_player_id: "uuid" },
+  reports: {
+    target_id: "uuid",
+    reported_by_player_id: "uuid",
+    category: [
+      "harassment",
+      "inappropriate_content",
+      "fake_account",
+      "spam",
+      "safety_concern",
+      "underage",
+      "other",
+    ],
+  },
   disputes: { match_id: "uuid", raised_by: "uuid" },
-  games: { organiser_id: "uuid", organiser_club_id: "uuid", suburb: "text" },
+  games: { organiser_id: "uuid", organiser_group_id: "uuid", suburb: "text" },
   leagues: { organiser_id: "uuid" },
   matches: {
     league_id: "uuid",
@@ -86,19 +104,12 @@ const filters = {
   rankings: { player_id: "uuid", band: bands },
   notifications: {
     is_read: "boolean",
-    type: [
-      "match_reminder",
-      "match_invite",
-      "result_submitted",
-      "dispute_update",
-      "league_update",
-      "system",
-    ],
+    type: notificationTypes,
   },
   announcements: {},
 };
 const sorts = {
-  users: ["joined_at", "display_name", "self_rating_band"],
+  users: ["joined_at", "username", "self_rating_band", "deleted_at"],
   reports: ["created_at", "updated_at", "status", "target_type"],
   disputes: ["created_at", "updated_at", "status"],
   games: ["created_at", "proposed_time", "status", "suburb"],
@@ -113,7 +124,7 @@ async function matchingPlayers(db, term) {
   if (isUuid(term)) return [term];
   const found = await rows(
     db.from("player").select("player_id").ilike(
-      "display_name",
+      "username",
       `%${escapeLike(term)}%`,
     ).limit(201),
   );
@@ -124,15 +135,18 @@ async function matchingPlayers(db, term) {
 }
 export function listSelection(resource) {
   return {
+    users:
+      "*,display_name:username,registration:player_private!player_private_player_id_fkey!inner(registered_at)",
     games:
-      "*,organiser:player!game_post_organiser_id_fkey(player_id,display_name),club:club!game_post_organiser_club_id_fkey(club_id,name)",
+      "*,organiser_club_id:organiser_group_id,organiser:player!game_post_organiser_id_fkey(player_id,username,display_name:username),club:groups!game_post_organiser_group_id_fkey(group_id,name)",
     leagues:
-      "*,organiser:player!mini_league_organiser_id_fkey(player_id,display_name)",
-    rankings: "*,player:player!ranking_player_id_fkey(player_id,display_name)",
+      "*,organiser:player!mini_league_organiser_id_fkey(player_id,username,display_name:username)",
+    rankings:
+      "*,player:player!ranking_player_id_fkey(player_id,username,display_name:username)",
     reports:
-      "*,reporter:player!report_reported_by_player_id_fkey(player_id,display_name)",
+      "*,reporter:player!report_reported_by_player_id_fkey(player_id,username,display_name:username)",
     matches:
-      "*,participants:match_participant(player_id,side,status,player:player!match_participant_player_id_fkey(display_name))",
+      "*,participants:match_participant(player_id,side,status,player:player!match_participant_player_id_fkey(username,display_name:username))",
     results:
       "*,match:match!match_result_match_id_fkey(match_id,format,post_id,league_id)",
   }[resource] ?? "*";
@@ -141,10 +155,18 @@ export async function relatedFilters(url, table, query, db) {
   only(url, ["page", "limit", "q", "status"]);
   const states = {
     report: ["open", "under_review", "resolved", "dismissed"],
-    game_participant: ["requested", "accepted", "rejected", "withdrawn"],
+    game_participant: [
+      "no_show",
+      "requested",
+      "invited",
+      "accepted",
+      "rejected",
+      "declined",
+      "withdrawn",
+    ],
     match_participant: ["playing", "no_show", "withdrawn"],
     match: ["scheduled", "in_progress", "completed", "cancelled"],
-    match_result: ["pending", "confirmed", "disputed", "rejected"],
+    match_result: ["pending", "confirmed", "disputed", "rejected", "expired"],
   }[table];
   const status = url.searchParams.get("status");
   if (status !== null) {
@@ -173,7 +195,25 @@ export async function consoleFilters(
   query,
   { db, searchAccounts },
 ) {
+  for (const key of url.searchParams.keys()) {
+    if (url.searchParams.getAll(key).length !== 1) {
+      invalid(`Duplicate parameter: ${key}.`);
+    }
+  }
   const extra = filters[resource];
+  if (url.searchParams.has("organiser_club_id")) {
+    if (resource !== "games" || url.searchParams.has("organiser_group_id")) {
+      invalid("Use one organiser group filter.");
+    }
+    url.searchParams.set(
+      "organiser_group_id",
+      url.searchParams.get("organiser_club_id"),
+    );
+    url.searchParams.delete("organiser_club_id");
+  }
+  if (url.searchParams.get("sort") === "display_name") {
+    url.searchParams.set("sort", "username");
+  }
   only(url, [
     "page",
     "limit",
@@ -185,10 +225,23 @@ export async function consoleFilters(
     "created_from",
     "created_to",
     "include",
+    ...(["users", "games"].includes(resource) ? ["is_deleted"] : []),
+    ...(resource === "users" ? ["registered"] : []),
     ...Object.keys(extra),
     ...(resource === "reports" ? ["target_type"] : []),
     ...(resource === "notifications" ? ["player_id"] : []),
   ]);
+  for (const key of ["is_deleted", "registered"]) {
+    const value = url.searchParams.get(key);
+    if (value === null) continue;
+    if (!["true", "false"].includes(value)) invalid(`Invalid ${key}.`);
+    const column = key === "is_deleted"
+      ? "deleted_at"
+      : "registration.registered_at";
+    query = value === "true"
+      ? query.not(column, "is", null)
+      : query.is(column, null);
+  }
   const include = url.searchParams.get("include");
   if (include && !(resource === "users" && include === "account")) {
     invalid("Only users support include=account.");
@@ -290,10 +343,11 @@ export async function consoleFilters(
     }
     if (resource === "games") {
       clauses.push(`suburb.ilike.${literal(`%${escapeLike(q)}%`)}`);
+      clauses.push(`title.ilike.${literal(`%${escapeLike(q)}%`)}`);
     }
     if (resource === "games") {
       const clubs = await rows(
-        db.from("club").select("club_id").ilike("name", `%${escapeLike(q)}%`)
+        db.from("groups").select("group_id").ilike("name", `%${escapeLike(q)}%`)
           .limit(201),
       );
       if (clubs.length > 200) {
@@ -301,7 +355,7 @@ export async function consoleFilters(
       }
       if (clubs.length) {
         clauses.push(
-          `organiser_club_id.in.(${clubs.map((r) => r.club_id).join(",")})`,
+          `organiser_group_id.in.(${clubs.map((r) => r.group_id).join(",")})`,
         );
       }
     }
@@ -327,12 +381,15 @@ export async function consoleFilters(
 const unavailable = {
   account_suspension: "Account suspension state and enforcement are absent.",
   content_moderation:
-    "Visibility, suspension, registration closure and retained deletion state are absent.",
+    "Hide/restore, league suspension/registration and audited deletion are incomplete. Post soft-deletion exists upstream but alters ranking eligibility.",
   report_review:
-    "Private decisions, evidence snapshots and atomic review/log/notification processing are absent.",
+    "Private decisions and atomic review/log processing are absent; submission-time evidence is available.",
   activity_log:
     "Latest updated_at/updated_by columns are not an event history.",
-  rating_history: "Per-player confirmation and rating history are absent.",
+  ranking_snapshots:
+    "Immutable daily leaderboard snapshots and comparison are absent.",
+  confirmation_history:
+    "Only the opposing confirmer/time is stored; no per-player decision history exists.",
   app_usage: "Foreground view events are absent.",
   games_published: "First-publication timestamps/events are absent.",
   mini_league_activity:
@@ -399,14 +456,17 @@ async function analytics(db, url) {
   for (
     const [name, table, key, column] of [[
       "new_users",
-      "player",
+      "player_private",
       "player_id",
-      "joined_at",
+      "registered_at",
     ], ["reports_received", "report", "report_id", "created_at"]]
   ) {
     const counts = await mapLimited(days, async (_, i) => {
+      const base = table === "player_private"
+        ? registrationCount(db)
+        : db.from(table).select(key, { count: "exact", head: true });
       const r = checked(
-        await db.from(table).select(key, { count: "exact", head: true }).gte(
+        await base.gte(
           column,
           bounds[i],
         ).lt(column, bounds[i + 1]),
@@ -449,11 +509,13 @@ async function analytics(db, url) {
       ].map((key) => [key, { value: null, reason: unavailable[key] }]),
     ),
     source_note:
-      "Counts reflect currently retained player/report rows, not a deletion-proof historical event log. New users use player.joined_at created by the registration trigger.",
+      "Counts reflect currently retained player/report rows, not a deletion-proof historical event log. New users use player_private.registered_at for completed registrations and exclude deleted profiles. Admin/test classification is not available; historical counts are not deletion-proof.",
   };
 }
 
 export async function handleConsole(request, route, { db }, send) {
+  const updated = await handleUpdatedRead(request, route, db, send);
+  if (updated) return updated;
   const url = new URL(request.url), [resource, id, child] = route;
   const simple = route.length === 1 &&
     ["capabilities", "analytics"].includes(resource);
@@ -474,6 +536,7 @@ export async function handleConsole(request, route, { db }, send) {
     return send({
       data: {
         design: "Admin Web Final v6",
+        database_baseline: "Player BE-2 0.4.0 (50 migrations)",
         read_only: [
           "rankings",
           "results",
@@ -486,6 +549,13 @@ export async function handleConsole(request, route, { db }, send) {
           "user_participation",
           "report_context",
           "match_context",
+          "rating_summary",
+          "rating_trend",
+          "rating_history",
+          "result_flags",
+          "report_evidence",
+          "registration_state",
+          "shared_leaderboard",
           "overview_attention",
           "new_users_analytics",
           "reports_received_analytics",
@@ -538,11 +608,12 @@ export async function handleConsole(request, route, { db }, send) {
       game_post: ["game_post", "post_id"],
       match: ["match", "match_id"],
       admin_post: ["admin_post", "admin_post_id"],
-      club: ["club", "club_id"],
+      group: ["groups", "group_id"],
+      mini_league: ["mini_league", "league_id"],
     }[report.target_type];
     const [reporter, subject] = await Promise.all([
       rows(
-        db.from("player").select("player_id,display_name").eq(
+        db.from("player").select("player_id,username,display_name:username").eq(
           "player_id",
           report.reported_by_player_id,
         ),
@@ -557,10 +628,13 @@ export async function handleConsole(request, route, { db }, send) {
         reporter: reporter[0] ?? null,
         target: subject[0] ?? null,
         target_missing: !subject.length,
-        evidence_snapshot: null,
+        evidence_snapshot:
+          report.evidence && Object.keys(report.evidence).length
+            ? report.evidence
+            : null,
         private_decision: null,
         context_note:
-          "Current related records only; no submission-time snapshot is stored.",
+          "Evidence is the server-captured submission snapshot. Target is the current record; empty legacy evidence is unavailable.",
       },
     });
   }
@@ -571,7 +645,7 @@ export async function handleConsole(request, route, { db }, send) {
     );
     const [participants, results, disputes] = (await Promise.all([
       db.from("match_participant").select(
-        "*,player:player!match_participant_player_id_fkey(player_id,display_name)",
+        "*,player:player!match_participant_player_id_fkey(player_id,username,display_name:username)",
         { count: "exact" },
       ).eq("match_id", id).order("side").order("player_id").limit(100),
       db.from("match_result").select("*", { count: "exact" }).eq("match_id", id)
@@ -592,14 +666,25 @@ export async function handleConsole(request, route, { db }, send) {
         },
         related_limit: 100,
         read_only: true,
+        confirmations: results.data.map((r) => ({
+          result_id: r.result_id,
+          status: r.status,
+          submitted_by: r.submitted_by,
+          confirmed_by: r.confirmed_by ?? null,
+          confirmed_at: r.confirmed_at ?? null,
+        })),
         player_confirmation_history: null,
+        confirmation_note:
+          "Stored opposing-side confirmation only; this is not a complete per-player event history.",
       },
     });
   }
-  await required(db.from("player").select("player_id").eq("player_id", id));
+  const player = await required(
+    db.from("player").select("player_id,deleted_at").eq("player_id", id),
+  );
   if (child === "summary") {
     only(url, []);
-    const [ranking, games, reports] = await Promise.all([
+    const [ranking, games, reports, rating, account] = await Promise.all([
       rows(
         db.from("ranking").select("*").eq("player_id", id).eq(
           "format",
@@ -614,6 +699,8 @@ export async function handleConsole(request, route, { db }, send) {
         "target_type",
         "player",
       ).eq("target_id", id).in("status", ["open", "under_review"]),
+      db.rpc("get_rating_summary", { p_player_id: id }),
+      accountState(db, player),
     ]);
     checked(games);
     checked(reports);
@@ -636,9 +723,14 @@ export async function handleConsole(request, route, { db }, send) {
         rank_position: position,
         games_joined: games.count,
         unresolved_reports: reports.count,
-        ranking_history: null,
+        rating_summary: checked(rating).data,
+        account_state: account,
+        ranking_history: {
+          endpoint: `/users/${id}/rating_history`,
+          paginated: true,
+        },
         note:
-          "Rank uses stored singles points with tied competition positions. Accepted game joins and stored points are not a new rating calculation.",
+          "Rank uses stored singles points with tied competition positions. The shared rating engine owns calculations. This global stored-points position is not the established-only state leaderboard.",
       },
     });
   }
@@ -649,7 +741,15 @@ export async function handleConsole(request, route, { db }, send) {
       "game_participant",
       "post_id",
       "game:game_post!game_participant_post_id_fkey(*)",
-      ["requested", "accepted", "rejected", "withdrawn"],
+      [
+        "requested",
+        "invited",
+        "accepted",
+        "rejected",
+        "declined",
+        "withdrawn",
+        "no_show",
+      ],
     ],
     matches: [
       "match_participant",

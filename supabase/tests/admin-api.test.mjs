@@ -52,9 +52,9 @@ test("list requests retain user JWT and support count, filters and pagination", 
 });
 test("name search escapes wildcard characters", async () => {
   const f = fixture(); await f.request("users?q=Alex%25_");
-  assert.equal(f.calls.at(-1).url.searchParams.get("or"), '(display_name.ilike."%Alex\\\\%\\\\_%")');
+  assert.equal(f.calls.at(-1).url.searchParams.get("or"), '(username.ilike."%Alex\\\\%\\\\_%")');
 });
-for (const path of ["reports?limit=101", "reports?page=0", "reports?page=1.5", "reports?status=hidden", "users?status=suspended", "reports?target_type=mini_league", "results?format=singles", "games?title=title", "rankings?format=triples"]) {
+for (const path of ["reports?limit=101", "reports?page=0", "reports?page=1.5", "reports?status=hidden", "users?status=suspended", "reports?target_type=unknown", "results?format=singles", "games?title=title", "rankings?format=triples"]) {
   test(`unsupported filter or pagination is rejected: ${path}`, async () => {
     const f = fixture(); assert.equal((await f.request(path)).response.status, 400);
     assert.equal(f.calls.filter((c) => c.url.pathname.startsWith("/rest")).length, 0);
@@ -63,14 +63,14 @@ for (const path of ["reports?limit=101", "reports?page=0", "reports?page=1.5", "
 test("overview counts actual supported states", async () => {
   const f = fixture({ dbReply: () => ({ body: null, count: 7 }) });
   const r = await f.request("overview"); assert.equal(r.response.status, 200);
-  assert.deepEqual(r.json.data, { registered_users: 7, unresolved_reports: 7, pending_results: 7, upcoming_game_posts: 7, active_leagues: 7 });
-  assert.equal(f.calls.filter((c) => c.method === "HEAD").length, 5);
+  assert.deepEqual(r.json.data, { registered_users: 7, unresolved_reports: 7, pending_results: 7, upcoming_game_posts: 7, active_leagues: 7, registration_pending_users: 7, deleted_users: 7 });
+  assert.equal(f.calls.filter((c) => c.method === "HEAD").length, 7);
 });
 test("player account details are whitelisted and privileged access follows authorization", async () => {
-  const f = fixture({ dbReply: () => ({ body: [{ player_id: id, display_name: "Alex" }] }), account: { ...admin, app_metadata: { internal_secret: "private" } } });
+  const f = fixture({ dbReply: () => ({ body: [{ player_id: id, username: "Alex" }] }), account: { ...admin, app_metadata: { internal_secret: "private" } } });
   const r = await f.request(`users/${id}`);
   assert.deepEqual(r.json.data.account, { email: admin.email, last_sign_in_at: null, email_confirmed_at: null });
-  const accountCall = f.calls.at(-1); assert.match(accountCall.url.pathname, /auth\/v1\/admin\/users/);
+  const accountCall = f.calls.find((c) => c.url.pathname.includes("/auth/v1/admin/users/")); assert.match(accountCall.url.pathname, /auth\/v1\/admin\/users/);
   assert.equal(accountCall.headers.get("apikey"), "test-server-key");
 });
 test("a malformed record ID never reaches database", async () => {

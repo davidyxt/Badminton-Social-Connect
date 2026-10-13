@@ -60,7 +60,7 @@ test("search literals cannot inject PostgREST OR conditions", async () => {
   );
   assert.equal(
     f.calls.at(-1).url.searchParams.get("or"),
-    '(display_name.ilike."%A\\",status.eq.suspended,(\\\\%\\\\_%")',
+    '(username.ilike."%A\\",status.eq.suspended,(\\\\%\\\\_%")',
   );
 });
 test("UUID search includes exact player ID as well as display name", async () => {
@@ -111,7 +111,7 @@ test("user list account summaries are opt-in and whitelisted", async () => {
     account: { ...admin, identities: [{ secret: true }] },
   });
   const r = await f.request(
-    "users?include=account&is_verified=true&sort=display_name&direction=asc",
+    "users?include=account&is_verified=true&sort=username&direction=asc",
   );
   assert.deepEqual(Object.keys(r.json.data[0].account).sort(), [
     "email",
@@ -122,7 +122,7 @@ test("user list account summaries are opt-in and whitelisted", async () => {
   assert.equal(c.url.searchParams.get("is_verified"), "eq.true");
   assert.equal(
     c.url.searchParams.get("order"),
-    "display_name.asc.nullslast,player_id.asc",
+    "username.asc.nullslast,player_id.asc",
   );
 });
 test("broad Auth email search returns an explicit narrowing error before table access", async () => {
@@ -145,7 +145,7 @@ test("ranking name search is server-filtered before pagination and includes play
   const c = f.calls.at(-1);
   assert.match(c.url.searchParams.get("or"), new RegExp(other));
   assert.equal(c.url.searchParams.get("offset"), "10");
-  assert.match(c.url.searchParams.get("select"), /display_name/);
+  assert.match(c.url.searchParams.get("select"), /username/);
 });
 test("broad cross-resource name searches fail rather than truncate silently", async () => {
   const f = fixture({
@@ -165,8 +165,8 @@ test("no matching ranking names use an empty set, without inventing a sentinel I
 test("game search matches club and individual hosts without using nonexistent titles", async () => {
   const f = fixture({
     dbReply: (c) => ({
-      body: c.url.pathname.endsWith("/club")
-        ? [{ club_id: other }]
+      body: c.url.pathname.endsWith("/groups")
+        ? [{ group_id: other }]
         : c.url.pathname.endsWith("/player")
         ? [{ player_id: id }]
         : [],
@@ -174,7 +174,7 @@ test("game search matches club and individual hosts without using nonexistent ti
   });
   assert.equal((await f.request("games?q=Team")).response.status, 200);
   const logic = f.calls.at(-1).url.searchParams.get("or");
-  assert.ok(logic.includes(`organiser_club_id.in.(${other})`));
+  assert.ok(logic.includes(`organiser_group_id.in.(${other})`));
   assert.ok(logic.includes(`organiser_id.in.(${id})`));
 });
 test("match search combines exact ID with matching participants", async () => {
@@ -193,10 +193,10 @@ test("match search combines exact ID with matching participants", async () => {
 test("report filters include actual club target and associated IDs", async () => {
   const f = fixture();
   await f.request(
-    `reports?target_type=club&target_id=${other}&reported_by_player_id=${id}`,
+    `reports?target_type=group&target_id=${other}&reported_by_player_id=${id}`,
   );
   const c = f.calls.at(-1);
-  assert.equal(c.url.searchParams.get("target_type"), "eq.club");
+  assert.equal(c.url.searchParams.get("target_type"), "eq.group");
   assert.equal(c.url.searchParams.get("target_id"), `eq.${other}`);
 });
 test("report context distinguishes current records from absent snapshots and deleted targets", async () => {
@@ -207,12 +207,12 @@ test("report context distinguishes current records from absent snapshots and del
           ? [{
             report_id: id,
             reported_by_player_id: id,
-            target_type: "club",
+            target_type: "group",
             target_id: other,
           }]
-          : c.url.pathname.endsWith("/club")
-          ? exists ? [{ club_id: other }] : []
-          : [{ player_id: id, display_name: "Reporter" }],
+          : c.url.pathname.endsWith("/groups")
+          ? exists ? [{ group_id: other }] : []
+          : [{ player_id: id, username: "Reporter" }],
       }),
     });
     const r = await f.request(`reports/${id}/context`);
@@ -220,7 +220,7 @@ test("report context distinguishes current records from absent snapshots and del
     assert.equal(r.json.data.target_missing, !exists);
     assert.equal(r.json.data.evidence_snapshot, null);
     assert.equal(r.json.data.private_decision, null);
-    assert.equal(r.json.data.reporter.display_name, "Reporter");
+    assert.equal(r.json.data.reporter.username, "Reporter");
   }
 });
 test("missing parents return 404 for new detail and participation endpoints", async () => {
@@ -247,7 +247,8 @@ test("user summary counts accepted joins, unresolved targeted reports and tied s
   const r = await f.request(`users/${id}/summary`);
   assert.equal(r.json.data.rank_position, 3);
   assert.equal(r.json.data.games_joined, 2);
-  assert.equal(r.json.data.ranking_history, null);
+  assert.equal(r.json.data.ranking_history.paginated, true);
+  assert.equal(r.json.data.account_state.state, "registration_pending");
   const c = f.calls.at(-1);
   assert.equal(c.url.searchParams.get("ranking_points"), "gt.100");
   assert.equal(c.url.searchParams.get("format"), "eq.singles");
@@ -308,7 +309,7 @@ test("analytics uses exact bounded day counts and equal-length previous period",
     dbReply: (c) => ({
       body: null,
       count: Date.parse(
-          c.url.searchParams.get("joined_at")?.slice(4) ??
+          c.url.searchParams.getAll("registered_at").find((v) => v.startsWith("gte."))?.slice(4) ??
             c.url.searchParams.get("created_at")?.slice(4),
         ) >= Date.parse(dayBoundary("2026-10-04"))
         ? 2
@@ -333,12 +334,12 @@ test("analytics uses exact bounded day counts and equal-length previous period",
     ),
   );
   const startDay = restCalls(f).find((c) =>
-    c.url.searchParams.getAll("joined_at").includes(
+    c.url.searchParams.getAll("registered_at").includes(
       `gte.${dayBoundary("2026-10-04")}`,
     )
   );
   assert.ok(
-    startDay.url.searchParams.getAll("joined_at").includes(
+    startDay.url.searchParams.getAll("registered_at").includes(
       `lt.${dayBoundary("2026-10-05")}`,
     ),
   );
@@ -398,7 +399,7 @@ test("concurrent account/count work is bounded and retains input order", async (
 test("team read extensions expose real version fields and reject obsolete groupId", async () => {
   const f = fixture({
     dbReply: () => ({
-      body: [{ updated_at: stamp, organiser_club_id: other, player_limit: 4 }],
+      body: [{ updated_at: stamp, organiser_group_id: other, player_limit: 4 }],
     }),
   });
   const r = await f.request(

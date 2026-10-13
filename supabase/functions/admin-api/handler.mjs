@@ -2,6 +2,11 @@
 // JWT so existing RLS and updated_by triggers still apply.
 import { ContractError, handleContract, isContractRoute } from "./contract.mjs";
 import {
+  accountState,
+  notificationTypes,
+  registrationCount,
+} from "./reads.mjs";
+import {
   consoleFilters,
   handleConsole,
   listSelection,
@@ -49,7 +54,7 @@ const statuses = {
   games: ["open", "full", "cancelled", "completed"],
   leagues: ["draft", "active", "completed", "cancelled"],
   matches: ["scheduled", "in_progress", "completed", "cancelled"],
-  results: ["pending", "confirmed", "disputed", "rejected"],
+  results: ["pending", "confirmed", "disputed", "rejected", "expired"],
   announcements: ["draft", "published", "archived"],
 };
 const resources = {
@@ -57,7 +62,7 @@ const resources = {
     table: "player",
     key: "player_id",
     order: "joined_at",
-    search: "display_name",
+    search: "username",
   },
   reports: { table: "report", key: "report_id", order: "created_at" },
   disputes: { table: "dispute", key: "dispute_id", order: "created_at" },
@@ -282,7 +287,7 @@ export function createHandler(
         request.method === "GET"
       ) {
         const queries = [
-          db.from("player").select("player_id", { count: "exact", head: true }),
+          registrationCount(db),
           db.from("report").select("report_id", { count: "exact", head: true })
             .in("status", ["open", "under_review"]),
           db.from("match_result").select("result_id", {
@@ -290,7 +295,7 @@ export function createHandler(
             head: true,
           }).eq("status", "pending"),
           db.from("game_post").select("post_id", { count: "exact", head: true })
-            .in("status", ["open", "full"]).gte(
+            .is("deleted_at", null).in("status", ["open", "full"]).gte(
               "proposed_time",
               new Date().toISOString(),
             ),
@@ -298,6 +303,9 @@ export function createHandler(
             count: "exact",
             head: true,
           }).eq("status", "active"),
+          registrationCount(db, false),
+          db.from("player").select("player_id", { count: "exact", head: true })
+            .not("deleted_at", "is", null),
         ];
         const values = (await Promise.all(queries)).map(resultOrThrow).map((
           r,
@@ -310,6 +318,8 @@ export function createHandler(
               "pending_results",
               "upcoming_game_posts",
               "active_leagues",
+              "registration_pending_users",
+              "deleted_users",
             ].map((name, i) => [name, values[i]]),
           ),
         });
@@ -352,7 +362,7 @@ export function createHandler(
           ].includes(relation[0])
           ? `*,player:player!${
             relation[0]
-          }_player_id_fkey(player_id,display_name)`
+          }_player_id_fkey(player_id,username,display_name:username)`
           : "*";
         let query = db.from(relation[0]).select(relationSelect, {
           count: "exact",
@@ -387,7 +397,11 @@ export function createHandler(
       }
       if (request.method === "GET") {
         let query = db.from(spec.table).select(
-          id ? "*" : listSelection(resource),
+          id
+            ? resource === "games"
+              ? "*,organiser_club_id:organiser_group_id"
+              : "*"
+            : listSelection(resource),
           { count: "exact" },
         );
         if (id) {
@@ -395,8 +409,9 @@ export function createHandler(
           if (resource === "rankings") query = query.eq("format", child);
           const data = await one(query);
           if (resource === "users" && getAccount) {
-            const account = await getAccount(id);
-            data.account = account;
+            data.display_name = data.username ?? null;
+            data.account = data.deleted_at ? null : await getAccount(id);
+            data.account_state = await accountState(db, data);
           }
           return send({ data });
         }
@@ -426,13 +441,21 @@ export function createHandler(
         if (resource === "reports" && url.searchParams.has("target_type")) {
           query = query.eq(
             "target_type",
-            choice(url.searchParams.get("target_type"), [
-              "player",
-              "game_post",
-              "match",
-              "admin_post",
-              "club",
-            ], "target_type"),
+            choice(
+              url.searchParams.get("target_type") === "club"
+                ? "group"
+                : url.searchParams.get("target_type"),
+              [
+                "player",
+                "game_post",
+                "match",
+                "admin_post",
+                "group",
+                "club",
+                "mini_league",
+              ],
+              "target_type",
+            ),
           );
         }
         if (resource === "notifications" && url.searchParams.has("player_id")) {
@@ -457,7 +480,7 @@ export function createHandler(
             r.data,
             async (row) => ({
               ...row,
-              account: await getAccount(row.player_id),
+              account: row.deleted_at ? null : await getAccount(row.player_id),
             }),
           );
         }
@@ -534,14 +557,7 @@ export function createHandler(
         const record = {
           player_id: uuid(body.player_id),
           match_id: body.match_id == null ? null : uuid(body.match_id),
-          type: choice(body.type, [
-            "match_reminder",
-            "match_invite",
-            "result_submitted",
-            "dispute_update",
-            "league_update",
-            "system",
-          ], "type"),
+          type: choice(body.type, notificationTypes, "type"),
           message: text(body.message, "message", 2000),
         };
         const r = resultOrThrow(
