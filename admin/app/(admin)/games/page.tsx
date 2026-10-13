@@ -1,5 +1,7 @@
 "use client";
 
+import { Card, CardBody, CardHeader } from "@/components/shared/Card";
+import { ResultFlagList } from "@/components/shared/ResultFlagList";
 import { Scale } from "lucide-react";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -7,7 +9,7 @@ import { LiveIndicator } from "@/components/shared/LiveIndicator";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { formatDateTime, humanize } from "@/lib/format";
-import { useQuery } from "@/lib/mock-api";
+import { selectResultForMatch, useQuery } from "@/lib/mock-api";
 import type { Match, MatchResult } from "@/lib/types";
 
 interface Row {
@@ -31,7 +33,7 @@ export default function GamesPage() {
         match,
         sideA: side(match.side_a),
         sideB: side(match.side_b),
-        result: db.match_results.find((r) => r.match_id === match.match_id) ?? null,
+        result: selectResultForMatch(db, match.match_id),
         league: match.league_id ? (db.mini_leagues.find((l) => l.league_id === match.league_id)?.name ?? `${match.league_id} (deleted)`) : null,
         openDisputes: disputes.filter((d) => d.status === "open").length,
         disputes: disputes.length,
@@ -93,6 +95,8 @@ export default function GamesPage() {
   ];
 
   const disputed = rows.filter((r) => r.openDisputes > 0).length;
+  const flags = useQuery((db) => [...db.result_flags].sort((a, b) => b.created_at.localeCompare(a.created_at)));
+  const statusOptions = [...new Set(rows.map((r) => r.match.status))].sort();
 
   return (
     <>
@@ -101,6 +105,18 @@ export default function GamesPage() {
         meta={<LiveIndicator />}
         description={`${rows.length} matches · ${disputed} with an open dispute. Read-only: results are confirmed by players.`}
       />
+      {flags.length > 0 && (
+        <Card className="mb-5">
+          <CardHeader
+            title={`Result flags (${flags.length})`}
+            description="Unusual results the rating engine noticed. Informational only: flags never reject a result, and there's nothing to resolve here."
+          />
+          <CardBody>
+            <ResultFlagList flags={flags.slice(0, 5)} linkToMatch />
+            {flags.length > 5 && <p className="mt-3 text-xs text-ink-muted">Showing the 5 most recent. Each game page lists its own flags.</p>}
+          </CardBody>
+        </Card>
+      )}
       <DataTable
         caption="Matches"
         rows={rows}
@@ -113,7 +129,7 @@ export default function GamesPage() {
           {
             id: "status",
             label: "Status",
-            options: (["scheduled", "awaiting_result", "completed", "disputed"] as const).map((s) => ({ value: s, label: humanize(s) })),
+            options: statusOptions.map((s) => ({ value: s, label: humanize(s) })),
             getValue: (r) => r.match.status,
           },
           {

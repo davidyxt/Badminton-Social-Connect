@@ -4,19 +4,24 @@
  * Loads the admin API into the console's store, so every page keeps reading
  * through `useQuery(db => ...)` whichever backend is active.
  *
- * Reads use the team-contract table routes (camelCase, same names as the
- * v1.2 spec). Values the database doesn't have yet are filled with neutral
- * defaults and flagged in lib/api/capabilities.ts, never invented: e.g. every
- * player is "active" because no suspension state exists yet.
+ * Targets the Player BE-2 0.4 schema (branch admin-api/player-be2-integration).
+ * Game posts and the user directory come from the console routes (snake_case,
+ * real database names); the other tables come from the camelCase table routes,
+ * reading their current field names (`username`, `organiserGroupId`, …) rather
+ * than the older aliases. Values the database doesn't have yet are left empty
+ * and flagged in lib/api/capabilities.ts, never invented: e.g. every player is
+ * "active" because no suspension state exists yet.
  */
 import { useSyncExternalStore } from "react";
-import { humanize } from "@/lib/format";
+import { CATEGORY_LABEL, humanize } from "@/lib/format";
 import { commit } from "@/lib/mock-api/store";
 import { isApiError } from "@/lib/mock-api/errors";
 import type {
   AdminPost,
+  DeletedRecord,
   Dispute,
   GamePost,
+  Group,
   LeagueStanding,
   Match,
   MatchResult,
@@ -25,13 +30,16 @@ import type {
   Player,
   PlayerProfile,
   Ranking,
+  RankingHistoryPoint,
   Report,
+  ReportCategory,
   ReportTargetType,
+  ResultFlag,
 } from "@/lib/types";
 import { consoleGet, readTable } from "./client";
 
 // ---------------------------------------------------------------------------
-// Team-contract row shapes (docs/admin-api.md, supabase/functions/admin-api/contract.mjs)
+// Row shapes (docs/admin-api.md; supabase/functions/admin-api/contract.mjs and console.mjs)
 // ---------------------------------------------------------------------------
 
 interface Versioned {
@@ -39,7 +47,14 @@ interface Versioned {
   updatedBy?: string | null;
   createdAt?: string | null;
 }
-type ApiPlayer = Versioned & { playerId: string; displayName: string; selfRatingBand: string; isVerified: boolean; joinedAt: string };
+type ApiPlayer = Versioned & {
+  playerId: string;
+  username: string | null;
+  selfRatingBand: string;
+  isVerified: boolean;
+  joinedAt: string;
+  deletedAt: string | null;
+};
 type ApiProfile = Versioned & {
   playerId: string;
   bio: string | null;
@@ -50,18 +65,17 @@ type ApiProfile = Versioned & {
   noShowCount: number;
   isDiscoverable: boolean;
 };
-type ApiReport = Versioned & { reportId: string; reportedByPlayerId: string; targetType: string; targetId: string; reason: string; status: string };
-type ApiDispute = Versioned & { disputeId: string; matchId: string; reason: string; status: string; raisedBy: string | null };
-type ApiGamePost = Versioned & {
-  postId: string;
-  organiserId: string | null;
-  organiserClubId: string | null;
-  format: string;
-  suburb: string | null;
-  proposedTime: string;
+type ApiReport = Versioned & {
+  reportId: string;
+  reportedByPlayerId: string;
+  targetType: string;
+  targetId: string;
+  reason: string | null;
   status: string;
-  playerLimit: number | null;
+  category: string | null;
+  evidence: Record<string, unknown> | null;
 };
+type ApiDispute = Versioned & { disputeId: string; matchId: string; reason: string; status: string; raisedBy: string | null; resultId: string | null };
 type ApiLeague = Versioned & { leagueId: string; organiserId: string; name: string; startDate: string; endDate: string; status: string };
 type ApiMatch = Versioned & {
   matchId: string;
@@ -74,7 +88,18 @@ type ApiMatch = Versioned & {
   postId: string | null;
 };
 type ApiParticipant = { matchId: string; playerId: string; status: string; side: "a" | "b" };
-type ApiResult = Versioned & { resultId: string; matchId: string; score: string; status: string; winningSide: "a" | "b" | null; submittedBy: string | null };
+type ApiResult = Versioned & {
+  resultId: string;
+  matchId: string;
+  score: string;
+  status: string;
+  winningSide: "a" | "b" | null;
+  submittedBy: string | null;
+  games: [number, number][] | null;
+  confirmedBy: string | null;
+  confirmedAt: string | null;
+  excludedFromRanking: boolean | null;
+};
 type ApiStanding = { leagueId: string; playerId: string; wins: number; losses: number; points: number; position: number | null };
 type ApiRanking = { playerId: string; format: string; rankingPoints: number; band: string; verifiedGamesCount: number };
 type ApiAdminPost = Versioned & {
@@ -88,7 +113,37 @@ type ApiAdminPost = Versioned & {
   publishedAt: string | null;
 };
 type ApiVenue = { venueId: string; name: string; address: string | null };
-type ConsoleUser = { player_id: string; account?: { email: string | null } | null };
+type ApiGroup = { groupId: string; name: string };
+type ApiRatingHistory = {
+  playerId: string;
+  matchId: string;
+  playedAt: string;
+  ratingBefore: number;
+  ratingAfter: number;
+};
+type ApiFlag = { flagId: string; resultId: string; matchId: string; kind: ResultFlag["kind"]; detail: Record<string, unknown> | null; createdAt: string };
+/** Console /games row (snake_case, actual database states). */
+type ConsoleGame = {
+  post_id: string;
+  organiser_id: string | null;
+  organiser_group_id: string | null;
+  format: string;
+  suburb: string | null;
+  proposed_time: string;
+  status: string;
+  created_at: string;
+  player_limit: number | null;
+  venue_id: string | null;
+  duration_minutes: number | null;
+  ability_level: string | null;
+  notes: string | null;
+  title: string | null;
+  deleted_at: string | null;
+  deleted_by: string | null;
+  deletion_reason: string | null;
+  club: { group_id: string; name: string } | null;
+};
+type ConsoleUser = { player_id: string; registration?: { registered_at: string | null } | null; account?: { email: string | null } | null };
 type DayCount = { date: string; count: number };
 type ConsoleAnalytics = { metrics: Record<string, { by_day: DayCount[]; previous_by_day: DayCount[] }> };
 
@@ -98,16 +153,16 @@ type ConsoleAnalytics = { metrics: Record<string, { by_day: DayCount[]; previous
 
 /** Report `under_review` is serialized as `reviewing`; the console queue treats both open states as pending. */
 const reportStatus = (s: string): Report["status"] => (s === "resolved" || s === "dismissed" ? s : "pending");
-/** The adapter serializes game `completed` as `closed`. */
-const gameStatus = (s: string): GamePost["status"] => (s === "completed" ? "closed" : (s as GamePost["status"]));
 const side = (s: "a" | "b" | null): "A" | "B" | null => (s ? (s.toUpperCase() as "A" | "B") : null);
+const isEmpty = (o: Record<string, unknown> | null | undefined) => !o || Object.keys(o).length === 0;
 
-function mapDatabase(raw: {
+interface RawData {
   players: ApiPlayer[];
+  users: ConsoleUser[];
   profiles: ApiProfile[];
   reports: ApiReport[];
   disputes: ApiDispute[];
-  posts: ApiGamePost[];
+  games: ConsoleGame[];
   leagues: ApiLeague[];
   matches: ApiMatch[];
   participants: ApiParticipant[];
@@ -116,66 +171,105 @@ function mapDatabase(raw: {
   rankings: ApiRanking[];
   adminPosts: ApiAdminPost[];
   venues: ApiVenue[];
-  emails: Map<string, string>;
+  groups: ApiGroup[];
+  ratingHistory: ApiRatingHistory[];
+  flags: ApiFlag[];
   analytics: Record<string, { date: string; value: number }[]>;
-}): MockDatabase {
-  const venues = new Map(raw.venues.map((v) => [v.venueId, v.name]));
+}
 
-  const players: Player[] = raw.players.map((p) => ({
-    player_id: p.playerId,
-    display_name: p.displayName,
-    self_rating_band: humanize(p.selfRatingBand),
-    is_verified: p.isVerified,
-    joined_at: p.joinedAt,
-    // No suspension state exists in the database yet (handoff DB02).
-    status: "active",
-    email: raw.emails.get(p.playerId) ?? "",
-  }));
+function mapDatabase(raw: RawData): MockDatabase {
+  const venues = new Map(raw.venues.map((v) => [v.venueId, v.name]));
+  const users = new Map(raw.users.map((u) => [u.player_id, u]));
+
+  const players: Player[] = raw.players.map((p) => {
+    const user = users.get(p.playerId);
+    return {
+      player_id: p.playerId,
+      // Deleted accounts are anonymised; players who haven't finished registering may not have picked a username yet.
+      display_name: p.username ?? (p.deletedAt ? "Deleted player" : "No username yet"),
+      self_rating_band: humanize(p.selfRatingBand),
+      is_verified: p.isVerified,
+      joined_at: p.joinedAt,
+      // No suspension state exists in the database yet (handoff DB02).
+      status: "active",
+      email: user?.account?.email ?? "",
+      registration_state: p.deletedAt ? "deleted" : user?.registration?.registered_at ? "registered" : "registration_pending",
+      deleted_at: p.deletedAt,
+    };
+  });
 
   const player_profiles: PlayerProfile[] = raw.profiles.map((p) => ({
     player_id: p.playerId,
     bio: p.bio ?? "",
     suburb: p.suburb ?? "",
     state: p.state ?? "",
-    // The adapter converts the database's 0-100 score to the spec's 0-1 scale.
+    // The table route converts the database's 0-100 score to the spec's 0-1 scale.
     reliability_score: Math.round(p.reliabilityScore * 100),
     games_played: p.gamesPlayed,
     no_show_count: p.noShowCount,
     is_discoverable: p.isDiscoverable,
   }));
 
-  const reports: Report[] = raw.reports.map((r) => ({
-    report_id: r.reportId,
-    reported_by_player_id: r.reportedByPlayerId,
-    target_type: r.targetType as ReportTargetType,
-    target_id: r.targetId,
-    reason: r.reason,
-    status: reportStatus(r.status),
-    created_at: r.createdAt ?? "",
-    details: "",
-    resolution_note: null,
-    reviewed_at: r.status === "resolved" || r.status === "dismissed" ? (r.updatedAt ?? null) : null,
-  }));
+  const reports: Report[] = raw.reports.map((r) => {
+    const category = (r.category ?? "other") as ReportCategory;
+    return {
+      report_id: r.reportId,
+      reported_by_player_id: r.reportedByPlayerId,
+      target_type: r.targetType as ReportTargetType,
+      target_id: r.targetId,
+      // The category is the report's headline; the reporter's optional text is the details.
+      reason: CATEGORY_LABEL[category] ?? humanize(category),
+      category,
+      details: r.reason ?? "",
+      evidence: isEmpty(r.evidence) ? null : r.evidence,
+      status: reportStatus(r.status),
+      created_at: r.createdAt ?? "",
+      resolution_note: null,
+      reviewed_at: r.status === "resolved" || r.status === "dismissed" ? (r.updatedAt ?? null) : null,
+    };
+  });
 
-  const game_posts: GamePost[] = raw.posts.map((p) => ({
-    post_id: p.postId,
-    organiser_id: p.organiserId ?? "",
-    organiser_club_id: p.organiserClubId,
+  const toPost = (g: ConsoleGame): GamePost => ({
+    post_id: g.post_id,
+    organiser_id: g.organiser_id ?? "",
+    organiser_group_id: g.organiser_group_id,
+    organiser_group_name: g.club?.name ?? null,
     group_id: null,
-    format: p.format === "singles" ? "singles" : "doubles",
-    suburb: p.suburb ?? "",
-    proposed_time: p.proposedTime,
-    status: gameStatus(p.status),
-    title: `${humanize(p.format)} game${p.suburb ? ` in ${p.suburb}` : ""}`,
-    notes: "",
-    venue: "",
-    skill_band: "",
-    spots_total: p.playerLimit,
+    format: g.format === "singles" ? "singles" : "doubles",
+    suburb: g.suburb ?? "",
+    proposed_time: g.proposed_time,
+    status: g.status as GamePost["status"],
+    title: g.title?.trim() || `${humanize(g.format)} game${g.suburb ? ` in ${g.suburb}` : ""}`,
+    notes: g.notes ?? "",
+    venue: (g.venue_id && venues.get(g.venue_id)) || "",
+    skill_band: g.ability_level ? humanize(g.ability_level) : "",
+    spots_total: g.player_limit,
     spots_filled: null,
-    created_at: p.createdAt ?? "",
+    duration_minutes: g.duration_minutes,
+    created_at: g.created_at,
+    deleted_at: g.deleted_at,
+    deletion_reason: g.deletion_reason,
     status_before_hidden: null,
     hidden_by_account_suspension: false,
-  }));
+  });
+  // Deleted posts are retained for history; the console lists them under Deleted records only.
+  const game_posts = raw.games.filter((g) => !g.deleted_at).map(toPost);
+  const deleted_records: DeletedRecord[] = raw.games
+    .filter((g) => g.deleted_at)
+    .map((g) => {
+      const post = toPost(g);
+      return {
+        deleted_id: `del-${g.post_id}`,
+        target_type: "game_post" as const,
+        target_id: g.post_id,
+        label: post.title,
+        owner_id: g.organiser_id ?? g.organiser_group_id ?? "",
+        reason: g.deletion_reason ?? "",
+        deleted_by: g.deleted_by ?? "",
+        deleted_at: g.deleted_at as string,
+      };
+    })
+    .sort((a, b) => b.deleted_at.localeCompare(a.deleted_at));
 
   const league_standings: LeagueStanding[] = raw.standings.map((s) => ({
     league_id: s.leagueId,
@@ -228,6 +322,10 @@ function mapDatabase(raw: {
     winning_side: side(r.winningSide),
     submitted_by: r.submittedBy,
     submitted_at: r.createdAt ?? "",
+    games: r.games ?? [],
+    confirmed_by: r.confirmedBy,
+    confirmed_at: r.confirmedAt,
+    excluded_from_ranking: r.excludedFromRanking ?? false,
   }));
 
   const disputes: Dispute[] = raw.disputes.map((d) => ({
@@ -237,6 +335,7 @@ function mapDatabase(raw: {
     status: d.status as Dispute["status"],
     raised_by: d.raisedBy,
     created_at: d.createdAt ?? "",
+    result_id: d.resultId,
   }));
 
   const rankings: Ranking[] = raw.rankings
@@ -248,6 +347,29 @@ function mapDatabase(raw: {
       band: humanize(r.band),
       verified_games_count: r.verifiedGamesCount,
     }));
+
+  // The shared rating engine rates singles; one row per rated result, oldest first.
+  const ranking_history: RankingHistoryPoint[] = raw.ratingHistory
+    .map((h) => ({
+      player_id: h.playerId,
+      format: "singles" as const,
+      recorded_at: h.playedAt,
+      ranking_points: Math.round(h.ratingAfter),
+      ranking_points_before: Math.round(h.ratingBefore),
+      match_id: h.matchId,
+    }))
+    .sort((a, b) => a.recorded_at.localeCompare(b.recorded_at));
+
+  const result_flags: ResultFlag[] = raw.flags.map((f) => ({
+    flag_id: f.flagId,
+    result_id: f.resultId,
+    match_id: f.matchId,
+    kind: f.kind,
+    detail: f.detail ?? {},
+    created_at: f.createdAt,
+  }));
+
+  const groups: Group[] = raw.groups.map((g) => ({ group_id: g.groupId, name: g.name }));
 
   const admin_posts: AdminPost[] = raw.adminPosts.map((a) => ({
     admin_post_id: a.adminPostId,
@@ -269,10 +391,12 @@ function mapDatabase(raw: {
     matches,
     match_results,
     disputes,
-    // Unavailable until the database has these (handoff DB01, DB05, DB07).
+    // Unavailable until the database has an event log (handoff DB01).
     activity_log: [],
-    deleted_records: [],
-    ranking_history: [],
+    deleted_records,
+    ranking_history,
+    result_flags,
+    groups,
     admin_posts,
     rankings,
     league_standings,
@@ -284,14 +408,15 @@ function mapDatabase(raw: {
 // Loading
 // ---------------------------------------------------------------------------
 
-async function loadEmails(): Promise<Map<string, string>> {
-  const emails = new Map<string, string>();
-  for (let page = 1; page <= 50; page++) {
-    const res = await consoleGet<ConsoleUser[]>("/users", { include: "account", limit: 100, page });
-    for (const u of res.data) if (u.account?.email) emails.set(u.player_id, u.account.email);
+/** Read every page of a console list route (max 100 rows per page). */
+async function readConsoleList<T>(path: string, query: Record<string, string | number> = {}): Promise<T[]> {
+  const rows: T[] = [];
+  for (let page = 1; page <= 200; page++) {
+    const res = await consoleGet<T[]>(path, { ...query, limit: 100, page });
+    rows.push(...res.data);
     if (!res.pagination || page * res.pagination.limit >= res.pagination.total) break;
   }
-  return emails;
+  return rows;
 }
 
 /** The API serves at most 90 days per request plus the preceding 90, so one call covers 180 days. */
@@ -325,13 +450,13 @@ async function optional<T>(load: () => Promise<T>, fallback: T): Promise<T> {
 }
 
 export async function loadFromApi(): Promise<MockDatabase> {
-  const [players, profiles, reports, disputes, posts, leagues, matches, participants, results, standings, rankings, adminPosts, venues] =
+  const [players, profiles, reports, disputes, games, leagues, matches, participants, results, standings, rankings, adminPosts, venues] =
     await Promise.all([
       readTable<ApiPlayer>("player"),
       readTable<ApiProfile>("player_profile"),
       readTable<ApiReport>("report"),
       readTable<ApiDispute>("dispute"),
-      readTable<ApiGamePost>("game_post"),
+      readConsoleList<ConsoleGame>("/games"),
       readTable<ApiLeague>("mini_league"),
       readTable<ApiMatch>("match"),
       readTable<ApiParticipant>("match_participant"),
@@ -341,8 +466,34 @@ export async function loadFromApi(): Promise<MockDatabase> {
       readTable<ApiAdminPost>("admin_post"),
       readTable<ApiVenue>("venue"),
     ]);
-  const [emails, analytics] = await Promise.all([optional(loadEmails, new Map<string, string>()), optional(loadAnalytics, {})]);
-  return mapDatabase({ players, profiles, reports, disputes, posts, leagues, matches, participants, results, standings, rankings, adminPosts, venues, emails, analytics });
+  const [users, groups, ratingHistory, flags, analytics] = await Promise.all([
+    // Emails and registration state: one Auth lookup per player, so this is the slowest read.
+    optional(() => readConsoleList<ConsoleUser>("/users", { include: "account" }), []),
+    optional(() => readTable<ApiGroup>("groups"), []),
+    optional(() => readTable<ApiRatingHistory>("rating_history"), []),
+    optional(() => readTable<ApiFlag>("result_flag"), []),
+    optional(loadAnalytics, {}),
+  ]);
+  return mapDatabase({
+    players,
+    users,
+    profiles,
+    reports,
+    disputes,
+    games,
+    leagues,
+    matches,
+    participants,
+    results,
+    standings,
+    rankings,
+    adminPosts,
+    venues,
+    groups,
+    ratingHistory,
+    flags,
+    analytics,
+  });
 }
 
 // ---------------------------------------------------------------------------

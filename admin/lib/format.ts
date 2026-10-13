@@ -24,9 +24,26 @@ export const TARGET_TYPE_LABEL: Record<string, string> = {
   mini_league: "Mini League",
   report: "Report",
   match: "Match",
-  club: "Club",
+  group: "Group",
   dispute: "Dispute",
   admin_post: "Carousel card",
+};
+
+/** Report categories as the player app offers them. */
+export const CATEGORY_LABEL: Record<string, string> = {
+  harassment: "Harassment",
+  inappropriate_content: "Inappropriate content",
+  fake_account: "Fake account",
+  spam: "Spam",
+  safety_concern: "Safety concern",
+  underage: "Underage player",
+  other: "Other",
+};
+
+export const RESULT_FLAG_LABEL: Record<string, string> = {
+  repeat_pairing: "Repeat pairing",
+  unusual_win_pattern: "Unusual win pattern",
+  rating_swing: "Large rating swing",
 };
 
 export const ACTION_LABEL: Record<string, string> = {

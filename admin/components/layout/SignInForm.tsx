@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/shared/Button";
 import { useSession } from "@/lib/auth/session";
+import { resetIdleTimer } from "@/lib/auth/useIdleTimeout";
 import { IS_API } from "@/lib/config";
 
 const inputClass =
@@ -26,6 +27,8 @@ export function SignInForm({ submitLabel = "Sign in" }: { submitLabel?: string }
     if (next.email || next.password) return;
     setSubmitting(true);
     try {
+      // Reset first so the guard doesn't treat the old idle window as expired.
+      resetIdleTimer();
       await session.signIn(email, password);
     } catch (err) {
       setErrors({ form: err instanceof Error ? err.message : "Couldn't sign in. Try again." });

@@ -45,8 +45,16 @@ export const selectMiniLeague = (db: MockDatabase, leagueId: string) =>
 
 export const selectMatch = (db: MockDatabase, matchId: string) => db.matches.find((m) => m.match_id === matchId) ?? null;
 
-export const selectResultForMatch = (db: MockDatabase, matchId: string) =>
-  db.match_results.find((r) => r.match_id === matchId) ?? null;
+/** A match can have several submissions; prefer the confirmed one, then the most recent. */
+export function selectResultForMatch(db: MockDatabase, matchId: string) {
+  const results = db.match_results.filter((r) => r.match_id === matchId);
+  return results.find((r) => r.status === "confirmed") ?? [...results].sort((a, b) => b.submitted_at.localeCompare(a.submitted_at))[0] ?? null;
+}
+
+export const selectResult = (db: MockDatabase, resultId: string | null) =>
+  resultId ? (db.match_results.find((r) => r.result_id === resultId) ?? null) : null;
+
+export const selectFlagsForMatch = (db: MockDatabase, matchId: string) => db.result_flags.filter((f) => f.match_id === matchId);
 
 export const selectDisputesForMatch = (db: MockDatabase, matchId: string) => db.disputes.filter((d) => d.match_id === matchId);
 

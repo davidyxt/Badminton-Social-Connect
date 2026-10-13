@@ -76,7 +76,7 @@ function GamePostModeration() {
       cell: (r) => (
         <div className="min-w-0">
           <div className={`font-medium ${r.post.post_id === selectedId ? "text-brand" : "text-ink"}`}>{r.post.title}</div>
-          <div className="text-xs text-ink-muted">by {r.organiser?.display_name ?? r.post.organiser_id}</div>
+          <div className="text-xs text-ink-muted">by {r.post.organiser_group_name ?? r.organiser?.display_name ?? (r.post.organiser_id || "a group")}</div>
         </div>
       ),
     },
@@ -121,7 +121,7 @@ function GamePostModeration() {
         columns={columns}
         getRowId={(r) => r.post.post_id}
         rowHref={(r) => `${BASE}?post=${r.post.post_id}`}
-        getSearchText={(r) => `${r.post.title} ${r.organiser?.display_name ?? ""} ${r.post.suburb} ${r.post.venue} ${r.post.post_id}`}
+        getSearchText={(r) => `${r.post.title} ${r.organiser?.display_name ?? ""} ${r.post.organiser_group_name ?? ""} ${r.post.suburb} ${r.post.venue} ${r.post.post_id}`}
         searchPlaceholder="Search title, organiser or suburb"
         filters={[
           {
@@ -253,7 +253,18 @@ function PostPanel({ postId, onClose }: { postId: string; onClose: () => void })
           )}
         </Card>
         <Card>
-          <CardHeader title="Activity" description={<>Organiser: <PlayerLink player={data.organiser} fallbackId={post.organiser_id} /></>} />
+          <CardHeader
+            title="Activity"
+            description={
+              post.organiser_group_id ? (
+                <>Organised by the group {post.organiser_group_name ?? post.organiser_group_id}</>
+              ) : (
+                <>
+                  Organiser: <PlayerLink player={data.organiser} fallbackId={post.organiser_id} />
+                </>
+              )
+            }
+          />
           <CardBody>
             <ActivityTimeline entries={data.activity} empty="No admin actions on this post yet." />
           </CardBody>

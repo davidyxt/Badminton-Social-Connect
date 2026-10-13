@@ -3,7 +3,7 @@
 Administrator web console (Next.js App Router, TypeScript, Tailwind CSS). It runs in one of two modes:
 
 - **mock** (default): every screen and action works against an in-memory mock data layer. No backend needed.
-- **api**: reads and writes the real `admin-api` Supabase Edge Function (branch `admin-api/database-handoff`). Only what the backend supports today works; the rest is disabled with an explanation.
+- **api**: reads and writes the real `admin-api` Supabase Edge Function (branch `admin-api/player-be2-integration`, which needs the team's 50 database migrations). Only what the backend supports today works; the rest is disabled with an explanation.
 
 This is a separate app from the player app in `../frontend` (Vite + React).
 
@@ -21,7 +21,7 @@ Other scripts: `npm run build`, `npm run lint`.
 
 ## Running against the real admin API
 
-1. From a checkout of the `admin-api/database-handoff` branch (the function isn't on `main` yet), start Supabase locally and serve the function, allowing the console's origin (the function only allows `http://localhost:5173` by default):
+1. From a checkout of the `admin-api/player-be2-integration` branch (the function and its migrations aren't on `main` yet), start Supabase locally and serve the function, allowing the console's origin (the function only allows `http://localhost:5173` by default):
 
    ```bash
    npx supabase start
@@ -29,7 +29,7 @@ Other scripts: `npm run build`, `npm run lint`.
    npx supabase functions serve admin-api --env-file /tmp/admin-api.env
    ```
 
-2. Give your account the admin role. There is no admin registration endpoint: set `app_metadata.role = "admin"` on the user in Supabase Studio (Authentication → Users) or through the Auth admin API, then sign in again.
+2. Give your account the admin role. There is no admin registration endpoint: set `app_metadata.role = "admin"` on the user in Supabase Studio (Authentication → Users) or through the Auth admin API, then sign in again. The team's dev seed already has one: `admin@example.com` / `Passw0rd!`.
 
 3. Copy `.env.example` to `.env.local` and set:
 
@@ -45,12 +45,15 @@ What works in API mode today:
 
 | Area | API mode |
 | --- | --- |
-| Sign in / access restricted / session expired | Real Supabase Auth; `app_metadata.role = admin` required |
-| Overview, Users, Reports, Games & results, Rankings, Mini Leagues, Disputes | Read-only, real data, refreshed every 20s |
+| Sign in / access restricted / session expired | Real Supabase Auth; `app_metadata.role = admin` required. Admins are signed out after 30 idle minutes |
+| Overview, Users, Reports, Games & results, Rankings, Mini Leagues, Disputes | Read-only, real data, refreshed every 20s. Includes registration/deleted state, report categories and evidence snapshots, per-game scores, confirmations and result flags |
+| Ranking history | The shared rating engine's rating after each result |
+| Deleted records | Deleted game posts (kept for history); deleted Mini Leagues aren't stored yet |
 | Home carousel (`/content`) | Create, edit, publish/unpublish, reorder, remove. Images must be `https://` URLs (no upload endpoint yet) |
-| Analytics | New users and reports received only; other metrics show "Not tracked yet" |
-| Suspend/restore account, hide/restore/delete post, suspend/resume/close/delete league, resolve/dismiss report | Disabled: the backend returns 501 until the database changes in `docs/admin-database-handoff.md` (DB02–DB06) land |
-| Activity log, deleted records, ranking history | Empty with a notice (DB01, DB05, DB07) |
+| Analytics | New registrations and reports received only; other metrics show "Not tracked yet" |
+| Suspend/restore account, hide/restore post, suspend/resume/close/delete league, resolve/dismiss report | Disabled: the backend returns 501 until the database changes in its `docs/admin-database-handoff.md` (DB02–DB06) land |
+| Delete game post | Disabled: the backend blocks it (405) because its deletion would remove the game's results from rankings, which Final v6 doesn't allow |
+| Activity log | Empty with a notice (DB01) |
 | Disputes | Read-only in both modes: Final v6 lets admins review disputes but not resolve them (the API returns 405) |
 
 When the backend adds a capability, remove it from `lib/api/capabilities.ts` and the existing UI starts calling it.

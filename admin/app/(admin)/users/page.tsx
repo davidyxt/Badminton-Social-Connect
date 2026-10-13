@@ -45,14 +45,25 @@ export default function UsersPage() {
               {r.player.is_verified && <BadgeCheck className="size-4 text-brand" aria-label="Verified" />}
             </div>
             <div className="truncate text-xs text-ink-muted">
-              {r.player.email}
-              {r.profile && ` · ${r.profile.suburb}, ${r.profile.state}`}
+              {[r.player.email, [r.profile?.suburb, r.profile?.state].filter(Boolean).join(", ")].filter(Boolean).join(" · ")}
             </div>
           </div>
         </div>
       ),
     },
-    { id: "status", header: "Status", sortValue: (r) => r.player.status, cell: (r) => <StatusBadge status={r.player.status} /> },
+    {
+      id: "status",
+      header: "Status",
+      sortValue: (r) => `${r.player.registration_state}-${r.player.status}`,
+      cell: (r) =>
+        r.player.registration_state === "deleted" ? (
+          <StatusBadge status="deleted" label="Deleted" />
+        ) : r.player.registration_state === "registration_pending" ? (
+          <StatusBadge status="pending" label="Registration pending" />
+        ) : (
+          <StatusBadge status={r.player.status} />
+        ),
+    },
     { id: "band", header: "Rating band", sortValue: (r) => r.player.self_rating_band, cell: (r) => r.player.self_rating_band },
     {
       id: "reliability",
@@ -106,9 +117,19 @@ export default function UsersPage() {
             getValue: (r) => r.player.status,
           },
           {
+            id: "account",
+            label: "Account",
+            options: [
+              { value: "registered", label: "Registered" },
+              { value: "registration_pending", label: "Registration pending" },
+              { value: "deleted", label: "Deleted" },
+            ],
+            getValue: (r) => r.player.registration_state,
+          },
+          {
             id: "band",
             label: "Band",
-            options: ["Beginner", "Intermediate", "Advanced"].map((b) => ({ value: b, label: b })),
+            options: [...new Set(rows.map((r) => r.player.self_rating_band))].sort().map((b) => ({ value: b, label: b })),
             getValue: (r) => r.player.self_rating_band,
           },
           {

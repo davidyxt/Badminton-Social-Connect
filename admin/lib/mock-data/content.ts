@@ -1,10 +1,27 @@
-import type { DeletedRecord, GamePost, MiniLeague } from "@/lib/types";
+import type { DeletedRecord, GamePost, Group, MiniLeague } from "@/lib/types";
+
+export const groups: Group[] = [{ group_id: "grp-6001", name: "Richmond Smashers" }];
 
 const post = (
-  p: Omit<GamePost, "group_id" | "organiser_club_id" | "status_before_hidden" | "hidden_by_account_suspension"> & Partial<GamePost>,
+  p: Omit<
+    GamePost,
+    | "group_id"
+    | "organiser_group_id"
+    | "organiser_group_name"
+    | "duration_minutes"
+    | "deleted_at"
+    | "deletion_reason"
+    | "status_before_hidden"
+    | "hidden_by_account_suspension"
+  > &
+    Partial<GamePost>,
 ): GamePost => ({
   group_id: null,
-  organiser_club_id: null,
+  organiser_group_id: null,
+  organiser_group_name: null,
+  duration_minutes: 120,
+  deleted_at: null,
+  deletion_reason: null,
   status_before_hidden: null,
   hidden_by_account_suspension: false,
   ...p,
@@ -23,7 +40,7 @@ export const gamePosts: GamePost[] = [
   post({ post_id: "gp-3010", organiser_id: "plr-1009", format: "doubles", suburb: "Doncaster", venue: "Doncaster Leisure Centre", proposed_time: "2026-10-17T07:30:00Z", status: "open", title: "Beginner-friendly doubles", notes: "Relaxed games, happy to explain rules.", skill_band: "Beginner", spots_total: 4, spots_filled: 1, created_at: "2026-10-09T08:40:00Z" }),
   post({ post_id: "gp-3011", organiser_id: "plr-1005", format: "doubles", suburb: "Glen Waverley", venue: "Waverley Badminton Centre", proposed_time: "2026-10-18T09:00:00Z", status: "hidden", status_before_hidden: "open", title: "Doubles - no time wasters", notes: "Last three people who joined didn't show. Don't join if you're going to flake.", skill_band: "Intermediate", spots_total: 4, spots_filled: 1, created_at: "2026-10-02T13:25:00Z" }),
   post({ post_id: "gp-3012", organiser_id: "plr-1020", format: "doubles", suburb: "Newtown", venue: "Newtown Community Hall", proposed_time: "2026-10-19T08:00:00Z", status: "open", title: "Casual Sunday doubles", notes: "Chill games then coffee.", skill_band: "Intermediate", spots_total: 4, spots_filled: 2, created_at: "2026-10-09T19:50:00Z" }),
-  post({ post_id: "gp-3013", organiser_id: "plr-1013", format: "singles", suburb: "Richmond", venue: "Richmond Rec Centre", proposed_time: "2026-10-20T08:00:00Z", status: "open", title: "Singles round robin", notes: "Small round robin for intermediate+ players.", skill_band: "Intermediate", spots_total: 2, spots_filled: 0, created_at: "2026-10-09T23:05:00Z" }),
+  post({ post_id: "gp-3013", organiser_id: "", organiser_group_id: "grp-6001", organiser_group_name: "Richmond Smashers", format: "singles", suburb: "Richmond", venue: "Richmond Rec Centre", proposed_time: "2026-10-20T08:00:00Z", status: "open", title: "Singles round robin", notes: "Small round robin for intermediate+ players.", skill_band: "Intermediate", spots_total: 2, spots_filled: 0, created_at: "2026-10-09T23:05:00Z" }),
 ];
 
 const league = (

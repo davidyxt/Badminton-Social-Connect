@@ -6,7 +6,7 @@ import { formatDate } from "@/lib/format";
 import { StatusBadge } from "./StatusBadge";
 
 export function Avatar({ name, size = "md" }: { name: string; size?: "sm" | "md" | "lg" }) {
-  const initials = name
+  const initials = (name || "?")
     .split(/\s+/)
     .map((p) => p[0])
     .slice(0, 2)
@@ -71,11 +71,11 @@ export function PlayerProfileCard({
               <StatusBadge status={player.status} />
             </div>
             <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-sm text-ink-muted">
-              <span>{player.email}</span>
-              {profile && (
+              {player.email && <span>{player.email}</span>}
+              {profile && (profile.suburb || profile.state) && (
                 <span className="inline-flex items-center gap-1">
                   <MapPin className="size-3.5" aria-hidden />
-                  {profile.suburb}, {profile.state}
+                  {[profile.suburb, profile.state].filter(Boolean).join(", ")}
                 </span>
               )}
               <span>Joined {formatDate(player.joined_at)}</span>

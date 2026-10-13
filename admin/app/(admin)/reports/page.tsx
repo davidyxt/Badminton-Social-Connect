@@ -8,7 +8,7 @@ import { LiveIndicator } from "@/components/shared/LiveIndicator";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Tabs } from "@/components/shared/Tabs";
-import { formatDateTime, TARGET_TYPE_LABEL } from "@/lib/format";
+import { CATEGORY_LABEL, formatDateTime, TARGET_TYPE_LABEL } from "@/lib/format";
 import { useQuery } from "@/lib/mock-api";
 import type { Report, ReportStatus } from "@/lib/types";
 
@@ -18,7 +18,7 @@ interface Row {
   target: string;
 }
 
-const TARGET_ICON = { player: UserRound, game_post: Gamepad2, mini_league: Trophy, match: Swords, admin_post: Images, club: Building2 };
+const TARGET_ICON = { player: UserRound, game_post: Gamepad2, mini_league: Trophy, match: Swords, admin_post: Images, group: Building2 };
 
 /** Screens 17 (queue) and 18 (no matching reports). */
 export default function ReportsPage() {
@@ -35,6 +35,7 @@ export default function ReportsPage() {
         const m = db.matches.find((x) => x.match_id === r.target_id);
         return m ? [m.side_a, m.side_b].map((ids) => ids.map((id) => names.get(id) ?? id).join(" & ")).join(" vs ") : `${r.target_id} (deleted)`;
       }
+      if (r.target_type === "group") return db.groups.find((g) => g.group_id === r.target_id)?.name ?? r.target_id;
       return r.target_id;
     };
     const rows: Row[] = db.reports.map((report) => ({
@@ -66,7 +67,8 @@ export default function ReportsPage() {
       header: "Reported",
       sortValue: (r) => r.target,
       cell: (r) => {
-        const Icon = TARGET_ICON[r.report.target_type];
+        // Fall back for any target type added to the database later.
+        const Icon = TARGET_ICON[r.report.target_type] ?? Flag;
         return (
           <div className="flex items-center gap-2">
             <Icon className="size-4 shrink-0 text-ink-faint" aria-hidden />
@@ -126,9 +128,15 @@ export default function ReportsPage() {
               { value: "mini_league", label: "Mini League" },
               { value: "match", label: "Match" },
               { value: "admin_post", label: "Carousel card" },
-              { value: "club", label: "Club" },
+              { value: "group", label: "Group" },
             ],
             getValue: (r) => r.report.target_type,
+          },
+          {
+            id: "category",
+            label: "Category",
+            options: Object.entries(CATEGORY_LABEL).map(([value, label]) => ({ value, label })),
+            getValue: (r) => r.report.category,
           },
         ]}
         initialSort={{ columnId: "created", direction: tab === "pending" ? "asc" : "desc" }}

@@ -9,8 +9,12 @@
 
 export type PlayerStatus = "active" | "suspended";
 
+/** From the database: registration completes after sign-up; deleted accounts are anonymised but retained. */
+export type RegistrationState = "registered" | "registration_pending" | "deleted";
+
 export interface Player {
   player_id: string;
+  /** The player's username (the database renamed display_name to username). */
   display_name: string;
   self_rating_band: string;
   is_verified: boolean;
@@ -18,6 +22,10 @@ export interface Player {
   status: PlayerStatus;
   /** extension: shown in the directory and profile header */
   email: string;
+  /** extension */
+  registration_state: RegistrationState;
+  /** extension */
+  deleted_at: string | null;
 }
 
 export interface PlayerProfile {
@@ -31,8 +39,9 @@ export interface PlayerProfile {
   is_discoverable: boolean;
 }
 
-/** mini_league is in the PRD but not yet allowed by the database; match, admin_post and club are. */
-export type ReportTargetType = "player" | "game_post" | "mini_league" | "match" | "admin_post" | "club";
+export type ReportTargetType = "player" | "game_post" | "mini_league" | "match" | "admin_post" | "group";
+
+export type ReportCategory = "harassment" | "inappropriate_content" | "fake_account" | "spam" | "safety_concern" | "underage" | "other";
 export type ReportStatus = "pending" | "resolved" | "dismissed";
 
 export interface Report {
@@ -40,26 +49,33 @@ export interface Report {
   reported_by_player_id: string;
   target_type: ReportTargetType;
   target_id: string;
+  /** Short label shown as the report's title (the category label when the reporter gave no text). */
   reason: string;
   status: ReportStatus;
   created_at: string;
+  /** extension: the reporter's category */
+  category: ReportCategory;
   /** extension: longer free-text from the reporter */
   details: string;
+  /** extension: snapshot of the reported content captured when the report was filed; null when none was stored */
+  evidence: Record<string, unknown> | null;
   /** extension: admin's note recorded with the outcome (screens 22/23) */
   resolution_note: string | null;
   /** extension */
   reviewed_at: string | null;
 }
 
-/** "closed" is how the admin API serializes the database's completed. "hidden" has no database support yet. */
-export type GamePostStatus = "open" | "full" | "cancelled" | "closed" | "hidden";
+/** Database lifecycle states, plus "hidden", which has no database support yet. Deletion is separate (deleted_at). */
+export type GamePostStatus = "open" | "full" | "cancelled" | "completed" | "hidden";
 
 export interface GamePost {
   post_id: string;
-  /** Player organiser; empty when a club organises the post. */
+  /** Player organiser; empty when a group organises the post. */
   organiser_id: string;
-  /** extension: set instead of organiser_id for club-organised posts */
-  organiser_club_id: string | null;
+  /** extension: set instead of organiser_id for group-organised posts */
+  organiser_group_id: string | null;
+  /** extension */
+  organiser_group_name: string | null;
   group_id: string | null;
   format: "singles" | "doubles";
   suburb: string;
@@ -79,6 +95,12 @@ export interface GamePost {
   spots_filled: number | null;
   /** extension */
   created_at: string;
+  /** extension */
+  duration_minutes: number | null;
+  /** extension: retained deletion (the post is kept for history but removed from players' view) */
+  deleted_at: string | null;
+  /** extension */
+  deletion_reason: string | null;
   /** extension: status before it was hidden, so restore returns it there */
   status_before_hidden: Exclude<GamePostStatus, "hidden"> | null;
   /** extension: hidden as a side effect of admin_suspend_account, so restore_account reverses it */
@@ -134,7 +156,7 @@ export interface Match {
   venue: string;
 }
 
-export type MatchResultStatus = "pending" | "confirmed" | "disputed" | "rejected";
+export type MatchResultStatus = "pending" | "confirmed" | "disputed" | "rejected" | "expired";
 
 export interface MatchResult {
   result_id: string;
@@ -147,6 +169,14 @@ export interface MatchResult {
   submitted_by: string | null;
   /** extension */
   submitted_at: string;
+  /** extension: points per game as [side A, side B] pairs */
+  games: [number, number][];
+  /** extension: the opposing player who confirmed the score */
+  confirmed_by: string | null;
+  /** extension */
+  confirmed_at: string | null;
+  /** extension: confirmed but left out of rating calculations */
+  excluded_from_ranking: boolean;
 }
 
 /**
@@ -164,6 +194,8 @@ export interface Dispute {
   raised_by: string | null;
   /** extension */
   created_at: string;
+  /** extension: the specific submitted result being disputed */
+  result_id: string | null;
 }
 
 export interface ActivityLog {
@@ -198,12 +230,31 @@ export interface Ranking {
   verified_games_count: number;
 }
 
-/** extension: rating over time for the profile Ranking history tab (screen 11) */
+/** extension: rating over time for the profile Ranking history tab (screen 11); one row per rated result */
 export interface RankingHistoryPoint {
   player_id: string;
   format: "singles" | "doubles";
   recorded_at: string;
+  /** rating after this result */
   ranking_points: number;
+  /** rating before this result */
+  ranking_points_before: number | null;
+  match_id: string | null;
+}
+
+/** extension: an anomaly the rating engine noticed. Informational: it never blocks or rejects a result. */
+export interface ResultFlag {
+  flag_id: string;
+  result_id: string;
+  match_id: string;
+  kind: "repeat_pairing" | "unusual_win_pattern" | "rating_swing";
+  detail: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface Group {
+  group_id: string;
+  name: string;
 }
 
 /** extension: per-league standings for the Mini League leaderboard (screen 16) */
@@ -250,6 +301,8 @@ export interface MockDatabase {
   ranking_history: RankingHistoryPoint[];
   league_standings: LeagueStanding[];
   deleted_records: DeletedRecord[];
+  result_flags: ResultFlag[];
+  groups: Group[];
   /** Daily counts per analytics metric; a metric missing here isn't tracked by the backend yet. */
   usage_analytics: Record<string, { date: string; value: number }[]>;
 }

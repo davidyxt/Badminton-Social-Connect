@@ -83,6 +83,22 @@ export default function PlayerProfilePage() {
 
       <BackendGapNotice message={featureGap("suspension")} />
 
+      {player.registration_state === "deleted" && (
+        <div className="mb-5">
+          <Notice tone="warning" title="Account deleted">
+            This player deleted their account{player.deleted_at ? ` on ${formatDate(player.deleted_at)}` : ""}. Their details were anonymised;
+            their games, results and reports are kept for history.
+          </Notice>
+        </div>
+      )}
+      {player.registration_state === "registration_pending" && (
+        <div className="mb-5">
+          <Notice title="Registration not finished">
+            This account signed up but hasn&apos;t completed registration, so it can&apos;t post or join games yet.
+          </Notice>
+        </div>
+      )}
+
       {/* Screen 12: suspended state */}
       {player.status === "suspended" && (
         <div className="mb-5">
@@ -116,7 +132,7 @@ export default function PlayerProfilePage() {
         profile={profile}
         ranking={data.singles}
         actions={
-          player.status === "active" ? (
+          player.registration_state === "deleted" ? null : player.status === "active" ? (
             <Button variant="danger" icon={<Ban className="size-4" aria-hidden />} disabledReason={unavailableReason("admin_suspend_account")} onClick={() => setDialog("suspend")}>
               Suspend account
             </Button>
@@ -213,7 +229,7 @@ export default function PlayerProfilePage() {
                 columns={1}
                 items={[
                   { label: "Bio", value: profile?.bio || "—" },
-                  { label: "Location", value: profile ? `${profile.suburb}, ${profile.state}` : "—" },
+                  { label: "Location", value: [profile?.suburb, profile?.state].filter(Boolean).join(", ") || "—" },
                   { label: "Discoverable", value: profile?.is_discoverable ? "Yes" : "No" },
                   { label: "Identity verified", value: player.is_verified ? "Yes" : "No" },
                   {
@@ -236,13 +252,13 @@ export default function PlayerProfilePage() {
       {tab === "ranking" && (
         <Card>
           {featureGap("rankingHistory") && (
-            <CardBody>
-              <BackendGapNotice message={featureGap("rankingHistory")} />
+            <CardBody className="pb-0">
+              <Notice>{featureGap("rankingHistory")}</Notice>
             </CardBody>
           )}
           <CardHeader
             title="Ranking history"
-            description="Weekly snapshots of ranking points. Read-only: ratings can't be edited from the console."
+            description="Rating after each rated result. Read-only: ratings can't be edited from the console."
             actions={
               <div className="inline-flex rounded-lg border border-line-strong p-0.5" role="group" aria-label="Format">
                 {(["singles", "doubles"] as const).map((f) => (

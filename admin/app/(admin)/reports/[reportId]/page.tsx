@@ -1,5 +1,6 @@
 "use client";
 
+import { EvidenceSnapshot } from "@/components/shared/EvidenceSnapshot";
 import { BackendGapNotice } from "@/components/shared/BackendGapNotice";
 import { unavailableReason } from "@/lib/api/capabilities";
 import Link from "next/link";
@@ -18,7 +19,7 @@ import { RecordNotFound } from "@/components/shared/NotFound";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PlayerLink, PlayerProfileCard } from "@/components/shared/PlayerProfileCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { formatDateTime, humanize, TARGET_TYPE_LABEL } from "@/lib/format";
+import { CATEGORY_LABEL, formatDateTime, humanize, TARGET_TYPE_LABEL } from "@/lib/format";
 import { useAdminAction } from "@/lib/hooks/useAdminAction";
 import {
   admin_hide_post,
@@ -77,6 +78,7 @@ export default function ReportDetailPage() {
         match,
         matchSides: match ? [match.side_a, match.side_b].map((ids) => ids.map((id) => names.get(id)?.display_name ?? id).join(" & ")) : null,
         adminPost,
+        group: report.target_type === "group" ? (db.groups.find((g) => g.group_id === report.target_id) ?? null) : null,
         deleted: !targetPlayer && !post && !league && !match && !adminPost ? selectDeletedRecord(db, report.target_id) : null,
         related: selectReportsForTarget(db, report.target_type, report.target_id).filter((r) => r.report_id !== report.report_id),
         activity: selectActivityFor(db, "report", report.report_id),
@@ -84,7 +86,7 @@ export default function ReportDetailPage() {
     });
 
   if (!data) return <RecordNotFound what="Report" backHref="/reports" backLabel="Back to reports" />;
-  const { report, targetPlayer, post, league, match, adminPost } = data;
+  const { report, targetPlayer, post, league, match, adminPost, group } = data;
   const pending = report.status === "pending";
 
   const opts = (success: string) => ({ success, onSuccess: close, onConflict: close });
@@ -113,7 +115,7 @@ export default function ReportDetailPage() {
       <BackendGapNotice
         message={
           pending && unavailableReason("admin_review_report")
-            ? "Resolving and dismissing aren't available yet: the database can't store the required review note (DB06). Account, post and league actions are disabled until DB02–DB04."
+            ? "Resolving and dismissing aren't available yet: the database can't store the required private review note (DB05). Account, post and league actions are disabled until DB02–DB04."
             : null
         }
       />
@@ -148,7 +150,7 @@ export default function ReportDetailPage() {
             <CardBody>
               <DetailList
                 items={[
-                  { label: "Reason", value: report.reason },
+                  { label: "Category", value: CATEGORY_LABEL[report.category] ?? report.category },
                   { label: "Reported by", value: <PlayerLink player={data.reporter} fallbackId={report.reported_by_player_id} /> },
                   { label: "Received", value: formatDateTime(report.created_at) },
                   { label: "Report ID", value: <span className="font-mono text-xs">{report.report_id}</span> },
@@ -160,6 +162,16 @@ export default function ReportDetailPage() {
                   <blockquote className="mt-1 rounded-lg border-l-4 border-line-strong bg-subtle px-4 py-3 text-sm text-ink">{report.details}</blockquote>
                 </div>
               )}
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader
+              title="Evidence"
+              description="What the reported content looked like when the report was filed. Compare it with the current version below."
+            />
+            <CardBody>
+              <EvidenceSnapshot evidence={report.evidence} />
             </CardBody>
           </Card>
 
@@ -261,11 +273,16 @@ export default function ReportDetailPage() {
               </Card>
             )}
 
-            {report.target_type === "club" && (
-              <Notice title={`Club ${report.target_id}`}>Club details aren&apos;t available from the admin API yet.</Notice>
+            {group && (
+              <Card>
+                <CardBody>
+                  <div className="font-semibold text-ink">{group.name}</div>
+                  <div className="text-sm text-ink-muted">Group · {group.group_id}</div>
+                </CardBody>
+              </Card>
             )}
 
-            {!targetPlayer && !post && !league && !match && !adminPost && report.target_type !== "club" && (
+            {!targetPlayer && !post && !league && !match && !adminPost && !group && (
               <Notice tone="warning" title="Content no longer exists">
                 {data.deleted
                   ? `"${data.deleted.label}" was deleted ${formatDateTime(data.deleted.deleted_at)}. Reason: ${data.deleted.reason}`

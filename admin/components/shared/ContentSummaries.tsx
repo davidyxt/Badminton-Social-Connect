@@ -18,6 +18,12 @@ export function GamePostSummary({ post, organiser, actions }: { post: GamePost; 
             {post.hidden_by_account_suspension && <StatusBadge status="suspended" label="Hidden by account suspension" tone="neutral" />}
           </div>
           {post.notes && <p className="mt-1 text-sm text-ink-muted">{post.notes}</p>}
+          {post.deleted_at && (
+            <p className="mt-1 text-sm text-danger">
+              Deleted {formatDateTime(post.deleted_at)}
+              {post.deletion_reason ? `: ${post.deletion_reason}` : ""}
+            </p>
+          )}
         </div>
         {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
       </div>
@@ -42,8 +48,8 @@ export function GamePostSummary({ post, organiser, actions }: { post: GamePost; 
         </span>
         <span className="inline-flex items-center gap-1.5">
           Organiser:{" "}
-          {post.organiser_club_id ? (
-            <span className="text-ink">Club {post.organiser_club_id.slice(0, 8)}</span>
+          {post.organiser_group_id ? (
+            <span className="text-ink">{post.organiser_group_name ?? "A group"}</span>
           ) : (
             <PlayerLink player={organiser} fallbackId={post.organiser_id} />
           )}

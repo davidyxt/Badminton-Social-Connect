@@ -19,6 +19,7 @@ import {
   selectMiniLeague,
   selectPlayer,
   selectPlayerMap,
+  selectResult,
   selectResultForMatch,
   useQuery,
 } from "@/lib/mock-api";
@@ -32,7 +33,8 @@ export default function DisputeDetailPage() {
     if (!dispute) return null;
     const match = selectMatch(db, dispute.match_id);
     const players = selectPlayerMap(db);
-    const result = match ? selectResultForMatch(db, match.match_id) : null;
+    // Disputes now point at the exact submission being disputed; fall back for older rows.
+    const result = selectResult(db, dispute.result_id) ?? (match ? selectResultForMatch(db, match.match_id) : null);
     return {
       dispute,
       match,
@@ -141,7 +143,7 @@ export default function DisputeDetailPage() {
                     ]}
                   />
                   <div className="border-t border-line pt-4">
-                    <div className="mb-3 text-sm font-semibold text-ink">Submitted result</div>
+                    <div className="mb-3 text-sm font-semibold text-ink">Disputed result</div>
                     {result ? (
                       <DetailList
                         items={[

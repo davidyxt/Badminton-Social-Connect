@@ -573,6 +573,7 @@ export function simulate_incoming_report(): void {
         created_at: now(),
         resolution_note: null,
         reviewed_at: null,
+        evidence: null,
       },
       ...db.reports,
     ],

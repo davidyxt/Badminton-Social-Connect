@@ -28,6 +28,8 @@ interface SessionContextValue extends SessionState {
   /** Resolves on success; throws an Error with a user-facing message otherwise. */
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => void;
+  /** End the session and show the session-expired screen (idle timeout). */
+  expire: () => void;
   simulateExpiry: () => void;
   simulateRestricted: () => void;
 }
@@ -121,16 +123,33 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, [update]);
 
+  const expire = useCallback(() => {
+    setState((prev) => {
+      const next: SessionState = { status: "expired", admin: prev?.admin ?? null };
+      if (!IS_API) {
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        } catch {
+          // Non-essential.
+        }
+      }
+      return next;
+    });
+    // Ending the Supabase session also clears the token; the auth listener keeps the expired state.
+    if (IS_API) void getSupabase().auth.signOut({ scope: "local" });
+  }, []);
+
   const value = useMemo<SessionContextValue | null>(() => {
     if (!state) return null;
     return {
       ...state,
       signIn,
       signOut,
+      expire,
       simulateExpiry: () => update({ status: "expired", admin: state.admin }),
       simulateRestricted: () => update({ status: "restricted", admin: state.admin }),
     };
-  }, [state, signIn, signOut, update]);
+  }, [state, signIn, signOut, expire, update]);
 
   // Nothing session-dependent can render until the stored session has been read.
   if (!value) return null;

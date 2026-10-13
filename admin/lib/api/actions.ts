@@ -58,7 +58,7 @@ export const api = {
     return findLeague(a.leagueId);
   },
   admin_delete_league: (a: { leagueId: string; reason: string }) => rpc<{ success: boolean }>("admin_delete_league", a),
-  // The spec takes no note yet; handoff DB06 proposes adding the required private note.
+  // The spec takes no note yet; handoff DB05 proposes adding the required private note.
   admin_review_report: async (a: { reportId: string; outcome: "resolved" | "dismissed" }) => {
     await rpc("admin_review_report", { reportId: a.reportId, outcome: a.outcome });
     return getDb().reports.find((r) => r.report_id === a.reportId) as Report;

@@ -7,6 +7,7 @@ import { AdminShell } from "@/components/layout/AdminShell";
 import { Button } from "@/components/shared/Button";
 import { syncNow, useSyncStatus } from "@/lib/api/sync";
 import { useSession, type SessionStatus } from "@/lib/auth/session";
+import { useIdleTimeout } from "@/lib/auth/useIdleTimeout";
 import { API_POLL_INTERVAL_MS, IS_API } from "@/lib/config";
 import { selectOpenDisputeCount, selectPendingReportCount, useDb } from "@/lib/mock-api";
 
@@ -27,6 +28,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const db = useDb();
 
   const sync = useSyncStatus();
+  useIdleTimeout(session.status === "authenticated", session.expire);
 
   useEffect(() => {
     if (session.status !== "authenticated") router.replace(REDIRECTS[session.status]);

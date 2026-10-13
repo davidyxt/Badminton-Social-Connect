@@ -1,5 +1,6 @@
 "use client";
 
+import { ResultFlagList } from "@/components/shared/ResultFlagList";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Trophy } from "lucide-react";
@@ -10,7 +11,17 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { PlayerLink } from "@/components/shared/PlayerProfileCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { formatDateTime, humanize } from "@/lib/format";
-import { selectDisputesForMatch, selectGamePost, selectMatch, selectMiniLeague, selectPlayer, selectPlayerMap, selectResultForMatch, useQuery } from "@/lib/mock-api";
+import {
+  selectDisputesForMatch,
+  selectFlagsForMatch,
+  selectGamePost,
+  selectMatch,
+  selectMiniLeague,
+  selectPlayer,
+  selectPlayerMap,
+  selectResultForMatch,
+  useQuery,
+} from "@/lib/mock-api";
 import type { Player } from "@/lib/types";
 
 function Side({ label, ids, players, winner }: { label: string; ids: string[]; players: Map<string, Player>; winner: boolean }) {
@@ -50,6 +61,8 @@ export default function MatchDetailPage() {
       result,
       players: selectPlayerMap(db),
       submittedBy: result ? selectPlayer(db, result.submitted_by) : null,
+      confirmedBy: result ? selectPlayer(db, result.confirmed_by) : null,
+      flags: selectFlagsForMatch(db, matchId),
       disputes: selectDisputesForMatch(db, matchId),
       league: match.league_id ? selectMiniLeague(db, match.league_id) : null,
       post,
@@ -109,9 +122,38 @@ export default function MatchDetailPage() {
                   items={[
                     { label: "Score", value: <span className="font-medium tabular-nums">{result.score}</span> },
                     { label: "Result status", value: <StatusBadge status={result.status} /> },
-                    { label: "Winning side", value: `Side ${result.winning_side} (${name(result.winning_side === "A" ? match.side_a : match.side_b)})` },
+                    {
+                      label: "Winning side",
+                      value: result.winning_side ? `Side ${result.winning_side} (${name(result.winning_side === "A" ? match.side_a : match.side_b)})` : "—",
+                    },
+                    {
+                      label: "Games",
+                      value:
+                        result.games.length > 0 ? (
+                          <span className="tabular-nums">{result.games.map(([a, b], i) => `Game ${i + 1}: ${a}–${b}`).join(" · ")}</span>
+                        ) : (
+                          "—"
+                        ),
+                    },
                     { label: "Submitted by", value: <PlayerLink player={data.submittedBy} fallbackId={result.submitted_by} /> },
                     { label: "Submitted", value: formatDateTime(result.submitted_at) },
+                    {
+                      label: "Confirmed by",
+                      value: result.confirmed_by ? (
+                        <span className="inline-flex flex-wrap items-center gap-2">
+                          <PlayerLink player={data.confirmedBy} fallbackId={result.confirmed_by} />
+                          <span className="text-ink-muted">{formatDateTime(result.confirmed_at)}</span>
+                        </span>
+                      ) : result.status === "expired" ? (
+                        "Not confirmed before it expired"
+                      ) : (
+                        "Not confirmed yet"
+                      ),
+                    },
+                    {
+                      label: "Counts towards rankings",
+                      value: result.excluded_from_ranking ? <StatusBadge status="excluded" label="Excluded" tone="neutral" /> : result.status === "confirmed" ? "Yes" : "Only once confirmed",
+                    },
                   ]}
                 />
               ) : (
@@ -132,6 +174,14 @@ export default function MatchDetailPage() {
         </div>
 
         <div className="space-y-6">
+          {data.flags.length > 0 && (
+            <Card>
+              <CardHeader title={`Result flags (${data.flags.length})`} description="Noticed by the rating engine. Informational only: a flag never rejects a result." />
+              <CardBody>
+                <ResultFlagList flags={data.flags} />
+              </CardBody>
+            </Card>
+          )}
           <Card>
             <CardHeader title={`Disputes (${disputes.length})`} />
             {disputes.length === 0 ? (
