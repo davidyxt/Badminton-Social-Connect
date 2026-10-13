@@ -116,7 +116,7 @@ export default function ActivityLogPage() {
       cell: (r) => (
         <div>
           <div className="font-medium text-ink">{r.actionLabel}</div>
-          <div className="text-xs text-ink-muted">{r.feature}</div>
+          <div className="text-[13px] text-ink-muted">{r.feature}</div>
         </div>
       ),
       className: "whitespace-nowrap",
@@ -127,16 +127,16 @@ export default function ActivityLogPage() {
       sortValue: (r) => `${r.typeLabel} ${r.targetLabel ?? r.entry.target_id}`,
       cell: (r) => (
         <div className="min-w-0">
-          <div className="text-xs text-ink-muted">{r.typeLabel}</div>
           {r.targetHref ? (
             <Link href={r.targetHref} className="block max-w-[220px] truncate font-medium text-ink hover:text-brand hover:underline">
               {r.targetLabel}
             </Link>
           ) : (
-            <span className="font-mono text-xs text-ink-faint" title="This record no longer exists">
+            <span className="block font-mono text-xs text-ink-faint" title="This record no longer exists">
               {r.entry.target_id} (deleted)
             </span>
           )}
+          <div className="text-[13px] text-ink-muted">{r.typeLabel}</div>
         </div>
       ),
     },
@@ -168,41 +168,38 @@ export default function ActivityLogPage() {
   };
 
   const dateInput =
-    "h-9 rounded-lg border border-line-strong bg-surface px-2.5 text-sm text-ink focus:ring-2 focus:ring-brand/30 focus:outline-none";
+    "h-8 rounded-md border border-line-strong bg-surface px-2.5 text-[13px] text-ink tabular-nums transition-colors hover:border-ink-faint/60 focus:border-brand focus:ring-2 focus:ring-brand/20 focus:outline-none";
 
   return (
     <>
-      <PageHeader
-        title="Activity log"
-        meta={<LiveIndicator />}
-        description="Every admin action, newest first. New actions appear here as they happen."
-      />
+      <PageHeader title="Activity log" meta={<LiveIndicator />} description="Every admin action, newest first." />
       <BackendGapNotice message={featureGap("activityLog")} />
 
-      <div className="mb-3 flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-sm text-ink-muted">
-          From
-          <input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} className={dateInput} />
-        </label>
-        <label className="flex flex-col gap-1 text-sm text-ink-muted">
-          To
-          <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} className={dateInput} />
-        </label>
-        {(from || to) && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="mb-0.5"
-            onClick={() => {
-              setFrom("");
-              setTo("");
-            }}
-          >
-            Clear dates
-          </Button>
-        )}
+      <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Date range">
+          <label className="flex items-center gap-1.5 text-[13px] text-ink-muted">
+            From
+            <input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} className={dateInput} />
+          </label>
+          <label className="flex items-center gap-1.5 text-[13px] text-ink-muted">
+            To
+            <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} className={dateInput} />
+          </label>
+          {(from || to) && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setFrom("");
+                setTo("");
+              }}
+            >
+              Clear dates
+            </Button>
+          )}
+        </div>
         {rangeInvalid && (
-          <p role="alert" className="mb-2 text-sm text-danger">
+          <p role="alert" className="text-[13px] text-danger">
             The start date is after the end date, so the date range isn&apos;t applied.
           </p>
         )}
@@ -223,7 +220,7 @@ export default function ActivityLogPage() {
         ]}
         initialSort={{ columnId: "when", direction: "desc" }}
         toolbarExtra={(filtered) => (
-          <Button size="sm" icon={<Download className="size-4" aria-hidden />} disabled={filtered.length === 0} onClick={() => exportCsv(filtered)}>
+          <Button size="sm" icon={<Download aria-hidden />} disabled={filtered.length === 0} onClick={() => exportCsv(filtered)}>
             Export CSV ({filtered.length})
           </Button>
         )}

@@ -18,17 +18,13 @@ export function Tabs({ tabs, active, onChange, label }: { tabs: TabItem[]; activ
       <nav className="-mb-px flex gap-5 overflow-x-auto" aria-label={label}>
         {tabs.map((t) => {
           const isActive = t.href ? pathname === t.href : active === t.id;
-          const cls = `inline-flex items-center gap-2 border-b-2 px-0.5 pb-2.5 text-sm font-medium whitespace-nowrap transition-colors ${
-            isActive ? "border-brand text-brand" : "border-transparent text-ink-muted hover:border-line-strong hover:text-ink"
+          const cls = `inline-flex items-center gap-1.5 border-b-2 pb-2 text-[13px] font-medium whitespace-nowrap transition-colors ${
+            isActive ? "border-ink text-ink" : "border-transparent text-ink-muted hover:text-ink"
           }`;
           const content = (
             <>
               {t.label}
-              {t.count !== undefined && (
-                <span className={`rounded-full px-2 py-0.5 text-xs tabular-nums ${isActive ? "bg-brand-soft text-brand" : "bg-neutral-soft text-ink-muted"}`}>
-                  {t.count}
-                </span>
-              )}
+              {t.count !== undefined && <span className="font-normal text-ink-faint tabular-nums">{t.count}</span>}
             </>
           );
           return t.href ? (

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { TriangleAlert } from "lucide-react";
 import { formatDateTime, humanize, RESULT_FLAG_LABEL } from "@/lib/format";
 import type { ResultFlag } from "@/lib/types";
 
@@ -11,24 +10,28 @@ const detailText = (detail: Record<string, unknown>) =>
 /** Anomalies the shared rating engine noticed on results. Read-only. */
 export function ResultFlagList({ flags, linkToMatch = false }: { flags: ResultFlag[]; linkToMatch?: boolean }) {
   return (
-    <ul className="space-y-3">
+    <ul className="divide-y divide-line">
       {flags.map((f) => (
-        <li key={f.flag_id} className="flex gap-2.5">
-          <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
-          <div className="min-w-0 text-sm">
-            <div className="font-medium text-ink">
-              {RESULT_FLAG_LABEL[f.kind] ?? humanize(f.kind)}
-              {linkToMatch && (
-                <>
-                  {" · "}
-                  <Link href={`/games/${f.match_id}`} className="font-normal text-brand hover:underline">
-                    View game
-                  </Link>
-                </>
-              )}
+        <li key={f.flag_id} className="flex gap-2.5 py-2.5 first:pt-0 last:pb-0">
+          <span className="mt-[7px] size-1.5 shrink-0 rounded-full bg-warning" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+              <span className="text-sm font-medium text-ink">
+                {RESULT_FLAG_LABEL[f.kind] ?? humanize(f.kind)}
+                {linkToMatch && (
+                  <>
+                    <span className="text-ink-faint">{" · "}</span>
+                    <Link href={`/games/${f.match_id}`} className="font-normal text-brand hover:underline">
+                      View game
+                    </Link>
+                  </>
+                )}
+              </span>
+              <time dateTime={f.created_at} className="text-xs text-ink-faint tabular-nums">
+                {formatDateTime(f.created_at)}
+              </time>
             </div>
-            {Object.keys(f.detail).length > 0 && <div className="break-words text-ink-muted">{detailText(f.detail)}</div>}
-            <div className="text-xs text-ink-faint">{formatDateTime(f.created_at)}</div>
+            {Object.keys(f.detail).length > 0 && <div className="text-[13px] break-words text-ink-muted">{detailText(f.detail)}</div>}
           </div>
         </li>
       ))}

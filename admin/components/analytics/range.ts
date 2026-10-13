@@ -56,10 +56,10 @@ export function toChartPoints(points: { date: string; value: number }[], from: s
 
 export const sum = (points: { value: number }[]) => points.reduce((t, p) => t + p.value, 0);
 
-/** "+12% vs previous 30 days", or null when there's no comparable earlier data. */
+/** "+12% vs prior 30d", or null when there's no comparable earlier data. Kept short to fit a stat strip. */
 export function changeVsPrevious(current: number, previous: number | null, days: number): { text: string; direction: "up" | "down" | "flat" } | null {
   if (previous === null) return null;
-  const period = `previous ${days} day${days === 1 ? "" : "s"}`;
+  const period = `prior ${days}d`;
   if (previous === 0) return current === 0 ? { text: `No change vs ${period}`, direction: "flat" } : { text: `Up from 0 in ${period}`, direction: "up" };
   const pct = Math.round(((current - previous) / previous) * 100);
   if (pct === 0) return { text: `No change vs ${period}`, direction: "flat" };

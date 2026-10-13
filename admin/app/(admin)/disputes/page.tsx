@@ -44,20 +44,16 @@ export default function DisputesPage() {
 
   const columns: Column<Row>[] = [
     {
-      id: "id",
-      header: "Dispute",
-      sortValue: (r) => r.dispute.dispute_id,
-      cell: (r) => <span className="font-mono text-xs text-ink-muted">{r.dispute.dispute_id}</span>,
-      className: "whitespace-nowrap",
-    },
-    {
       id: "match",
       header: "Match",
       sortValue: (r) => r.players,
       cell: (r) => (
         <div className="min-w-0">
-          <div className="max-w-[260px] truncate font-medium text-ink">{r.players}</div>
-          <div className="text-xs text-ink-muted">{r.format}</div>
+          <div className="max-w-[280px] truncate font-medium text-ink">{r.players}</div>
+          <div className="text-[13px] text-ink-muted">
+            <span className="font-mono text-xs">{r.dispute.dispute_id}</span>
+            {r.format && ` · ${r.format}`}
+          </div>
         </div>
       ),
     },
@@ -65,7 +61,7 @@ export default function DisputesPage() {
       id: "reason",
       header: "Reason",
       sortValue: (r) => r.dispute.reason,
-      cell: (r) => <div className="line-clamp-2 max-w-sm text-ink-muted">{r.dispute.reason}</div>,
+      cell: (r) => <div className="line-clamp-2 max-w-sm text-ink">{r.dispute.reason}</div>,
     },
     { id: "raisedBy", header: "Raised by", sortValue: (r) => r.raisedBy, cell: (r) => r.raisedBy, className: "whitespace-nowrap" },
     {
@@ -80,7 +76,7 @@ export default function DisputesPage() {
 
   return (
     <>
-      <PageHeader title="Disputes" description="Players disputing a submitted match result. Read-only." />
+      <PageHeader title="Disputes" description="Players challenging a submitted match result." />
       <DisputeScopeNotice />
       <Tabs
         label="Dispute status"
@@ -110,8 +106,8 @@ export default function DisputesPage() {
             title={tab === "open" && visible.length === 0 ? "No open disputes" : "No matching disputes"}
             description={
               tab === "open" && visible.length === 0
-                ? "You're all caught up. Disputes appear here when a player challenges a submitted result."
-                : "No disputes match your search. Try clearing it."
+                ? "You're all caught up."
+                : "Try clearing the search."
             }
           />
         }

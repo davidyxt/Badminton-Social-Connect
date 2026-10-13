@@ -5,9 +5,7 @@ export function BackendGapNotice({ message }: { message: string | null }) {
   if (!message) return null;
   return (
     <div className="mb-5">
-      <Notice tone="warning" title="Waiting on the backend">
-        {message}
-      </Notice>
+      <Notice title="Not available yet">{message}</Notice>
     </div>
   );
 }

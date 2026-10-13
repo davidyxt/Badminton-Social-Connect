@@ -14,8 +14,8 @@ export function ReviewReportModal({ outcome, ...props }: FlowProps & { outcome: 
       title={resolving ? "Resolve this report?" : "Dismiss this report?"}
       description={
         resolving
-          ? "Marks the report as actioned and removes it from the pending queue."
-          : "Marks the report as not requiring action and removes it from the pending queue."
+          ? "Marks it as actioned and removes it from the pending queue."
+          : "Marks it as needing no action and removes it from the pending queue."
       }
       confirmLabel={resolving ? "Resolve report" : "Dismiss report"}
       reason={{
@@ -27,7 +27,7 @@ export function ReviewReportModal({ outcome, ...props }: FlowProps & { outcome: 
     >
       {resolving && (
         <Notice>
-          Resolving records the outcome only. Suspend the account, hide the post or suspend the league separately if needed.
+          This only records the outcome. Suspend the account, hide the post or suspend the league separately.
         </Notice>
       )}
     </ConfirmDialog>

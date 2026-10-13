@@ -9,16 +9,26 @@ import type { Admin } from "@/lib/types";
 import { Avatar } from "@/components/shared/PlayerProfileCard";
 import { Sidebar } from "./Sidebar";
 
+/** Small monogram mark, shared with the auth screens. */
+export function BrandMark({ className = "" }: { className?: string }) {
+  return (
+    <span
+      className={`flex size-6 shrink-0 items-center justify-center rounded-md bg-ink text-[10px] font-semibold tracking-tight text-white ${className}`}
+      aria-hidden
+    >
+      BC
+    </span>
+  );
+}
+
 function Brand() {
   return (
-    <div className="flex items-center gap-2.5 px-5 py-5">
-      <span className="flex size-8 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white" aria-hidden>
-        BC
+    <div className="flex h-12 min-w-0 items-center gap-2 pr-2 pl-[18px]">
+      <BrandMark />
+      <span className="flex min-w-0 items-baseline gap-1.5">
+        <span className="truncate text-sm font-semibold tracking-tight text-ink">Badminton Connect</span>
+        <span className="text-sm text-ink-faint">Admin</span>
       </span>
-      <div className="leading-tight">
-        <div className="text-sm font-semibold text-white">Badminton Connect</div>
-        <div className="text-xs text-sidebar-text">Admin console</div>
-      </div>
     </div>
   );
 }
@@ -70,7 +80,7 @@ function SyncIndicator() {
         type="button"
         onClick={retry}
         disabled={retrying}
-        className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-medium hover:bg-warning-soft disabled:opacity-60"
+        className="inline-flex h-6 items-center gap-1 rounded-md px-1.5 font-medium hover:bg-warning-soft disabled:opacity-60"
       >
         <RefreshCw className={`size-3.5 ${retrying ? "animate-spin" : ""}`} aria-hidden />
         Retry
@@ -101,12 +111,12 @@ export function AdminShell({
   }
 
   return (
-    <div className="flex min-h-screen">
-      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded focus:bg-surface focus:px-3 focus:py-2">
+    <div className="flex min-h-screen bg-canvas">
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2 focus:text-[13px]">
         Skip to content
       </a>
 
-      <div className="hidden w-64 shrink-0 bg-sidebar lg:block">
+      <div className="hidden w-60 shrink-0 border-r border-line bg-sidebar lg:block">
         <aside className="sticky top-0 flex h-screen flex-col">
           <Brand />
           <Sidebar badges={badges} />
@@ -115,12 +125,17 @@ export function AdminShell({
 
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="absolute inset-0 bg-ink/50" onClick={() => setMobileOpen(false)} aria-hidden />
-          <aside className="relative flex h-full w-72 flex-col bg-sidebar">
-            <div className="flex items-center justify-between pr-3">
+          <div className="absolute inset-0 bg-black/20" onClick={() => setMobileOpen(false)} aria-hidden />
+          <aside className="relative flex h-full w-[280px] max-w-[85vw] flex-col border-r border-line bg-sidebar shadow-[0_8px_30px_rgba(0,0,0,0.08)]">
+            <div className="flex items-center justify-between pr-2">
               <Brand />
-              <button type="button" onClick={() => setMobileOpen(false)} className="rounded p-1.5 text-sidebar-text hover:text-white" aria-label="Close menu">
-                <X className="size-5" />
+              <button
+                type="button"
+                onClick={() => setMobileOpen(false)}
+                className="rounded-md p-1.5 text-ink-faint hover:bg-sidebar-hover hover:text-ink"
+                aria-label="Close menu"
+              >
+                <X className="size-4" />
               </button>
             </div>
             <Sidebar badges={badges} onNavigate={() => setMobileOpen(false)} />
@@ -129,35 +144,44 @@ export function AdminShell({
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-surface/95 px-4 backdrop-blur sm:px-6">
-          <button type="button" onClick={() => setMobileOpen(true)} className="rounded-md p-1.5 text-ink-muted hover:bg-neutral-soft lg:hidden" aria-label="Open menu">
-            <Menu className="size-5" />
+        <header className="sticky top-0 z-30 flex h-12 items-center gap-3 border-b border-line bg-surface px-4 sm:px-6">
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            className="-ml-1.5 rounded-md p-1.5 text-ink-muted hover:bg-subtle hover:text-ink lg:hidden"
+            aria-label="Open menu"
+          >
+            <Menu className="size-4" />
           </button>
+          <BrandMark className="lg:hidden" />
           <div className="flex-1" />
           {IS_API && <SyncIndicator />}
           <span
-            className={`hidden rounded-full px-2.5 py-0.5 text-xs font-medium sm:inline ${IS_API ? "bg-success-soft text-success" : "bg-warning-soft text-warning"}`}
+            className="hidden items-center gap-1.5 text-xs text-ink-faint sm:inline-flex"
             title={IS_API ? "Reading and writing the admin-api Edge Function" : "In-memory sample data; nothing is saved to a server"}
           >
+            <span className={`size-1.5 rounded-full ${IS_API ? "bg-success" : "bg-ink-faint/60"}`} aria-hidden />
             {IS_API ? "Live API" : "Mock data"}
           </span>
-          <div className="flex items-center gap-2.5">
+          <span className="hidden h-4 w-px bg-line sm:block" aria-hidden />
+          <div className="flex min-w-0 items-center gap-2">
             <Avatar name={admin.display_name} size="sm" />
-            <div className="hidden leading-tight sm:block">
-              <div className="text-sm font-medium text-ink">{admin.display_name}</div>
-              <div className="text-xs text-ink-faint">{admin.email}</div>
+            <div className="hidden min-w-0 leading-tight sm:block">
+              <div className="truncate text-[13px] font-medium text-ink">{admin.display_name}</div>
+              <div className="truncate text-xs text-ink-faint">{admin.email}</div>
             </div>
           </div>
           <button
             type="button"
             onClick={onSignOut}
-            className="ml-1 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-ink-muted hover:bg-neutral-soft hover:text-ink"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[13px] font-medium text-ink-muted hover:bg-subtle hover:text-ink"
+            aria-label="Sign out"
           >
             <LogOut className="size-4" aria-hidden />
             <span className="hidden sm:inline">Sign out</span>
           </button>
         </header>
-        <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
           {children}
         </main>
       </div>

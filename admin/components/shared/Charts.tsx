@@ -68,18 +68,18 @@ function ChartFrame({
   return (
     <figure className="m-0">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <figcaption className="text-sm font-medium text-ink">
+        <figcaption className="text-[13px] font-medium text-ink-muted">
           {title}
           {summary && <span className="ml-2 font-normal text-ink-muted">{summary}</span>}
         </figcaption>
-        <button type="button" onClick={() => setShowTable((s) => !s)} className="text-xs font-medium text-brand hover:underline" aria-pressed={showTable}>
+        <button type="button" onClick={() => setShowTable((s) => !s)} className="rounded-md px-1.5 py-0.5 text-xs text-ink-muted hover:bg-subtle hover:text-ink" aria-pressed={showTable}>
           {showTable ? "Show chart" : "Show table"}
         </button>
       </div>
       {showTable ? (
         <div className="max-h-[260px] overflow-auto rounded-lg border border-line">
           <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-subtle text-xs text-ink-muted uppercase">
+            <thead className="sticky top-0 bg-subtle text-xs text-ink-muted">
               <tr>
                 <th className="px-3 py-2 text-left font-medium">Period</th>
                 <th className="px-3 py-2 text-right font-medium">{valueLabel}</th>
@@ -89,7 +89,7 @@ function ChartFrame({
               {points.map((p) => (
                 <tr key={p.label}>
                   <td className="px-3 py-1.5 text-ink-muted">{p.label}</td>
-                  <td className="px-3 py-1.5 text-right tabular-nums">{fmt(p.value)}</td>
+                  <td className="px-3 py-1.5 text-right text-ink tabular-nums">{fmt(p.value)}</td>
                 </tr>
               ))}
             </tbody>
@@ -106,7 +106,7 @@ function Tooltip({ x, y, width, label, value, valueLabel }: { x: number; y: numb
   const left = Math.min(Math.max(x - 70, 0), width - 140);
   return (
     <div
-      className="pointer-events-none absolute z-10 w-[140px] rounded-lg border border-line bg-surface px-3 py-2 text-xs shadow-lg"
+      className="pointer-events-none absolute z-10 w-[140px] rounded-md border border-line bg-surface px-2.5 py-1.5 text-xs shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
       style={{ left, top: Math.max(0, y - 64) }}
     >
       <div className="text-ink-muted">{label}</div>
@@ -157,7 +157,7 @@ export function LineChart({
     };
   }, [points, zeroBased, innerW, innerH]);
 
-  if (points.length === 0) return <p className="text-sm text-ink-muted">No data for this period.</p>;
+  if (points.length === 0) return <p className="text-[13px] text-ink-muted">No data for this period.</p>;
 
   const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i)},${y(p.value)}`).join(" ");
   const area = `${path} L${x(points.length - 1)},${PAD.top + innerH} L${x(0)},${PAD.top + innerH} Z`;
@@ -188,13 +188,13 @@ export function LineChart({
           {ticks.map((t) => (
             <g key={t}>
               <line x1={PAD.left} x2={PAD.left + innerW} y1={y(t)} y2={y(t)} stroke={GRID} strokeWidth={1} />
-              <text x={PAD.left - 8} y={y(t)} dy="0.32em" textAnchor="end" className="fill-ink-faint text-[11px]">
+              <text x={PAD.left - 8} y={y(t)} dy="0.32em" textAnchor="end" className="fill-ink-faint text-[11px] tabular-nums">
                 {fmt(t)}
               </text>
             </g>
           ))}
           {xLabelIndexes(points.length).map((i) => (
-            <text key={i} x={x(i)} y={H - 8} textAnchor="middle" className="fill-ink-faint text-[11px]">
+            <text key={i} x={x(i)} y={H - 8} textAnchor="middle" className="fill-ink-faint text-[11px] tabular-nums">
               {points[i].label}
             </text>
           ))}
@@ -212,7 +212,7 @@ export function LineChart({
             strokeWidth={2}
           />
           {hover === null && (
-            <text x={x(points.length - 1) + 8} y={y(last.value)} dy="0.32em" className="fill-ink text-[11px] font-semibold">
+            <text x={x(points.length - 1) + 8} y={y(last.value)} dy="0.32em" className="fill-ink text-[11px] font-medium tabular-nums">
               {fmt(last.value)}
             </text>
           )}
@@ -241,7 +241,7 @@ export function ColumnChart({
   const innerW = width - PAD.left - PAD.right;
   const innerH = H - PAD.top - PAD.bottom;
 
-  if (points.length === 0) return <p className="text-sm text-ink-muted">No data for this period.</p>;
+  if (points.length === 0) return <p className="text-[13px] text-ink-muted">No data for this period.</p>;
 
   const ticks = niceTicks(0, Math.max(...points.map((p) => p.value), 1), 4, points.every((p) => Number.isInteger(p.value)));
   const top = ticks[ticks.length - 1];
@@ -258,13 +258,13 @@ export function ColumnChart({
           {ticks.map((t) => (
             <g key={t}>
               <line x1={PAD.left} x2={PAD.left + innerW} y1={y(t)} y2={y(t)} stroke={GRID} strokeWidth={1} />
-              <text x={PAD.left - 8} y={y(t)} dy="0.32em" textAnchor="end" className="fill-ink-faint text-[11px]">
+              <text x={PAD.left - 8} y={y(t)} dy="0.32em" textAnchor="end" className="fill-ink-faint text-[11px] tabular-nums">
                 {fmt(t)}
               </text>
             </g>
           ))}
           {xLabelIndexes(points.length).map((i) => (
-            <text key={i} x={PAD.left + slot * i + slot / 2} y={H - 8} textAnchor="middle" className="fill-ink-faint text-[11px]">
+            <text key={i} x={PAD.left + slot * i + slot / 2} y={H - 8} textAnchor="middle" className="fill-ink-faint text-[11px] tabular-nums">
               {points[i].label}
             </text>
           ))}
@@ -287,7 +287,7 @@ export function ColumnChart({
             );
           })}
           {hover === null && points[maxIndex].value > 0 && (
-            <text x={PAD.left + slot * maxIndex + slot / 2} y={y(points[maxIndex].value) - 6} textAnchor="middle" className="fill-ink text-[11px] font-semibold">
+            <text x={PAD.left + slot * maxIndex + slot / 2} y={y(points[maxIndex].value) - 6} textAnchor="middle" className="fill-ink text-[11px] font-medium tabular-nums">
               {fmt(points[maxIndex].value)}
             </text>
           )}

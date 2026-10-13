@@ -6,7 +6,7 @@ import { ExternalLink } from "lucide-react";
 import { DisputeScopeNotice } from "@/components/disputes/DisputeScopeNotice";
 import { ActivityTimeline } from "@/components/shared/ActivityTimeline";
 import { ButtonLink } from "@/components/shared/Button";
-import { Card, CardBody, CardHeader, DetailList } from "@/components/shared/Card";
+import { DetailList, SectionHeading } from "@/components/shared/Card";
 import { RecordNotFound } from "@/components/shared/NotFound";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PlayerLink } from "@/components/shared/PlayerProfileCard";
@@ -65,34 +65,21 @@ export default function DisputeDetailPage() {
         breadcrumbs={[{ label: "Disputes", href: "/disputes" }, { label: dispute.dispute_id }]}
         title="Result dispute"
         meta={<StatusBadge status={dispute.status} />}
-        description={`Raised ${formatDateTime(dispute.created_at)} · match ${dispute.match_id}`}
+        description={`Match ${dispute.match_id}`}
       />
 
       <DisputeScopeNotice />
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          <Card>
-            <CardHeader title="Dispute" />
-            <CardBody>
-              <DetailList
-                items={[
-                  { label: "Raised by", value: <PlayerLink player={data.raisedBy} fallbackId={dispute.raised_by} /> },
-                  { label: "Raised", value: formatDateTime(dispute.created_at) },
-                  { label: "Dispute ID", value: <span className="font-mono text-xs">{dispute.dispute_id}</span> },
-                  { label: "Status", value: <StatusBadge status={dispute.status} /> },
-                ]}
-              />
-              <div className="mt-4">
-                <div className="text-xs font-medium tracking-wide text-ink-faint uppercase">Player&apos;s reason</div>
-                <blockquote className="mt-1 rounded-lg border-l-4 border-line-strong bg-subtle px-4 py-3 text-sm text-ink">{dispute.reason}</blockquote>
-              </div>
-            </CardBody>
-          </Card>
+      <div className="grid gap-x-10 gap-y-8 lg:grid-cols-[minmax(0,1fr)_272px]">
+        <div className="min-w-0 space-y-8">
+          <section aria-labelledby="reason-heading">
+            <SectionHeading title={<span id="reason-heading">Player&apos;s reason</span>} />
+            <blockquote className="border-l-2 border-line-strong pl-4 text-sm leading-6 whitespace-pre-line text-ink">{dispute.reason}</blockquote>
+          </section>
 
-          <Card>
-            <CardHeader
-              title="Match"
+          <section aria-labelledby="match-heading">
+            <SectionHeading
+              title={<span id="match-heading">Match</span>}
               actions={
                 match && (
                   <ButtonLink href={`/games/${match.match_id}`} size="sm" icon={<ExternalLink className="size-4" aria-hidden />}>
@@ -101,96 +88,108 @@ export default function DisputeDetailPage() {
                 )
               }
             />
-            <CardBody>
-              {!match ? (
-                <p className="text-sm text-ink-muted">Match {dispute.match_id} could not be found.</p>
-              ) : (
-                <div className="space-y-5">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="rounded-lg border border-line px-4 py-3">
-                      <div className="mb-2 flex items-center justify-between text-xs font-medium tracking-wide text-ink-faint uppercase">
-                        Side A
-                        {result?.winning_side === "A" && <span className="normal-case tracking-normal text-ink-muted">Submitted as winner</span>}
+            {!match ? (
+              <p className="text-[13px] text-ink-muted">Match {dispute.match_id} could not be found.</p>
+            ) : (
+              <div className="space-y-6">
+                <div className="grid overflow-hidden rounded-lg border border-line bg-surface sm:grid-cols-2 sm:divide-x sm:divide-line max-sm:divide-y max-sm:divide-line">
+                  {(["A", "B"] as const).map((s) => (
+                    <div key={s} className="px-4 py-3">
+                      <div className="mb-2 flex items-center justify-between gap-2 text-[13px] text-ink-muted">
+                        Side {s}
+                        {result?.winning_side === s && <span className="text-xs font-medium text-ink">Submitted as winner</span>}
                       </div>
-                      {side(match.side_a)}
+                      {side(s === "A" ? match.side_a : match.side_b)}
                     </div>
-                    <div className="rounded-lg border border-line px-4 py-3">
-                      <div className="mb-2 flex items-center justify-between text-xs font-medium tracking-wide text-ink-faint uppercase">
-                        Side B
-                        {result?.winning_side === "B" && <span className="normal-case tracking-normal text-ink-muted">Submitted as winner</span>}
-                      </div>
-                      {side(match.side_b)}
-                    </div>
-                  </div>
-                  <DetailList
-                    items={[
-                      { label: "Venue", value: [match.venue, match.suburb].filter(Boolean).join(", ") },
-                      { label: "Time", value: formatDateTime(match.proposed_time) },
-                      { label: "Format", value: humanize(match.format) },
-                      {
-                        label: "Mini League",
-                        value: league ? (
-                          <Link href={`/mini-leagues/${league.league_id}`} className="font-medium text-ink hover:text-brand hover:underline">
-                            {league.name}
-                          </Link>
-                        ) : match.league_id ? (
-                          <span className="text-ink-faint">{match.league_id} (deleted)</span>
-                        ) : (
-                          "Not a league match"
-                        ),
-                      },
-                      { label: "Match status", value: <StatusBadge status={match.status} /> },
-                    ]}
-                  />
-                  <div className="border-t border-line pt-4">
-                    <div className="mb-3 text-sm font-semibold text-ink">Disputed result</div>
-                    {result ? (
-                      <DetailList
-                        items={[
-                          { label: "Score", value: <span className="font-medium tabular-nums">{result.score}</span> },
-                          { label: "Result status", value: <StatusBadge status={result.status} /> },
-                          { label: "Submitted by", value: <PlayerLink player={data.submittedBy} fallbackId={result.submitted_by} /> },
-                          { label: "Submitted", value: formatDateTime(result.submitted_at) },
-                        ]}
-                      />
-                    ) : (
-                      <p className="text-sm text-ink-muted">No result has been submitted for this match.</p>
-                    )}
-                  </div>
+                  ))}
                 </div>
+                <DetailList
+                  items={[
+                    { label: "Venue", value: [match.venue, match.suburb].filter(Boolean).join(", ") },
+                    { label: "Time", value: formatDateTime(match.proposed_time) },
+                    { label: "Format", value: humanize(match.format) },
+                    {
+                      label: "Mini League",
+                      value: league ? (
+                        <Link href={`/mini-leagues/${league.league_id}`} className="font-medium text-ink hover:text-brand hover:underline">
+                          {league.name}
+                        </Link>
+                      ) : match.league_id ? (
+                        <span className="text-ink-faint">{match.league_id} (deleted)</span>
+                      ) : (
+                        "Not a league match"
+                      ),
+                    },
+                    { label: "Match status", value: <StatusBadge status={match.status} /> },
+                  ]}
+                />
+              </div>
+            )}
+          </section>
+
+          {match && (
+            <section aria-labelledby="result-heading" className="border-t border-line pt-6">
+              <SectionHeading title={<span id="result-heading">Disputed result</span>} />
+              {result ? (
+                <DetailList
+                  items={[
+                    { label: "Score", value: <span className="font-medium tabular-nums">{result.score}</span> },
+                    { label: "Result status", value: <StatusBadge status={result.status} /> },
+                    { label: "Submitted by", value: <PlayerLink player={data.submittedBy} fallbackId={result.submitted_by} /> },
+                    { label: "Submitted", value: formatDateTime(result.submitted_at) },
+                  ]}
+                />
+              ) : (
+                <p className="text-[13px] text-ink-muted">No result has been submitted for this match.</p>
               )}
-            </CardBody>
-          </Card>
+            </section>
+          )}
         </div>
 
-        <div className="space-y-6">
+        <aside className="min-w-0 space-y-8 lg:border-l lg:border-line lg:pl-8">
+          <section aria-labelledby="details-heading">
+            <SectionHeading title={<span id="details-heading">Details</span>} />
+            <DetailList
+              columns={1}
+              items={[
+                { label: "Raised by", value: <PlayerLink player={data.raisedBy} fallbackId={dispute.raised_by} /> },
+                { label: "Raised", value: formatDateTime(dispute.created_at) },
+                { label: "Dispute ID", value: <span className="font-mono text-xs">{dispute.dispute_id}</span> },
+              ]}
+            />
+          </section>
+
           {data.otherDisputes.length > 0 && (
-            <Card>
-              <CardHeader title={`Other disputes (${data.otherDisputes.length})`} description="On the same match." />
-              <ul className="divide-y divide-line">
+            <section aria-labelledby="other-heading">
+              <SectionHeading
+                title={
+                  <span id="other-heading">
+                    Other disputes <span className="font-normal text-ink-faint tabular-nums">{data.otherDisputes.length}</span>
+                  </span>
+                }
+              />
+              <ul className="-mx-2">
                 {data.otherDisputes.map((d) => (
                   <li key={d.dispute_id}>
-                    <Link href={`/disputes/${d.dispute_id}`} className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-subtle">
+                    <Link href={`/disputes/${d.dispute_id}`} className="flex items-start justify-between gap-3 rounded-md px-2 py-2 hover:bg-subtle">
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-ink">{d.reason}</div>
-                        <div className="text-xs text-ink-muted">{formatDateTime(d.created_at)}</div>
+                        <div className="truncate text-sm text-ink">{d.reason}</div>
+                        <div className="text-xs text-ink-faint">{formatDateTime(d.created_at)}</div>
                       </div>
                       <StatusBadge status={d.status} />
                     </Link>
                   </li>
                 ))}
               </ul>
-            </Card>
+            </section>
           )}
-          <Card>
-            <CardHeader title="Activity" />
-            <CardBody>
-              <ActivityTimeline entries={data.activity} empty="No admin actions recorded on this dispute." />
-            </CardBody>
-          </Card>
-        </div>
-      </div>
 
+          <section aria-labelledby="activity-heading">
+            <SectionHeading title={<span id="activity-heading">Activity</span>} />
+            <ActivityTimeline entries={data.activity} empty="No admin actions recorded on this dispute." />
+          </section>
+        </aside>
+      </div>
     </>
   );
 }

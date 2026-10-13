@@ -1,45 +1,44 @@
 @import "tailwindcss";
 
 /*
- * Design tokens. Figma Dev Mode was not available at build time, so these follow
- * the player app's palette (frontend/src/styles) and the PRD's fallback guidance:
- * neutral background, dark sidebar, one accent for primary actions, and
- * red/amber/green for status.
+ * Design tokens. Figma Dev Mode was not available at build time. A calm,
+ * neutral palette with the player app's blue (frontend/src/styles) kept as
+ * the single accent for links, focus and selection.
  */
 @theme {
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --color-canvas: #f5f6f8;
+  --color-canvas: #fafafa;
   --color-surface: #ffffff;
-  --color-subtle: #f9fafb;
-  --color-line: #e4e7ec;
-  --color-line-strong: #d0d5dd;
+  --color-subtle: #f6f6f7;
+  --color-line: #ebebed;
+  --color-line-strong: #dcdde0;
 
-  --color-ink: #202536;
-  --color-ink-muted: #5b6172;
-  --color-ink-faint: #8a90a0;
+  --color-ink: #111318;
+  --color-ink-muted: #5f636d;
+  --color-ink-faint: #8e929b;
 
-  --color-sidebar: #1b2030;
-  --color-sidebar-hover: #262c3f;
-  --color-sidebar-active: #2f3750;
-  --color-sidebar-text: #c3c8d4;
+  --color-sidebar: #f6f6f7;
+  --color-sidebar-hover: #ececee;
+  --color-sidebar-active: #ffffff;
+  --color-sidebar-text: #5f636d;
 
   --color-brand: #315b9e;
-  --color-brand-hover: #294b87;
-  --color-brand-soft: #edf3ff;
-  --color-accent: #f58220;
+  --color-brand-hover: #284b84;
+  --color-brand-soft: #eef2f9;
+  --color-accent: #e8720c;
 
-  --color-success: #2f7d43;
-  --color-success-soft: #e8f5ec;
-  --color-warning: #a35f00;
-  --color-warning-soft: #fff4e0;
-  --color-danger: #b42318;
-  --color-danger-hover: #912018;
-  --color-danger-soft: #fdecea;
+  --color-success: #17803d;
+  --color-success-soft: #edf7f0;
+  --color-warning: #a35a00;
+  --color-warning-soft: #fdf5e7;
+  --color-danger: #c4352b;
+  --color-danger-hover: #a62c23;
+  --color-danger-soft: #fdf0ee;
   --color-info: #315b9e;
-  --color-info-soft: #edf3ff;
-  --color-neutral-soft: #eef0f3;
+  --color-info-soft: #eef2f9;
+  --color-neutral-soft: #f1f1f3;
 }
 
 html,
@@ -50,7 +49,9 @@ body {
 
 body {
   font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
+  font-size: 14px;
 }
 
 :focus-visible {
@@ -58,10 +59,14 @@ body {
   outline-offset: 2px;
 }
 
+::selection {
+  background: var(--color-brand-soft);
+}
+
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -70,5 +75,5 @@ body {
 }
 
 .animate-toast-in {
-  animation: toast-in 160ms ease-out;
+  animation: toast-in 140ms ease-out;
 }

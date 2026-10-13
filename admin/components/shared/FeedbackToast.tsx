@@ -75,7 +75,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   return (
     <FeedbackContext.Provider value={value}>
       {children}
-      <div className="pointer-events-none fixed right-4 bottom-4 z-[60] flex w-[min(380px,calc(100vw-2rem))] flex-col gap-2" aria-live="polite">
+      <div className="pointer-events-none fixed right-4 bottom-4 z-[60] flex w-[min(360px,calc(100vw-2rem))] flex-col gap-2" aria-live="polite">
         {toasts.map((t) => (
           <FeedbackToast key={t.id} toast={t} onDismiss={() => dismiss(t.id)} />
         ))}
@@ -90,33 +90,37 @@ export function useFeedback(): FeedbackContextValue {
   return ctx;
 }
 
-const STYLES: Record<FeedbackKind, { wrap: string; icon: ReactNode }> = {
-  saving: { wrap: "border-line bg-surface", icon: <LoaderCircle className="size-5 animate-spin text-brand" aria-hidden /> },
-  success: { wrap: "border-success/30 bg-surface", icon: <CircleCheck className="size-5 text-success" aria-hidden /> },
-  error: { wrap: "border-danger/40 bg-surface", icon: <TriangleAlert className="size-5 text-danger" aria-hidden /> },
-  conflict: { wrap: "border-warning/40 bg-surface", icon: <RefreshCw className="size-5 text-warning" aria-hidden /> },
+const ICONS: Record<FeedbackKind, ReactNode> = {
+  saving: <LoaderCircle className="size-4 animate-spin text-ink-faint" aria-hidden />,
+  success: <CircleCheck className="size-4 text-success" aria-hidden />,
+  error: <TriangleAlert className="size-4 text-danger" aria-hidden />,
+  conflict: <RefreshCw className="size-4 text-warning" aria-hidden />,
 };
 
 export function FeedbackToast({ toast, onDismiss }: { toast: FeedbackMessage; onDismiss: () => void }) {
-  const style = STYLES[toast.kind];
   return (
     <div
       role={toast.kind === "error" || toast.kind === "conflict" ? "alert" : "status"}
-      className={`animate-toast-in pointer-events-auto flex gap-3 rounded-xl border px-4 py-3 shadow-lg ${style.wrap}`}
+      className="animate-toast-in pointer-events-auto flex gap-2.5 rounded-lg border border-line bg-surface px-3 py-2.5 text-[13px] shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
     >
-      <div className="mt-0.5 shrink-0">{style.icon}</div>
+      <div className="mt-px shrink-0">{ICONS[toast.kind]}</div>
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-semibold text-ink">{toast.title}</div>
-        {toast.message && <div className="mt-0.5 text-sm text-ink-muted">{toast.message}</div>}
+        <div className="font-medium text-ink">{toast.title}</div>
+        {toast.message && <div className="mt-0.5 text-ink-muted">{toast.message}</div>}
         {toast.onRetry && (
-          <button type="button" onClick={toast.onRetry} className="mt-2 text-sm font-semibold text-brand hover:underline">
+          <button type="button" onClick={toast.onRetry} className="mt-1.5 text-[13px] font-medium text-brand hover:underline">
             Retry
           </button>
         )}
       </div>
       {toast.kind !== "saving" && (
-        <button type="button" onClick={onDismiss} className="shrink-0 self-start rounded p-0.5 text-ink-faint hover:text-ink" aria-label="Dismiss">
-          <X className="size-4" />
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="-mt-0.5 -mr-1 shrink-0 self-start rounded-md p-1 text-ink-faint hover:bg-subtle hover:text-ink"
+          aria-label="Dismiss"
+        >
+          <X className="size-3.5" />
         </button>
       )}
     </div>

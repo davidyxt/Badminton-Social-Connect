@@ -8,13 +8,12 @@ import { useState } from "react";
 import { CloseRegistrationModal, DeleteLeagueModal, ResumeLeagueModal, SuspendLeagueModal } from "@/components/modals/LeagueModals";
 import { ActivityTimeline } from "@/components/shared/ActivityTimeline";
 import { Button } from "@/components/shared/Button";
-import { Card, CardBody, CardHeader, Notice } from "@/components/shared/Card";
-import { MiniLeagueSummary } from "@/components/shared/ContentSummaries";
+import { DetailList, Notice, SectionHeading } from "@/components/shared/Card";
 import { RecordNotFound } from "@/components/shared/NotFound";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PlayerLink } from "@/components/shared/PlayerProfileCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { useAdminAction } from "@/lib/hooks/useAdminAction";
 import {
   admin_close_league_registration,
@@ -88,7 +87,7 @@ export default function MiniLeagueDetailPage() {
         breadcrumbs={[{ label: "Mini Leagues", href: "/mini-leagues" }, { label: league.name }]}
         title={league.name}
         meta={<StatusBadge status={league.status} />}
-        description={`League ID ${league.league_id}`}
+        description={<span className="font-mono text-xs text-ink-faint">{league.league_id}</span>}
         actions={
           <>
             {league.status === "active" && (
@@ -112,166 +111,163 @@ export default function MiniLeagueDetailPage() {
         }
       />
 
-      {/* Screen 38: suspended and resumable */}
-      {isSuspended && (
-        <div className="mb-5">
-          <Notice tone="danger" title="League suspended">
-            {league.suspended_by_account_suspension && !lastSuspension
-              ? "Suspended automatically when the organiser's account was suspended."
-              : lastSuspension
-                ? `Suspended ${formatDateTime(lastSuspension.created_at)}. ${lastSuspension.details}`
-                : "This league is hidden from players and no matches can be recorded."}{" "}
-            Standings are kept. Resuming returns it to {league.status_before_suspended === "registration_closed" ? "registration closed" : "active"}.
-          </Notice>
+      <div className="space-y-8">
+        <div className="space-y-4">
+          {/* Screen 38: suspended and resumable */}
+          {isSuspended && (
+            <Notice tone="danger" title="League suspended">
+              {league.suspended_by_account_suspension && !lastSuspension
+                ? "Suspended automatically when the organiser's account was suspended."
+                : lastSuspension
+                  ? `Suspended ${formatDateTime(lastSuspension.created_at)}. ${lastSuspension.details.replace(/[.!?]?$/, ".")}`
+                  : "This league is hidden from players and no matches can be recorded."}{" "}
+              Standings are kept. Resuming returns it to {league.status_before_suspended === "registration_closed" ? "registration closed" : "active"}.
+            </Notice>
+          )}
+
+          {league.status === "registration_closed" && (
+            <Notice title="Registration closed">
+              The league is still visible and active for its {league.member_ids.length} members, but no new players can join.
+              {lastClose && ` Closed ${formatDateTime(lastClose.created_at)}.`}
+            </Notice>
+          )}
+
+          {league.description && <p className="max-w-3xl text-sm text-ink-muted">{league.description}</p>}
+
+          <DetailList
+            columns={3}
+            items={[
+              { label: "Dates", value: `${formatDate(league.start_date)} – ${formatDate(league.end_date)}` },
+              { label: "Where", value: <span className="capitalize">{[league.suburb, league.format].filter(Boolean).join(" · ") || "Location not set"}</span> },
+              { label: "Organiser", value: <PlayerLink player={data.organiser} fallbackId={league.organiser_id} /> },
+            ]}
+          />
         </div>
-      )}
 
-      {league.status === "registration_closed" && (
-        <div className="mb-5">
-          <Notice title="Registration closed">
-            The league is still visible and active for its {league.member_ids.length} members, but no new players can join.
-            {lastClose && ` Closed ${formatDateTime(lastClose.created_at)}.`}
-          </Notice>
-        </div>
-      )}
-
-      <MiniLeagueSummary league={league} organiser={data.organiser} linkName={false} />
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          <Card>
-            <CardHeader title="Standings" description="Read-only. Calculated from confirmed results." />
-            {data.standings.length === 0 ? (
-              <CardBody>
-                <p className="text-sm text-ink-muted">No standings yet.</p>
-              </CardBody>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <caption className="sr-only">Standings for {league.name}</caption>
-                  <thead className="bg-subtle text-xs font-medium tracking-wide text-ink-muted uppercase">
-                    <tr>
-                      <th scope="col" className="px-4 py-2.5 text-right">
+        <div className="grid gap-8 lg:grid-cols-3">
+          <div className="min-w-0 space-y-8 lg:col-span-2">
+            <section>
+              <SectionHeading title="Standings" description="Read-only. Calculated from confirmed results." />
+              {data.standings.length === 0 ? (
+                <p className="text-[13px] text-ink-muted">No standings yet.</p>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+                  <table className="w-full text-left text-sm">
+                    <caption className="sr-only">Standings for {league.name}</caption>
+                    <thead className="border-b border-line bg-subtle text-xs text-ink-muted">
+                      <tr>
+                      <th scope="col" className="px-4 py-2 font-medium text-right">
                         #
                       </th>
-                      <th scope="col" className="px-4 py-2.5">
+                      <th scope="col" className="px-4 py-2 font-medium">
                         Player
                       </th>
-                      <th scope="col" className="px-4 py-2.5 text-right">
+                      <th scope="col" className="px-4 py-2 font-medium text-right">
                         Played
                       </th>
-                      <th scope="col" className="px-4 py-2.5 text-right">
+                      <th scope="col" className="px-4 py-2 font-medium text-right">
                         Won
                       </th>
-                      <th scope="col" className="px-4 py-2.5 text-right">
+                      <th scope="col" className="px-4 py-2 font-medium text-right">
                         Lost
                       </th>
-                      <th scope="col" className="px-4 py-2.5 text-right">
+                      <th scope="col" className="px-4 py-2 font-medium text-right">
                         Points
                       </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line">
-                    {data.standings.map((s, i) => (
-                      <tr key={s.player_id}>
-                        <td className="px-4 py-2.5 text-right text-ink-muted tabular-nums">{i + 1}</td>
-                        <td className="px-4 py-2.5">
-                          <PlayerLink player={players.get(s.player_id)} fallbackId={s.player_id} />
-                        </td>
-                        <td className="px-4 py-2.5 text-right tabular-nums">{s.played}</td>
-                        <td className="px-4 py-2.5 text-right tabular-nums">{s.won}</td>
-                        <td className="px-4 py-2.5 text-right tabular-nums">{s.lost}</td>
-                        <td className="px-4 py-2.5 text-right font-medium text-ink tabular-nums">{s.points}</td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
+                    </thead>
+                    <tbody className="divide-y divide-line">
+                      {data.standings.map((s, i) => (
+                        <tr key={s.player_id} className="hover:bg-subtle">
+                          <td className="w-12 px-4 py-2.5 text-right text-ink-faint tabular-nums">{i + 1}</td>
+                          <td className="px-4 py-2.5">
+                            <PlayerLink player={players.get(s.player_id)} fallbackId={s.player_id} />
+                          </td>
+                          <td className="px-4 py-2.5 text-right tabular-nums">{s.played}</td>
+                          <td className="px-4 py-2.5 text-right tabular-nums">{s.won}</td>
+                          <td className="px-4 py-2.5 text-right tabular-nums">{s.lost}</td>
+                          <td className="px-4 py-2.5 text-right font-medium text-ink tabular-nums">{s.points}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
 
-          <Card>
-            <CardHeader title={`Matches (${data.matches.length})`} description="Games played in this league." />
-            {data.matches.length === 0 ? (
-              <CardBody>
-                <p className="text-sm text-ink-muted">No matches yet.</p>
-              </CardBody>
-            ) : (
-              <ul className="divide-y divide-line">
-                {data.matches.map(({ match, result }) => (
-                  <li key={match.match_id}>
-                    <Link href={`/games/${match.match_id}`} className="flex items-center justify-between gap-4 px-5 py-3 hover:bg-subtle">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-ink">
-                          {match.side_a.map(name).join(" & ")} vs {match.side_b.map(name).join(" & ")}
+            <section>
+              <SectionHeading title={`Matches (${data.matches.length})`} />
+              {data.matches.length === 0 ? (
+                <p className="text-[13px] text-ink-muted">No matches yet.</p>
+              ) : (
+                <ul className="divide-y divide-line rounded-lg border border-line bg-surface">
+                  {data.matches.map(({ match, result }) => (
+                    <li key={match.match_id}>
+                      <Link href={`/games/${match.match_id}`} className="flex items-center justify-between gap-4 px-4 py-2.5 hover:bg-subtle">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium text-ink">
+                            {match.side_a.map(name).join(" & ")} vs {match.side_b.map(name).join(" & ")}
+                          </div>
+                          <div className="text-[13px] text-ink-muted">
+                            {formatDateTime(match.proposed_time)} · {match.venue}
+                            {result && <span className="tabular-nums"> · {result.score}</span>}
+                          </div>
                         </div>
-                        <div className="text-xs text-ink-muted">
-                          {formatDateTime(match.proposed_time)} · {match.venue}
-                          {result && ` · ${result.score}`}
-                        </div>
-                      </div>
-                      <StatusBadge status={match.status} />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
+                        <StatusBadge status={match.status} />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
 
-          <Card>
-            <CardHeader title="Admin activity" />
-            <CardBody>
+            <section>
+              <SectionHeading title="Admin activity" />
               <ActivityTimeline entries={activity} empty="No admin actions on this league yet." />
-            </CardBody>
-          </Card>
-        </div>
+            </section>
+          </div>
 
-        <div className="space-y-6">
-          <Card>
-            <CardHeader title={`Members (${league.member_ids.length}${league.max_members === null ? "" : `/${league.max_members}`})`} />
-            {league.member_ids.length === 0 ? (
-              <CardBody>
-                <p className="text-sm text-ink-muted">No members yet.</p>
-              </CardBody>
-            ) : (
-              <ul className="divide-y divide-line">
-                {league.member_ids.map((id) => (
-                  <li key={id} className="flex items-center justify-between gap-3 px-5 py-2.5">
-                    <PlayerLink player={players.get(id)} fallbackId={id} />
-                    {id === league.organiser_id && <span className="text-xs text-ink-muted">Organiser</span>}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
+          <div className="min-w-0 space-y-8">
+            <section>
+              <SectionHeading title={`Members (${league.member_ids.length}${league.max_members === null ? "" : `/${league.max_members}`})`} />
+              {league.member_ids.length === 0 ? (
+                <p className="text-[13px] text-ink-muted">No members yet.</p>
+              ) : (
+                <ul className="divide-y divide-line border-y border-line">
+                  {league.member_ids.map((id) => (
+                    <li key={id} className="flex items-center justify-between gap-3 py-2">
+                      <PlayerLink player={players.get(id)} fallbackId={id} />
+                      {id === league.organiser_id && <span className="shrink-0 text-xs text-ink-faint">Organiser</span>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
 
-          <Card>
-            <CardHeader title={`Reports (${data.reports.length})`} description="Reports about this league." />
-            {data.reports.length === 0 ? (
-              <CardBody>
-                <p className="text-sm text-ink-muted">No reports.</p>
-              </CardBody>
-            ) : (
-              <ul className="divide-y divide-line">
-                {data.reports.map((r) => (
-                  <li key={r.report_id}>
-                    <Link href={`/reports/${r.report_id}`} className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-subtle">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-ink">{r.reason}</div>
-                        <div className="text-xs text-ink-muted">{formatDateTime(r.created_at)}</div>
-                      </div>
-                      <StatusBadge status={r.status} />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
+            <section>
+              <SectionHeading title={`Reports (${data.reports.length})`} />
+              {data.reports.length === 0 ? (
+                <p className="text-[13px] text-ink-muted">No reports.</p>
+              ) : (
+                <ul className="divide-y divide-line border-y border-line">
+                  {data.reports.map((r) => (
+                    <li key={r.report_id}>
+                      <Link href={`/reports/${r.report_id}`} className="-mx-2 flex items-center justify-between gap-3 rounded-md px-2 py-2.5 hover:bg-subtle">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium text-ink">{r.reason}</div>
+                          <div className="text-[13px] text-ink-muted">{formatDateTime(r.created_at)}</div>
+                        </div>
+                        <StatusBadge status={r.status} />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
 
-          <Card>
-            <CardHeader title="Moderation options" />
-            <CardBody>
-              <dl className="space-y-3 text-sm">
+            <section>
+              <SectionHeading title="Moderation options" />
+              <dl className="space-y-2.5 text-[13px]">
                 <div>
                   <dt className="font-medium text-ink">Close registration</dt>
                   <dd className="text-ink-muted">Stops new players joining. The league stays visible and matches carry on.</dd>
@@ -285,8 +281,8 @@ export default function MiniLeagueDetailPage() {
                   <dd className="text-ink-muted">Permanently removes the league, its standings and membership.</dd>
                 </div>
               </dl>
-            </CardBody>
-          </Card>
+            </section>
+          </div>
         </div>
       </div>
 

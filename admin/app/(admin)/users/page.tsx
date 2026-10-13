@@ -12,6 +12,9 @@ import { formatDate } from "@/lib/format";
 import { useQuery } from "@/lib/mock-api";
 import type { Player, PlayerProfile } from "@/lib/types";
 
+/** Slightly tighter cell padding so all eight columns fit at 1280px without horizontal scroll. */
+const TIGHT = "px-3!";
+
 interface Row {
   player: Player;
   profile: PlayerProfile | null;
@@ -34,18 +37,20 @@ export default function UsersPage() {
   const columns: Column<Row>[] = [
     {
       id: "player",
+      className: TIGHT,
       header: "Player",
       sortValue: (r) => r.player.display_name,
       cell: (r) => (
-        <div className="flex items-center gap-3">
+        <div className="flex max-w-[216px] items-center gap-3">
           <Avatar name={r.player.display_name} />
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 font-medium text-ink">
-              {r.player.display_name}
-              {r.player.is_verified && <BadgeCheck className="size-4 text-brand" aria-label="Verified" />}
+              <span className="truncate">{r.player.display_name}</span>
+              {r.player.is_verified && <BadgeCheck className="size-3.5 shrink-0 text-brand" aria-label="Verified" />}
             </div>
-            <div className="truncate text-xs text-ink-muted">
-              {[r.player.email, [r.profile?.suburb, r.profile?.state].filter(Boolean).join(", ")].filter(Boolean).join(" · ")}
+            {/* Location stays searchable and is on the profile; the email alone keeps the column narrow. */}
+            <div className="truncate text-[13px] text-ink-muted" title={[r.profile?.suburb, r.profile?.state].filter(Boolean).join(", ") || undefined}>
+              {r.player.email}
             </div>
           </div>
         </div>
@@ -53,50 +58,69 @@ export default function UsersPage() {
     },
     {
       id: "status",
+      className: TIGHT,
       header: "Status",
       sortValue: (r) => `${r.player.registration_state}-${r.player.status}`,
+      // Only a suspension gets colour; routine and lifecycle states stay quiet.
       cell: (r) =>
         r.player.registration_state === "deleted" ? (
           <StatusBadge status="deleted" label="Deleted" />
         ) : r.player.registration_state === "registration_pending" ? (
-          <StatusBadge status="pending" label="Registration pending" />
+          <StatusBadge status="pending" label="Registration pending" tone="neutral" />
         ) : (
           <StatusBadge status={r.player.status} />
         ),
     },
-    { id: "band", header: "Rating band", sortValue: (r) => r.player.self_rating_band, cell: (r) => r.player.self_rating_band },
+    { id: "band", header: "Band", className: `${TIGHT} whitespace-nowrap`, sortValue: (r) => r.player.self_rating_band, cell: (r) => r.player.self_rating_band },
     {
       id: "reliability",
+      className: TIGHT,
       header: "Reliability",
       align: "right",
       sortValue: (r) => r.profile?.reliability_score ?? -1,
       cell: (r) =>
-        r.profile ? <span className={`font-medium ${reliabilityTone(r.profile.reliability_score)}`}>{r.profile.reliability_score}%</span> : "—",
+        r.profile ? (
+          <span className={r.profile.reliability_score >= 85 ? "text-ink" : `font-medium ${reliabilityTone(r.profile.reliability_score)}`}>
+            {r.profile.reliability_score}%
+          </span>
+        ) : (
+          <span className="text-ink-faint">—</span>
+        ),
     },
-    { id: "games", header: "Games", align: "right", sortValue: (r) => r.profile?.games_played ?? 0, cell: (r) => r.profile?.games_played ?? "—" },
+    { id: "games", header: "Games", className: TIGHT, align: "right", sortValue: (r) => r.profile?.games_played ?? 0, cell: (r) => r.profile?.games_played ?? "—" },
     {
       id: "noshows",
+      className: TIGHT,
       header: "No-shows",
       align: "right",
       sortValue: (r) => r.profile?.no_show_count ?? 0,
-      cell: (r) => <span className={(r.profile?.no_show_count ?? 0) >= 3 ? "font-medium text-danger" : ""}>{r.profile?.no_show_count ?? "—"}</span>,
+      cell: (r) => {
+        const n = r.profile?.no_show_count;
+        if (n === undefined) return <span className="text-ink-faint">—</span>;
+        return <span className={n >= 3 ? "font-medium text-danger" : n === 0 ? "text-ink-faint" : ""}>{n}</span>;
+      },
     },
     {
       id: "reports",
+      className: TIGHT,
       header: "Reports",
       align: "right",
       sortValue: (r) => r.openReports,
       cell: (r) => (r.openReports ? <span className="font-medium text-warning">{r.openReports}</span> : <span className="text-ink-faint">0</span>),
     },
-    { id: "joined", header: "Joined", sortValue: (r) => r.player.joined_at, cell: (r) => formatDate(r.player.joined_at), className: "whitespace-nowrap" },
+    {
+      id: "joined",
+      header: "Joined",
+      align: "right",
+      sortValue: (r) => r.player.joined_at,
+      cell: (r) => <span className="text-ink-muted">{formatDate(r.player.joined_at)}</span>,
+      className: `whitespace-nowrap ${TIGHT}`,
+    },
   ];
 
   return (
     <>
-      <PageHeader
-        title="Users"
-        description={`${rows.length} players · ${suspended} suspended. Search, filter and open a profile to review or take action.`}
-      />
+      <PageHeader title="Users" description={`${rows.length} players · ${suspended} suspended`} />
       <BackendGapNotice message={featureGap("suspension")} />
       <DataTable
         caption="Players"

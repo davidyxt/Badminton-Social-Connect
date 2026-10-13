@@ -1,8 +1,7 @@
 "use client";
 
-import { Card, CardBody, CardHeader } from "@/components/shared/Card";
+import { SectionHeading } from "@/components/shared/Card";
 import { ResultFlagList } from "@/components/shared/ResultFlagList";
-import { Scale } from "lucide-react";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { LiveIndicator } from "@/components/shared/LiveIndicator";
@@ -26,7 +25,8 @@ interface Row {
 export default function GamesPage() {
   const rows = useQuery<Row[]>((db) => {
     const names = new Map(db.players.map((p) => [p.player_id, p.display_name]));
-    const side = (ids: string[]) => ids.map((id) => names.get(id) ?? id).join(" & ");
+    const side = (ids: string[]) =>
+      ids.map((id) => names.get(id) ?? id).join(" & ");
     return db.matches.map((match) => {
       const disputes = db.disputes.filter((d) => d.match_id === match.match_id);
       return {
@@ -34,7 +34,10 @@ export default function GamesPage() {
         sideA: side(match.side_a),
         sideB: side(match.side_b),
         result: selectResultForMatch(db, match.match_id),
-        league: match.league_id ? (db.mini_leagues.find((l) => l.league_id === match.league_id)?.name ?? `${match.league_id} (deleted)`) : null,
+        league: match.league_id
+          ? (db.mini_leagues.find((l) => l.league_id === match.league_id)
+              ?.name ?? `${match.league_id} (deleted)`)
+          : null,
         openDisputes: disputes.filter((d) => d.status === "open").length,
         disputes: disputes.length,
       };
@@ -44,50 +47,80 @@ export default function GamesPage() {
   const columns: Column<Row>[] = [
     {
       id: "players",
-      header: "Players",
+      header: "Match",
       sortValue: (r) => r.sideA,
       cell: (r) => (
-        <div className="min-w-0">
+        <div className="max-w-[300px] min-w-[200px]">
           <div className="font-medium text-ink">
-            {r.sideA} <span className="font-normal text-ink-faint">vs</span> {r.sideB}
+            {r.sideA} <span className="font-normal text-ink-faint">vs</span>{" "}
+            {r.sideB}
           </div>
-          <div className="text-xs text-ink-muted">{r.match.match_id}</div>
+          <div className="text-[13px] text-ink-muted">
+            {humanize(r.match.format)} · {r.match.match_id}
+          </div>
         </div>
       ),
     },
-    { id: "format", header: "Format", sortValue: (r) => r.match.format, cell: (r) => humanize(r.match.format) },
     {
-      id: "venue",
-      header: "Venue",
-      sortValue: (r) => r.match.suburb,
+      id: "time",
+      header: "When & where",
+      sortValue: (r) => r.match.proposed_time,
       cell: (r) => (
-        <div className="min-w-0">
-          <div className="max-w-[200px] truncate text-ink">{r.match.venue}</div>
-          <div className="text-xs text-ink-muted">{r.match.suburb}</div>
+        <div className="max-w-[220px] min-w-0">
+          <div className="whitespace-nowrap text-ink tabular-nums">
+            {formatDateTime(r.match.proposed_time)}
+          </div>
+          <div
+            className="truncate text-[13px] text-ink-muted"
+            title={[r.match.venue, r.match.suburb].filter(Boolean).join(", ")}
+          >
+            {[r.match.venue, r.match.suburb].filter(Boolean).join(", ")}
+          </div>
         </div>
       ),
     },
-    { id: "time", header: "Time", sortValue: (r) => r.match.proposed_time, cell: (r) => formatDateTime(r.match.proposed_time), className: "whitespace-nowrap" },
-    { id: "status", header: "Status", sortValue: (r) => r.match.status, cell: (r) => <StatusBadge status={r.match.status} /> },
+    {
+      id: "status",
+      header: "Status",
+      sortValue: (r) => r.match.status,
+      cell: (r) => (
+        <div className="whitespace-nowrap">
+          <StatusBadge status={r.match.status} />
+          {r.openDisputes > 0 ? (
+            <div className="mt-0.5 text-[13px] text-danger">Dispute open</div>
+          ) : r.disputes > 0 ? (
+            <div className="mt-0.5 text-[13px] text-ink-muted">
+              Dispute resolved
+            </div>
+          ) : null}
+        </div>
+      ),
+    },
     {
       id: "score",
       header: "Score",
       sortValue: (r) => r.result?.score ?? "",
-      cell: (r) => (r.result ? <span className="whitespace-nowrap tabular-nums">{r.result.score}</span> : <span className="text-ink-faint">—</span>),
-    },
-    { id: "league", header: "League", sortValue: (r) => r.league ?? "", cell: (r) => r.league ?? <span className="text-ink-faint">—</span> },
-    {
-      id: "dispute",
-      header: "Dispute",
-      sortValue: (r) => r.openDisputes * 10 + r.disputes,
       cell: (r) =>
-        r.openDisputes ? (
-          <span className="inline-flex items-center gap-1 font-medium text-danger">
-            <Scale className="size-3.5" aria-hidden />
-            Open
+        r.result ? (
+          <span className="whitespace-nowrap tabular-nums">
+            {r.result.score}
           </span>
-        ) : r.disputes ? (
-          <span className="text-ink-muted">Resolved</span>
+        ) : (
+          <span className="text-ink-faint">—</span>
+        ),
+    },
+    {
+      id: "league",
+      header: "League",
+      sortValue: (r) => r.league ?? "",
+      cell: (r) =>
+        r.league ? (
+          <div
+            className="max-w-[170px] truncate text-ink-muted"
+            title={r.league}
+          >
+            {r.league}
+          </div>
         ) : (
           <span className="text-ink-faint">—</span>
         ),
@@ -95,7 +128,11 @@ export default function GamesPage() {
   ];
 
   const disputed = rows.filter((r) => r.openDisputes > 0).length;
-  const flags = useQuery((db) => [...db.result_flags].sort((a, b) => b.created_at.localeCompare(a.created_at)));
+  const flags = useQuery((db) =>
+    [...db.result_flags].sort((a, b) =>
+      b.created_at.localeCompare(a.created_at),
+    ),
+  );
   const statusOptions = [...new Set(rows.map((r) => r.match.status))].sort();
 
   return (
@@ -103,48 +140,72 @@ export default function GamesPage() {
       <PageHeader
         title="Games & results"
         meta={<LiveIndicator />}
-        description={`${rows.length} matches · ${disputed} with an open dispute. Read-only: results are confirmed by players.`}
+        description={`${rows.length} matches · ${disputed} with an open dispute · Read-only: results are confirmed by players.`}
       />
-      {flags.length > 0 && (
-        <Card className="mb-5">
-          <CardHeader
-            title={`Result flags (${flags.length})`}
-            description="Unusual results the rating engine noticed. Informational only: flags never reject a result, and there's nothing to resolve here."
-          />
-          <CardBody>
+      <div className="space-y-8">
+        {flags.length > 0 && (
+          <section>
+            <SectionHeading
+              title={
+                <>
+                  Result flags{" "}
+                  <span className="font-normal text-ink-faint tabular-nums">
+                    {flags.length}
+                  </span>
+                </>
+              }
+              description="Unusual results the rating engine noticed. Informational only; flags never reject a result."
+            />
             <ResultFlagList flags={flags.slice(0, 5)} linkToMatch />
-            {flags.length > 5 && <p className="mt-3 text-xs text-ink-muted">Showing the 5 most recent. Each game page lists its own flags.</p>}
-          </CardBody>
-        </Card>
-      )}
-      <DataTable
-        caption="Matches"
-        rows={rows}
-        columns={columns}
-        getRowId={(r) => r.match.match_id}
-        rowHref={(r) => `/games/${r.match.match_id}`}
-        getSearchText={(r) => `${r.sideA} ${r.sideB} ${r.match.venue} ${r.match.suburb} ${r.league ?? ""} ${r.match.match_id}`}
-        searchPlaceholder="Search player, venue or league"
-        filters={[
-          {
-            id: "status",
-            label: "Status",
-            options: statusOptions.map((s) => ({ value: s, label: humanize(s) })),
-            getValue: (r) => r.match.status,
-          },
-          {
-            id: "format",
-            label: "Format",
-            options: [
-              { value: "singles", label: "Singles" },
-              { value: "doubles", label: "Doubles" },
-            ],
-            getValue: (r) => r.match.format,
-          },
-        ]}
-        initialSort={{ columnId: "time", direction: "desc" }}
-        empty={<EmptyState title="No matches found" description="Try a different search or clear the filters." />}
-      />
+            {flags.length > 5 && (
+              <p className="mt-2 text-[13px] text-ink-faint">
+                Showing the 5 most recent. Each game page lists its own flags.
+              </p>
+            )}
+          </section>
+        )}
+        <section>
+          {flags.length > 0 && <SectionHeading title="Matches" />}
+          <DataTable
+            caption="Matches"
+            rows={rows}
+            columns={columns}
+            getRowId={(r) => r.match.match_id}
+            rowHref={(r) => `/games/${r.match.match_id}`}
+            getSearchText={(r) =>
+              `${r.sideA} ${r.sideB} ${r.match.venue} ${r.match.suburb} ${r.league ?? ""} ${r.match.match_id}`
+            }
+            searchPlaceholder="Search player, venue or league"
+            filters={[
+              {
+                id: "status",
+                label: "Status",
+                options: statusOptions.map((s) => ({
+                  value: s,
+                  label: humanize(s),
+                })),
+                getValue: (r) => r.match.status,
+              },
+              {
+                id: "format",
+                label: "Format",
+                options: [
+                  { value: "singles", label: "Singles" },
+                  { value: "doubles", label: "Doubles" },
+                ],
+                getValue: (r) => r.match.format,
+              },
+            ]}
+            initialSort={{ columnId: "time", direction: "desc" }}
+            empty={
+              <EmptyState
+                title="No matches found"
+                description="Try a different search or clear the filters."
+              />
+            }
+          />
+        </section>
+      </div>
     </>
   );
 }

@@ -16,8 +16,8 @@ export default function SignInPage() {
 
   return (
     <>
-      <h1 className="text-xl font-semibold text-ink">Administrator sign in</h1>
-      <p className="mt-1 mb-6 text-sm text-ink-muted">Sign in with your administrator account to manage players, reports and content.</p>
+      <h1 className="text-xl font-semibold tracking-tight text-ink">Administrator sign in</h1>
+      <p className="mt-1 mb-6 text-sm text-ink-muted">Use your administrator account.</p>
       <SignInForm />
     </>
   );

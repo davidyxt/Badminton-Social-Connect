@@ -1,4 +1,3 @@
-import { Camera } from "lucide-react";
 import { formatDateTime, humanize } from "@/lib/format";
 
 const display = (value: unknown): string => {
@@ -13,21 +12,20 @@ const display = (value: unknown): string => {
  */
 export function EvidenceSnapshot({ evidence }: { evidence: Record<string, unknown> | null }) {
   if (!evidence) {
-    return <p className="text-sm text-ink-muted">No snapshot was stored with this report.</p>;
+    return <p className="text-[13px] text-ink-muted">No snapshot was stored with this report.</p>;
   }
   const capturedAt = typeof evidence.captured_at === "string" ? evidence.captured_at : null;
   const entries = Object.entries(evidence).filter(([key]) => key !== "captured_at");
   return (
-    <div className="rounded-lg border border-line bg-subtle">
-      <div className="flex items-center gap-2 border-b border-line px-4 py-2 text-xs text-ink-muted">
-        <Camera className="size-3.5" aria-hidden />
+    <div>
+      <p className="mb-2 text-xs text-ink-faint">
         {capturedAt ? `Captured ${formatDateTime(capturedAt)}, when the report was filed` : "Captured when the report was filed"}
-      </div>
-      <dl className="divide-y divide-line">
+      </p>
+      <dl className="divide-y divide-line border-y border-line">
         {entries.map(([key, value]) => (
-          <div key={key} className="grid gap-1 px-4 py-2 text-sm sm:grid-cols-[160px_1fr]">
-            <dt className="text-ink-muted">{humanize(key)}</dt>
-            <dd className="break-words text-ink">{display(value)}</dd>
+          <div key={key} className="grid gap-x-4 gap-y-0.5 py-2 sm:grid-cols-[160px_1fr]">
+            <dt className="text-[13px] text-ink-muted">{humanize(key)}</dt>
+            <dd className="text-sm break-words text-ink">{display(value)}</dd>
           </div>
         ))}
       </dl>

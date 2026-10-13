@@ -101,13 +101,13 @@ export function DataTable<T>({
   const hasToolbar = getSearchText || filters.length > 0 || toolbarExtra;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-line bg-surface">
+    <div className="overflow-hidden rounded-lg border border-line bg-surface">
       {hasToolbar && (
-        <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3">
+        <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2.5">
           {getSearchText && (
-            <label className="relative min-w-[200px] flex-1 sm:max-w-xs">
+            <label className="relative min-w-[200px] flex-1 sm:max-w-64">
               <span className="sr-only">{searchPlaceholder}</span>
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-faint" aria-hidden />
+              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-ink-faint" aria-hidden />
               <input
                 type="search"
                 value={query}
@@ -116,12 +116,12 @@ export function DataTable<T>({
                   setPage(0);
                 }}
                 placeholder={searchPlaceholder}
-                className="h-9 w-full rounded-lg border border-line-strong bg-surface pr-3 pl-9 text-sm placeholder:text-ink-faint focus:ring-2 focus:ring-brand/30 focus:outline-none"
+                className="h-8 w-full rounded-md border border-line-strong bg-surface pr-2.5 pl-8 text-sm text-ink transition-colors placeholder:text-ink-faint hover:border-ink-faint/60 focus:border-brand focus:ring-2 focus:ring-brand/20 focus:outline-none"
               />
             </label>
           )}
           {filters.map((f) => (
-            <label key={f.id} className="flex items-center gap-1.5 text-sm text-ink-muted">
+            <label key={f.id} className="flex items-center gap-1.5 text-[13px] text-ink-muted">
               <span className="sr-only sm:not-sr-only">{f.label}</span>
               <select
                 value={filterValues[f.id] ?? ""}
@@ -129,7 +129,7 @@ export function DataTable<T>({
                   setFilterValues((v) => ({ ...v, [f.id]: e.target.value }));
                   setPage(0);
                 }}
-                className="h-9 rounded-lg border border-line-strong bg-surface px-2.5 text-sm text-ink focus:ring-2 focus:ring-brand/30 focus:outline-none"
+                className="h-8 rounded-md border border-line-strong bg-surface px-2 text-[13px] text-ink transition-colors hover:border-ink-faint/60 focus:border-brand focus:ring-2 focus:ring-brand/20 focus:outline-none"
               >
                 <option value="">All</option>
                 {f.options.map((o) => (
@@ -150,7 +150,7 @@ export function DataTable<T>({
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             {caption && <caption className="sr-only">{caption}</caption>}
-            <thead className="bg-subtle text-xs font-medium tracking-wide text-ink-muted uppercase">
+            <thead className="border-b border-line bg-subtle text-xs font-medium text-ink-muted">
               <tr>
                 {columns.map((col) => {
                   const active = sort?.columnId === col.id;
@@ -159,23 +159,23 @@ export function DataTable<T>({
                       key={col.id}
                       scope="col"
                       aria-sort={active ? (sort.direction === "asc" ? "ascending" : "descending") : undefined}
-                      className={`px-4 py-2.5 whitespace-nowrap ${col.align === "right" ? "text-right" : ""} ${col.className ?? ""}`}
+                      className={`px-4 py-2 font-medium whitespace-nowrap ${col.align === "right" ? "text-right" : ""} ${col.className ?? ""}`}
                     >
                       {col.sortValue ? (
                         <button
                           type="button"
                           onClick={() => toggleSort(col.id)}
-                          className={`inline-flex items-center gap-1 uppercase hover:text-ink ${active ? "text-ink" : ""}`}
+                          className={`group/sort inline-flex items-center gap-1 hover:text-ink ${active ? "text-ink" : ""}`}
                         >
                           {col.header}
                           {active ? (
                             sort.direction === "asc" ? (
-                              <ChevronUp className="size-3.5" aria-hidden />
+                              <ChevronUp className="size-3" aria-hidden />
                             ) : (
-                              <ChevronDown className="size-3.5" aria-hidden />
+                              <ChevronDown className="size-3" aria-hidden />
                             )
                           ) : (
-                            <ChevronsUpDown className="size-3.5 opacity-50" aria-hidden />
+                            <ChevronsUpDown className="size-3 opacity-0 transition-opacity group-hover/sort:opacity-60 group-focus-visible/sort:opacity-60" aria-hidden />
                           )}
                         </button>
                       ) : (
@@ -217,12 +217,12 @@ export function DataTable<T>({
                     }
                     className={
                       href
-                        ? "cursor-pointer hover:bg-subtle focus-visible:bg-subtle focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand"
+                        ? "cursor-pointer transition-colors hover:bg-subtle focus-visible:bg-subtle focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand"
                         : ""
                     }
                   >
                     {columns.map((col) => (
-                      <td key={col.id} className={`px-4 py-3 align-middle ${col.align === "right" ? "text-right tabular-nums" : ""} ${col.className ?? ""}`}>
+                      <td key={col.id} className={`px-4 py-2.5 align-middle ${col.align === "right" ? "text-right tabular-nums" : ""} ${col.className ?? ""}`}>
                         {col.cell(row)}
                       </td>
                     ))}
@@ -235,8 +235,8 @@ export function DataTable<T>({
       )}
 
       {filtered.length > pageSize && (
-        <div className="flex items-center justify-between border-t border-line px-4 py-3 text-sm text-ink-muted">
-          <span>
+        <div className="flex items-center justify-between border-t border-line px-4 py-2 text-[13px] text-ink-muted">
+          <span className="tabular-nums">
             {safePage * pageSize + 1}–{Math.min(filtered.length, (safePage + 1) * pageSize)} of {filtered.length}
           </span>
           <div className="flex items-center gap-1">
@@ -244,22 +244,22 @@ export function DataTable<T>({
               type="button"
               onClick={() => setPage(safePage - 1)}
               disabled={safePage === 0}
-              className="rounded-md p-1.5 hover:bg-neutral-soft disabled:opacity-40"
+              className="inline-flex size-7 items-center justify-center rounded-md text-ink-muted hover:bg-subtle hover:text-ink disabled:pointer-events-none disabled:opacity-40"
               aria-label="Previous page"
             >
-              <ChevronLeft className="size-4" />
+              <ChevronLeft className="size-4" aria-hidden />
             </button>
-            <span className="px-2 tabular-nums">
+            <span className="px-1.5 tabular-nums">
               Page {safePage + 1} of {pageCount}
             </span>
             <button
               type="button"
               onClick={() => setPage(safePage + 1)}
               disabled={safePage >= pageCount - 1}
-              className="rounded-md p-1.5 hover:bg-neutral-soft disabled:opacity-40"
+              className="inline-flex size-7 items-center justify-center rounded-md text-ink-muted hover:bg-subtle hover:text-ink disabled:pointer-events-none disabled:opacity-40"
               aria-label="Next page"
             >
-              <ChevronRight className="size-4" />
+              <ChevronRight className="size-4" aria-hidden />
             </button>
           </div>
         </div>

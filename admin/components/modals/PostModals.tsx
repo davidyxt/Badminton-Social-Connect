@@ -14,8 +14,8 @@ export function HidePostModal({ postTitle, ...props }: FlowProps & { postTitle: 
       title="Hide this game post?"
       description={
         <>
-          <span className="font-medium text-ink">&ldquo;{postTitle}&rdquo;</span> will be removed from Find Games and the organiser&apos;s
-          followers. You can restore it later.
+          <span className="font-medium text-ink">&ldquo;{postTitle}&rdquo;</span> is removed from Find Games and the organiser&apos;s followers. You
+          can restore it later.
         </>
       }
       confirmLabel="Hide post"
@@ -32,7 +32,7 @@ export function RestorePostModal({ postTitle, ...props }: FlowProps & { postTitl
       title="Restore this game post?"
       description={
         <>
-          <span className="font-medium text-ink">&ldquo;{postTitle}&rdquo;</span> will be visible to players again with its previous status.
+          <span className="font-medium text-ink">&ldquo;{postTitle}&rdquo;</span> will be visible again with its previous status.
         </>
       }
       confirmLabel="Restore post"
@@ -57,7 +57,7 @@ export function DeletePostModal({ postTitle, ...props }: FlowProps & { postTitle
       confirmPhrase="DELETE"
       reason={{ label: "Reason for deleting", required: true, placeholder: "e.g. Commercial spam" }}
     >
-      <Notice tone="danger">Deleting can&apos;t be undone from the console. If you might need it back, hide the post instead.</Notice>
+      <Notice tone="danger">This can&apos;t be undone. Hide the post instead if you might need it back.</Notice>
     </ConfirmDialog>
   );
 }

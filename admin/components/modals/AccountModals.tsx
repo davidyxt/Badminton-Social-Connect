@@ -12,7 +12,7 @@ export function SuspendAccountModal({ playerName, contentCount, ...props }: Flow
       {...props}
       tone="danger"
       title={`Suspend ${playerName}?`}
-      description="They will be signed out and won't be able to post games, join games or take part in Mini Leagues until access is restored."
+      description="They'll be signed out and can't post or join games, or play in Mini Leagues, until access is restored."
       confirmLabel="Suspend account"
       reason={{
         label: "Reason for suspension",
@@ -24,7 +24,7 @@ export function SuspendAccountModal({ playerName, contentCount, ...props }: Flow
       {contentCount > 0 && (
         <Notice tone="warning">
           {contentCount} active game post{contentCount === 1 ? "" : "s"} or Mini League{contentCount === 1 ? "" : "s"} they organise will be hidden
-          while the account is suspended.
+          while suspended.
         </Notice>
       )}
     </ConfirmDialog>
@@ -37,7 +37,7 @@ export function RestoreAccountModal({ playerName, ...props }: FlowProps & { play
     <ConfirmDialog
       {...props}
       title={`Restore access for ${playerName}?`}
-      description="They'll be able to sign in, post and join games again. Content hidden by the suspension will be restored with the account."
+      description="They can sign in, post and join games again. Content hidden by the suspension comes back too."
       confirmLabel="Restore access"
       reason={{ label: "Note", placeholder: "Optional: why access is being restored" }}
     />

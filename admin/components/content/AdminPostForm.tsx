@@ -1,8 +1,9 @@
 "use client";
 
 import { ImageOff, TriangleAlert, Upload, X } from "lucide-react";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useId, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/shared/Button";
+import { useDialogFocus } from "@/components/shared/ConfirmDialog";
 import { IS_API } from "@/lib/config";
 import type { ActionOutcome } from "@/lib/hooks/useAdminAction";
 import type { AdminPostStatus } from "@/lib/types";
@@ -86,14 +87,13 @@ function AdminPostFormInner({ mode, initial, maxOrder, onSubmit, onClose }: Admi
   const ids = { title: useId(), body: useId(), image: useId(), file: useId(), order: useId() };
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    dialogRef.current?.querySelector<HTMLElement>("input")?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !submitting) onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, submitting]);
+  useDialogFocus(
+    dialogRef,
+    () => {
+      if (!submitting) onClose();
+    },
+    "input",
+  );
 
   // Errors show (and update live) once the user has tried to save.
   const errors: Errors = submitted ? validate(values, maxOrder) : {};
@@ -141,28 +141,34 @@ function AdminPostFormInner({ mode, initial, maxOrder, onSubmit, onClose }: Admi
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-ink/40" onClick={() => !submitting && onClose()} aria-hidden />
+      <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" onClick={() => !submitting && onClose()} aria-hidden />
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col rounded-2xl bg-surface shadow-2xl"
+        className="relative flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col rounded-xl border border-line bg-surface shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
       >
         <form onSubmit={submit} noValidate className="flex min-h-0 flex-col">
-          <div className="flex items-start justify-between gap-4 px-6 pt-5">
+          <div className="flex items-start justify-between gap-4 px-5 pt-5">
             <div>
-              <h2 id={titleId} className="text-lg font-semibold text-ink">
+              <h2 id={titleId} className="text-base font-semibold text-ink">
                 {mode === "create" ? "New carousel card" : "Edit carousel card"}
               </h2>
-              <p className="mt-1 text-sm text-ink-muted">Published cards show on the player home page in display order.</p>
+              <p className="mt-1 text-[13px] text-ink-muted">Published cards show on the player home page in display order.</p>
             </div>
-            <button type="button" onClick={onClose} disabled={submitting} className="rounded p-1 text-ink-faint hover:text-ink" aria-label="Close">
-              <X className="size-5" />
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={submitting}
+              className="-mt-1 -mr-1.5 rounded-md p-1 text-ink-faint hover:bg-subtle hover:text-ink"
+              aria-label="Close"
+            >
+              <X className="size-4" />
             </button>
           </div>
 
-          <div className="min-h-0 space-y-4 overflow-y-auto px-6 py-5">
+          <div className="min-h-0 space-y-4 overflow-y-auto px-5 py-4">
             <Field id={ids.title} label="Title" required error={errors.title}>
               <input
                 id={ids.title}
@@ -218,7 +224,7 @@ function AdminPostFormInner({ mode, initial, maxOrder, onSubmit, onClose }: Admi
                     <>
                       <label
                         htmlFor={ids.file}
-                        className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-line-strong bg-surface px-3 text-sm font-medium text-ink hover:bg-subtle"
+                        className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-line-strong bg-surface px-3 text-[13px] font-medium text-ink hover:bg-subtle has-[+input:focus-visible]:ring-2 has-[+input:focus-visible]:ring-brand/20"
                       >
                         <Upload className="size-4" aria-hidden />
                         Upload image
@@ -248,14 +254,14 @@ function AdminPostFormInner({ mode, initial, maxOrder, onSubmit, onClose }: Admi
                     : "Uploaded images are only stored in this browser's demo data."}
                 </p>
                 {fileError && (
-                  <p role="alert" className="flex items-center gap-1 text-sm text-danger">
-                    <TriangleAlert className="size-4" aria-hidden />
+                  <p role="alert" className="flex items-center gap-1 text-[13px] text-danger">
+                    <TriangleAlert className="size-3.5" aria-hidden />
                     {fileError}
                   </p>
                 )}
               </div>
               <div>
-                <div className="text-sm font-medium text-ink">Preview</div>
+                <div className="text-[13px] font-medium text-ink">Preview</div>
                 <CardImage src={values.image_url} alt="" className="mt-1.5 aspect-[4/3] w-full rounded-lg border border-line" />
               </div>
             </div>
@@ -281,13 +287,13 @@ function AdminPostFormInner({ mode, initial, maxOrder, onSubmit, onClose }: Admi
               </Field>
 
               <fieldset>
-                <legend className="text-sm font-medium text-ink">Status</legend>
-                <div className="mt-1.5 inline-flex rounded-lg border border-line-strong p-0.5" role="radiogroup">
+                <legend className="text-[13px] font-medium text-ink">Status</legend>
+                <div className="mt-1.5 inline-flex h-8 items-center rounded-md border border-line-strong bg-surface p-0.5" role="radiogroup">
                   {(["draft", "published"] as const).map((s) => (
                     <label
                       key={s}
-                      className={`cursor-pointer rounded-md px-3 py-1.5 text-sm font-medium has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/30 ${
-                        values.status === s ? "bg-brand text-white" : "text-ink-muted hover:text-ink"
+                      className={`flex h-full cursor-pointer items-center rounded px-2.5 text-[13px] font-medium has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/20 ${
+                        values.status === s ? "bg-subtle text-ink ring-1 ring-line-strong" : "text-ink-muted hover:text-ink"
                       }`}
                     >
                       <input
@@ -310,13 +316,13 @@ function AdminPostFormInner({ mode, initial, maxOrder, onSubmit, onClose }: Admi
             </div>
 
             {failed && (
-              <div role="alert" className="rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">
+              <div role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-[13px] text-danger">
                 That didn&apos;t save. Your input has been kept, so you can try again.
               </div>
             )}
           </div>
 
-          <div className="flex justify-end gap-2 rounded-b-2xl border-t border-line bg-subtle px-6 py-4">
+          <div className="flex justify-end gap-2 border-t border-line px-5 py-4">
             <Button onClick={onClose} disabled={submitting}>
               Cancel
             </Button>
@@ -331,8 +337,8 @@ function AdminPostFormInner({ mode, initial, maxOrder, onSubmit, onClose }: Admi
 }
 
 const inputClass = (invalid: boolean) =>
-  `mt-1.5 block w-full rounded-lg border bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 ${
-    invalid ? "border-danger focus:ring-danger/30" : "border-line-strong focus:ring-brand/30"
+  `mt-1.5 block w-full rounded-md border bg-surface px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 ${
+    invalid ? "border-danger focus:ring-danger/20" : "border-line-strong focus:border-brand focus:ring-brand/20"
   }`;
 
 function Field({
@@ -352,14 +358,13 @@ function Field({
 }) {
   return (
     <div>
-      <label htmlFor={id} className="block text-sm font-medium text-ink">
+      <label htmlFor={id} className="block text-[13px] font-medium text-ink">
         {label}
         {required && <span className="text-danger"> *</span>}
       </label>
       {children}
       {error ? (
-        <p id={`${id}-error`} className="mt-1.5 flex items-center gap-1 text-sm text-danger">
-          <TriangleAlert className="size-4" aria-hidden />
+        <p id={`${id}-error`} className="mt-1.5 text-[13px] text-danger">
           {error}
         </p>
       ) : (

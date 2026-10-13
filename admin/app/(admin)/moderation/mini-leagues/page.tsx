@@ -43,9 +43,12 @@ export default function MiniLeagueModerationPage() {
       header: "Mini League",
       sortValue: (r) => r.league.name,
       cell: (r) => (
-        <Link href={`/mini-leagues/${r.league.league_id}`} className="font-medium text-ink hover:text-brand hover:underline">
-          {r.league.name}
-        </Link>
+        <div className="min-w-0">
+          <Link href={`/mini-leagues/${r.league.league_id}`} className="font-medium text-ink hover:text-brand">
+            {r.league.name}
+          </Link>
+          <div className="text-[13px] text-ink-muted capitalize">{[r.league.format, r.league.suburb].filter(Boolean).join(" · ")}</div>
+        </div>
       ),
     },
     {

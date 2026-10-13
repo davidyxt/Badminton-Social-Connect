@@ -3,15 +3,20 @@ import type { ActivityLog } from "@/lib/types";
 
 /** Compact list of admin actions on one record, newest first. */
 export function ActivityTimeline({ entries, empty = "No admin actions recorded yet." }: { entries: ActivityLog[]; empty?: string }) {
-  if (entries.length === 0) return <p className="text-sm text-ink-muted">{empty}</p>;
+  if (entries.length === 0) return <p className="text-[13px] text-ink-muted">{empty}</p>;
   return (
-    <ol className="space-y-4">
-      {entries.map((e) => (
-        <li key={e.log_id} className="relative pl-5">
-          <span className="absolute top-1.5 left-0 size-2 rounded-full bg-brand" aria-hidden />
-          <div className="text-sm font-medium text-ink">{ACTION_LABEL[e.action] ?? humanize(e.action)}</div>
-          <div className="text-sm text-ink-muted">{e.details}</div>
-          <div className="mt-0.5 text-xs text-ink-faint">{formatDateTime(e.created_at)}</div>
+    <ol className="relative space-y-3.5">
+      {entries.map((e, i) => (
+        <li key={e.log_id} className="relative pl-4">
+          {i < entries.length - 1 && <span className="absolute top-3 -bottom-3.5 left-[2.5px] w-px bg-line" aria-hidden />}
+          <span className="absolute top-[7px] left-0 size-1.5 rounded-full bg-ink-faint" aria-hidden />
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+            <span className="text-sm font-medium text-ink">{ACTION_LABEL[e.action] ?? humanize(e.action)}</span>
+            <time dateTime={e.created_at} className="text-xs text-ink-faint tabular-nums">
+              {formatDateTime(e.created_at)}
+            </time>
+          </div>
+          {e.details && <div className="text-[13px] text-ink-muted">{e.details}</div>}
         </li>
       ))}
     </ol>

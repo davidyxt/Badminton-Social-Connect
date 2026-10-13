@@ -45,13 +45,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   if (IS_API && sync.state !== "ready") {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 px-4 text-center" role="status">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-2 bg-canvas px-4 text-center" role="status">
         {sync.state === "error" ? (
           <>
-            <TriangleAlert className="size-7 text-danger" aria-hidden />
-            <div className="font-semibold text-ink">Couldn&apos;t load the admin console</div>
-            <p className="max-w-md text-sm text-ink-muted">{sync.lastError}</p>
-            <div className="mt-2 flex gap-2">
+            <TriangleAlert className="size-5 text-ink-faint" aria-hidden />
+            <div className="mt-1 text-sm font-semibold text-ink">Couldn&apos;t load the admin console</div>
+            <p className="max-w-sm text-[13px] text-ink-muted">{sync.lastError}</p>
+            <div className="mt-3 flex gap-2">
               <Button onClick={() => void syncNow()}>Try again</Button>
               <Button variant="ghost" onClick={session.signOut}>
                 Sign out
@@ -60,8 +60,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           </>
         ) : (
           <>
-            <LoaderCircle className="size-6 animate-spin text-ink-muted" aria-hidden />
-            <span className="text-sm text-ink-muted">Loading from the admin API…</span>
+            <LoaderCircle className="size-5 animate-spin text-ink-faint" aria-hidden />
+            <span className="text-[13px] text-ink-muted">Loading from the admin API…</span>
           </>
         )}
       </div>

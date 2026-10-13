@@ -18,9 +18,13 @@ export default function ModerationLayout({ children }: { children: ReactNode }) 
     deleted: db.deleted_records.length,
   }));
 
+  const actionsGap = IS_API
+    ? "Hiding, restoring and suspending aren't available yet: the database has no visibility or restriction state (DB03, DB04). Deleting is blocked until product agrees how deletion affects rankings (DB06). You can review content, but the actions are disabled."
+    : null;
+
   return (
     <>
-      <PageHeader title="Content moderation" description="Review game posts and Mini Leagues players can see, and hide, suspend or remove content that breaks the rules." />
+      <PageHeader title="Content moderation" />
       <Tabs
         label="Moderation sections"
         tabs={[
@@ -29,10 +33,8 @@ export default function ModerationLayout({ children }: { children: ReactNode }) 
           { id: "deleted", label: "Deleted records", href: "/moderation/deleted", count: counts.deleted },
         ]}
       />
-      <BackendGapNotice
-        message={IS_API ? "Hiding, restoring and suspending aren't available yet: the database has no visibility or restriction state (DB03, DB04). Deleting is blocked until product agrees how deletion affects rankings (DB06). You can review content, but the actions are disabled." : null}
-      />
-      {pathname === "/moderation/deleted" && <BackendGapNotice message={featureGap("deletedRecords")} />}
+      {/* One quiet notice per page: the shared action gap, plus the deleted-records gap on that tab. */}
+      <BackendGapNotice message={[actionsGap, pathname === "/moderation/deleted" ? featureGap("deletedRecords") : null].filter(Boolean).join(" ") || null} />
       {children}
     </>
   );

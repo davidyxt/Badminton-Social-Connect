@@ -19,6 +19,8 @@ Sign in with any email and password. An email starting with `player` signs in as
 
 Other scripts: `npm run build`, `npm run lint`.
 
+Visual conventions (tokens, spacing, components to reuse) are in [DESIGN.md](DESIGN.md).
+
 ## Running against the real admin API
 
 1. From a checkout of the `admin-api/player-be2-integration` branch (the function and its migrations aren't on `main` yet), start Supabase locally and serve the function, allowing the console's origin (the function only allows `http://localhost:5173` by default):

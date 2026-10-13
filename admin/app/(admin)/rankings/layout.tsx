@@ -8,7 +8,7 @@ import { Tabs } from "@/components/shared/Tabs";
 export default function RankingsLayout({ children }: { children: ReactNode }) {
   return (
     <>
-      <PageHeader title="Rankings" description="Read-only leaderboards. Ratings can't be edited from the console." />
+      <PageHeader title="Rankings" description="Read-only leaderboards." />
       <Tabs
         label="Rankings"
         tabs={[
