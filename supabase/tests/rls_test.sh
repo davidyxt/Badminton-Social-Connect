@@ -4,11 +4,20 @@
 set -uo pipefail
 
 API=http://127.0.0.1:54321
-ANON=$(supabase status -o json 2>/dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin)["ANON_KEY"])')
+STATUS=$(supabase status -o json 2>/dev/null)
+ANON=$(echo "$STATUS" | python3 -c 'import sys,json;print(json.load(sys.stdin)["ANON_KEY"])')
+SERVICE=$(echo "$STATUS" | python3 -c 'import sys,json;print(json.load(sys.stdin)["SERVICE_ROLE_KEY"])')
 
+# Email confirmation is on (auth.email.enable_confirmations), so a plain
+# /signup returns no session. Create the user already confirmed through the
+# admin API, then sign in for a real token. user_metadata still reaches the
+# sign-up trigger exactly as it would from the app.
 signup() {
-  curl -s "$API/auth/v1/signup" -H "apikey: $ANON" -H 'Content-Type: application/json' \
-    -d "{\"email\":\"$1\",\"password\":\"$2\",\"data\":{\"display_name\":\"$3\"}}"
+  curl -s "$API/auth/v1/admin/users" -H "apikey: $SERVICE" \
+    -H "Authorization: Bearer $SERVICE" -H 'Content-Type: application/json' \
+    -d "{\"email\":\"$1\",\"password\":\"$2\",\"email_confirm\":true,\"user_metadata\":{\"display_name\":\"$3_$RANDOM\"}}" > /dev/null
+  curl -s "$API/auth/v1/token?grant_type=password" -H "apikey: $ANON" \
+    -H 'Content-Type: application/json' -d "{\"email\":\"$1\",\"password\":\"$2\"}"
 }
 
 pass=0; fail=0
@@ -48,12 +57,178 @@ try:
   d=json.load(sys.stdin); print(len(d) if isinstance(d,list) else "ERR:"+str(d.get("code","?")))
 except Exception: print("PARSE_ERR")'; }
 
+# BL-007: an account is unusable until it passes the age gate. Register the
+# test players as adults so the sections below test what they always did.
+register() { # register <token> [date_of_birth]
+  as "$1" POST "rpc/register_player" \
+    "{\"p_date_of_birth\":\"${2:-1995-05-20}\",\"p_age_declared\":true,\"p_terms_version\":\"2026-10\",\"p_privacy_version\":\"2026-10\",\"p_state\":\"VIC\"}"
+}
+register "$TA" > /dev/null
+register "$TB" > /dev/null
+
+# Game times relative to today, so "upcoming" games stay upcoming. 08:00 UTC is
+# 6-7 pm in Melbourne.
+future() { python3 -c 'import sys,datetime
+d=datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(days=int(sys.argv[1]))
+print(d.strftime("%Y-%m-%dT08:00:00Z"))' "$1"; }
+# A search body for the two hours around a game N days out, so games left by
+# earlier runs (the suite does not reset the database) cannot page it out.
+around() { python3 -c 'import sys,json,datetime as d
+t=d.datetime.now(d.timezone.utc).replace(hour=8,minute=0,second=0,microsecond=0)+d.timedelta(days=int(sys.argv[1]))
+print(json.dumps({"p_from":(t-d.timedelta(hours=1)).isoformat(),"p_to":(t+d.timedelta(hours=1)).isoformat(),"p_limit":50}))' "$1"; }
+
 echo
 echo "== 1. sign-up trigger created player + profile rows =="
 check "alice has a player row"  1 "$(count "$(as "$TA" GET "player?player_id=eq.$IDA")")"
 check "alice has a profile row" 1 "$(count "$(as "$TA" GET "player_profile?player_id=eq.$IDA")")"
-check "display_name came from user_metadata" '"Alice"' \
-  "$(as "$TA" GET "player?player_id=eq.$IDA&select=display_name" | python3 -c 'import sys,json;print(json.dumps(json.load(sys.stdin)[0]["display_name"]))')"
+UNA=$(as "$TA" GET "player?player_id=eq.$IDA&select=username" | python3 -c 'import sys,json;print(json.load(sys.stdin)[0]["username"])')
+check "username came from the legacy display_name key" "yes" \
+  "$([[ "$(echo "$UNA" | tr A-Z a-z)" == alice* ]] && echo yes || echo "no ($UNA)")"
+
+echo
+echo "== 1b. usernames and private names =="
+# Sign up through the admin API with arbitrary metadata, as the app or Google
+# would send it. Prints the access token, or the error body if sign-up failed.
+signup_meta() { # signup_meta <email> <user_metadata json>
+  # Email sign-ups must send a username. One is added from the email when the
+  # metadata has none; signup_raw sends the metadata exactly as given.
+  local meta; meta=$(python3 -c 'import sys,json,random
+m=json.loads(sys.argv[2])
+if "username" not in m and "display_name" not in m and not m.get("_raw"):
+    m["username"]=(sys.argv[1].split("@")[0].replace("-","_")[:14]+"_"+str(random.randint(100,999)))
+m.pop("_raw",None); print(json.dumps(m))' "$1" "$2")
+  curl -s "$API/auth/v1/admin/users" -H "apikey: $SERVICE" \
+    -H "Authorization: Bearer $SERVICE" -H 'Content-Type: application/json' \
+    -d "{\"email\":\"$1\",\"password\":\"Passw0rd!x\",\"email_confirm\":true,\"user_metadata\":$meta}" > /dev/null
+  curl -s "$API/auth/v1/token?grant_type=password" -H "apikey: $ANON" \
+    -H 'Content-Type: application/json' -d "{\"email\":\"$1\",\"password\":\"Passw0rd!x\"}" |
+    python3 -c 'import sys,json;d=json.load(sys.stdin);print(d.get("access_token") or "NO_SESSION")'
+}
+field() { python3 -c 'import sys,json
+d=json.load(sys.stdin)
+r=d[0] if isinstance(d,list) and d else {}
+v=r.get(sys.argv[1])
+print("" if v is None else v)' "$1"; }
+me() { as "$1" GET "player?player_id=eq.$(echo "$1" | python3 -c 'import sys,json,base64;t=sys.stdin.read().split(".")[1];print(json.loads(base64.urlsafe_b64decode(t+"=="))["sub"])')&select=$2" | field "$2"; }
+
+UN="jane_$RANDOM"
+TJ=$(signup_meta "jane-$RANDOM@example.com" "{\"username\":\"$UN\",\"first_name\":\"Jane\",\"last_name\":\"Smith\"}")
+check "a chosen username is used as given" "$UN" "$(me "$TJ" username)"
+IDJ=$(echo "$TJ" | python3 -c 'import sys,json,base64;t=sys.stdin.read().split(".")[1];print(json.loads(base64.urlsafe_b64decode(t+"=="))["sub"])')
+PRIV="player_private?player_id=eq.$IDJ&select=first_name,last_name"
+check "the owner can read their names" '["Jane","Smith"]' \
+  "$(as "$TJ" GET "$PRIV" | python3 -c 'import sys,json
+d=json.load(sys.stdin); r=d[0] if isinstance(d,list) and d else {}
+print(json.dumps([r.get("first_name"), r.get("last_name")], separators=(",",":")))')"
+check "other players cannot read them" 0 "$(count "$(as "$TA" GET "$PRIV")")"
+check "anon cannot read them" 0 "$(count "$(curl -s "$API/rest/v1/$PRIV" -H "apikey: $ANON")")"
+check "the owner can correct their last name" 1 \
+  "$(count "$(as "$TJ" PATCH "player_private?player_id=eq.$IDJ" '{"last_name":"Smyth"}')")"
+check "other players cannot change them" 0 \
+  "$(count "$(as "$TA" PATCH "player_private?player_id=eq.$IDJ" '{"last_name":"Hacked"}')")"
+check "player_private carries the audit columns" "$IDJ" \
+  "$(as "$TJ" GET "player_private?player_id=eq.$IDJ&select=updated_by" | field updated_by)"
+
+UPPER=$(echo "$UN" | tr a-z A-Z)
+check "a username taken in another case fails the sign-up" "NO_SESSION" \
+  "$(signup_meta "jane2-$RANDOM@example.com" "{\"username\":\"$UPPER\"}")"
+check "a username with a space fails the sign-up" "NO_SESSION" \
+  "$(signup_meta "jane3-$RANDOM@example.com" '{"username":"jane smith"}')"
+check "a username shaped like an email fails the sign-up" "NO_SESSION" \
+  "$(signup_meta "jane4-$RANDOM@example.com" '{"username":"jane@example"}')"
+
+check "an email sign-up without a username fails (none is made up)" "NO_SESSION" \
+  "$(signup_meta "nouser-$RANDOM@example.com" '{"_raw":true,"first_name":"Kim","last_name":"Lee"}')"
+TK=$(signup_meta "kim-$RANDOM@example.com" '{"first_name":"Kim","last_name":"Lee"}')
+EMAIL="secret.person.$RANDOM@example.com"
+check "no name at all: the sign-up fails, the email is never used" "NO_SESSION" \
+  "$(signup_meta "$EMAIL" '{"_raw":true}')"
+TG=$(signup_meta "gee-$RANDOM@example.com" '{"full_name":"Grace Van Der Berg"}')
+IDG=$(echo "$TG" | python3 -c 'import sys,json,base64;t=sys.stdin.read().split(".")[1];print(json.loads(base64.urlsafe_b64decode(t+"=="))["sub"])')
+check "a Google full name is split into first and last" '["Grace","Van Der Berg"]' \
+  "$(as "$TG" GET "player_private?player_id=eq.$IDG&select=first_name,last_name" | python3 -c 'import sys,json
+d=json.load(sys.stdin); r=d[0] if isinstance(d,list) and d else {}
+print(json.dumps([r.get("first_name"), r.get("last_name")], separators=(",",":")))')"
+
+avail() { curl -s "$API/rest/v1/rpc/is_username_available" -H "apikey: $ANON" \
+  -H 'Content-Type: application/json' -d "{\"p_username\":\"$1\"}"; }
+check "availability: a taken name, any case, is unavailable" "false" "$(avail "$UPPER")"
+check "availability: a free name is available" "true" "$(avail "free_$RANDOM")"
+check "availability: a malformed name is unavailable" "false" "$(avail "a b")"
+
+check "a player can change their username" 1 \
+  "$(count "$(as "$TJ" PATCH "player?player_id=eq.$IDJ" "{\"username\":\"${UN}_x\"}")")"
+check "but not to one that is taken" "ERR:23505" \
+  "$(count "$(as "$TJ" PATCH "player?player_id=eq.$IDJ" "{\"username\":\"$UNA\"}")")"
+
+echo
+echo "== 1c. 18+ age gate and consent (BL-007) =="
+TU=$(signup_meta "unreg-$RANDOM@example.com" '{"first_name":"Uma"}')
+IDU=$(echo "$TU" | python3 -c 'import sys,json,base64;t=sys.stdin.read().split(".")[1];print(json.loads(base64.urlsafe_b64decode(t+"=="))["sub"])')
+check "an unregistered account can read its own player row" 1 \
+  "$(count "$(as "$TU" GET "player?player_id=eq.$IDU")")"
+check "but cannot see other players" 0 \
+  "$(count "$(as "$TU" GET "player?player_id=eq.$IDA")")"
+check "or any game posts" 0 "$(count "$(as "$TU" GET "game_post?select=post_id")")"
+BODY="{\"organiser_id\":\"$IDU\",\"format\":\"singles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 90)\"}"
+R=$(as "$TU" POST "game_post" "$BODY")
+check "or post a game" "ERR:42501" "$(count "$R")"
+
+# Ages are judged by the date in the player's state. These players register in
+# VIC, so "today" is Melbourne's date, whatever the machine's time zone is.
+melb_today() { python3 -c 'import datetime,zoneinfo;print(datetime.datetime.now(zoneinfo.ZoneInfo("Australia/Melbourne")).date().isoformat())'; }
+years_ago() { python3 -c 'import sys,datetime
+d=datetime.date.fromisoformat(sys.argv[1]); n=int(sys.argv[2])
+try: print(d.replace(year=d.year-n).isoformat())
+except ValueError: print(d.replace(year=d.year-n, day=28).isoformat())' "$(melb_today)" "$1"; }
+MINOR=$(years_ago 17)
+R=$(register "$TU" "$MINOR")
+check "an under-18 date of birth is rejected" "23514" \
+  "$(echo "$R" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("code"))')"
+check "and nothing about the minor is stored" '[null,null]' \
+  "$(as "$TU" GET "player_private?player_id=eq.$IDU&select=date_of_birth,registered_at" | python3 -c 'import sys,json
+r=json.load(sys.stdin)[0]; print(json.dumps([r["date_of_birth"], r["registered_at"]], separators=(",",":")))')"
+
+R=$(as "$TU" POST "rpc/register_player" '{"p_date_of_birth":"1990-01-01","p_age_declared":false,"p_terms_version":"2026-10","p_privacy_version":"2026-10","p_state":"VIC"}')
+check "registration needs the 18+ declaration" "23514" \
+  "$(echo "$R" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("code"))')"
+R=$(as "$TU" POST "rpc/register_player" '{"p_date_of_birth":"1990-01-01","p_age_declared":true,"p_terms_version":"","p_privacy_version":"2026-10","p_state":"VIC"}')
+check "registration needs the terms accepted" "23514" \
+  "$(echo "$R" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("code"))')"
+
+ADULT18=$(years_ago 18)
+TOMORROW18=$(python3 -c 'import sys,datetime
+d=datetime.date.fromisoformat(sys.argv[1])+datetime.timedelta(days=1)
+try: print(d.replace(year=d.year-18).isoformat())
+except ValueError: print(d.replace(year=d.year-18, day=28).isoformat())' "$(melb_today)")
+check "turning 18 tomorrow in Melbourne is not old enough" "23514" \
+  "$(register "$TU" "$TOMORROW18" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("code"))')"
+check "turning 18 today is old enough" "" "$(register "$TU" "$ADULT18")"
+check "registration records consent with server timestamps" '["2026-10","2026-10",true]' \
+  "$(as "$TU" GET "player_private?player_id=eq.$IDU&select=terms_version,privacy_version,terms_accepted_at,privacy_accepted_at,age_declared_at,registered_at" | python3 -c 'import sys,json
+r=json.load(sys.stdin)[0]
+stamped=all(r[k] for k in ("terms_accepted_at","privacy_accepted_at","age_declared_at","registered_at"))
+print(json.dumps([r["terms_version"], r["privacy_version"], stamped], separators=(",",":")))')"
+check "and the state lands on the profile" "VIC" \
+  "$(as "$TU" GET "player_profile?player_id=eq.$IDU&select=state" | field state)"
+check "once registered, other players become visible" 1 \
+  "$(count "$(as "$TU" GET "player?player_id=eq.$IDA")")"
+check "registration cannot be repeated" "23505" \
+  "$(register "$TU" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("code"))')"
+check "the player cannot rewrite their date of birth" "ERR:42501" \
+  "$(count "$(as "$TU" PATCH "player_private?player_id=eq.$IDU" '{"date_of_birth":"1980-01-01"}')")"
+check "other players cannot read a date of birth" 0 \
+  "$(count "$(as "$TA" GET "player_private?player_id=eq.$IDU&select=date_of_birth")")"
+
+META="{\"first_name\":\"Teen\",\"date_of_birth\":\"$MINOR\",\"age_declared\":true,\"terms_version\":\"2026-10\",\"privacy_version\":\"2026-10\",\"state\":\"VIC\"}"
+check "an under-18 sign-up with a date of birth creates no account" "NO_SESSION" \
+  "$(signup_meta "teen-$RANDOM@example.com" "$META")"
+META='{"first_name":"Ada","date_of_birth":"1988-03-14","age_declared":true,"terms_version":"2026-10","privacy_version":"2026-10","state":"NSW"}'
+TD=$(signup_meta "ada-$RANDOM@example.com" "$META")
+check "an adult sign-up with the fields is registered at once" 1 \
+  "$(count "$(as "$TD" GET "player?player_id=eq.$IDA")")"
+check "anon cannot call register_player" "ERR:42501" \
+  "$(count "$(curl -s "$API/rest/v1/rpc/register_player" -H "apikey: $ANON" -H 'Content-Type: application/json' -d '{"p_date_of_birth":"1990-01-01","p_age_declared":true,"p_terms_version":"x","p_privacy_version":"x","p_state":"VIC"}')")"
 
 echo
 echo "== 2. discoverability is enforced by the database =="
@@ -71,6 +246,14 @@ check "alice cannot edit bob's profile" 0 \
   "$(count "$(as "$TA" PATCH "player_profile?player_id=eq.$IDB" '{"bio":"hacked"}')")"
 check "alice can edit her own profile"  1 \
   "$(count "$(as "$TA" PATCH "player_profile?player_id=eq.$IDA" '{"bio":"hi"}')")"
+check "a new profile's preferred format is any" '"any"' \
+  "$(as "$TA" GET "player_profile?player_id=eq.$IDA&select=preferred_format" | python3 -c 'import sys,json;print(json.dumps(json.load(sys.stdin)[0]["preferred_format"]))')"
+check "alice can set her preferred format" 1 \
+  "$(count "$(as "$TA" PATCH "player_profile?player_id=eq.$IDA" '{"preferred_format":"singles"}')")"
+check "alice cannot set bob's preferred format" 0 \
+  "$(count "$(as "$TA" PATCH "player_profile?player_id=eq.$IDB" '{"preferred_format":"doubles"}')")"
+check "an unknown format is rejected" "ERR:23514" \
+  "$(count "$(as "$TA" PATCH "player_profile?player_id=eq.$IDA" '{"preferred_format":"triples"}')")"
 
 echo
 echo "== 4. privilege escalation is blocked =="
@@ -97,51 +280,94 @@ check "anon cannot read game posts"        0 \
   "$(count "$(curl -s "$API/rest/v1/game_post?select=*" -H "apikey: $ANON")")"
 
 echo
+echo "== 5b. reference data: states, suburbs and venues =="
+check "anon can read the states (sign-up form)" 8 \
+  "$(count "$(curl -s "$API/rest/v1/state?select=state_code" -H "apikey: $ANON")")"
+check "anon can look up a suburb by postcode" 1 \
+  "$(count "$(curl -s "$API/rest/v1/suburb?postcode=eq.3053&name=eq.Carlton&select=name" -H "apikey: $ANON")")"
+check "NT postcodes keep their leading zero" 1 \
+  "$(count "$(as "$TA" GET "suburb?name=eq.Darwin&postcode=eq.0800&select=name")")"
+check "mail-only postcodes are excluded" 0 \
+  "$(count "$(as "$TA" GET "suburb?state_code=eq.VIC&postcode=gte.8000&select=name")")"
+check "anon cannot read venues" 0 \
+  "$(count "$(curl -s "$API/rest/v1/venue?select=name" -H "apikey: $ANON")")"
+check "players see the seeded venues with their suburb" '["Albert Park","3206"]' \
+  "$(as "$TA" GET "venue?name=like.Melbourne%20Sports%20and%20Aquatic%20Centre*&select=suburb(name,postcode)" | python3 -c 'import sys,json
+d=json.load(sys.stdin)
+s=(d[0].get("suburb") or {}) if isinstance(d,list) and d else {}
+print(json.dumps([s.get("name"), s.get("postcode")], separators=(",",":")))')"
+check "all 142 seeded venues are listed across Australia" 142 \
+  "$(count "$(as "$TA" GET "venue?source_url=like.https://www.badmintonhub.com.au/*&select=venue_id")")"
+check "every venue has a Google Maps link" 0 \
+  "$(count "$(as "$TA" GET "venue?or=(maps_url.is.null,maps_url.not.like.https://www.google.com/maps/*)&select=venue_id")")"
+check "every seeded venue has a pin" 0 \
+  "$(count "$(as "$TA" GET "venue?source_url=like.https://www.badmintonhub.com.au/*&latitude=is.null&select=venue_id")")"
+check "pins from OpenStreetMap are marked for the credit" 1 \
+  "$(count "$(as "$TA" GET "venue?coordinates_source=eq.openstreetmap&select=venue_id")")"
+check "a venue with a pin links to its coordinates" "yes" \
+  "$(as "$TA" GET "venue?name=like.Melbourne%20Sports%20and%20Aquatic%20Centre*&select=maps_url,latitude,longitude" | python3 -c 'import sys,json
+v=json.load(sys.stdin)[0]; print("yes" if v["maps_url"].endswith("%.6f,%.6f" % (v["latitude"], v["longitude"])) else v["maps_url"])')"
+check "players cannot change a venue's coordinates" 0 \
+  "$(count "$(as "$TA" PATCH "venue?name=like.Melbourne%20Sports*" '{"latitude":-37.0}')")"
+BODY='{"name":"Fake","postcode":"3000","state_code":"VIC"}'
+R=$(as "$TA" POST "suburb" "$BODY")
+check "players cannot add suburbs" "ERR:42501" "$(count "$R")"
+check "players cannot rename a state" "ERR:42501" \
+  "$(count "$(as "$TA" PATCH "state?state_code=eq.VIC" '{"name":"Hacked"}')")"
+SUB=$(as "$TA" GET "suburb?name=eq.Carlton&postcode=eq.3053&select=suburb_id" | python3 -c 'import sys,json;d=json.load(sys.stdin);print(d[0]["suburb_id"] if d else "")')
+BODY="{\"name\":\"My Garage\",\"suburb_id\":\"$SUB\"}"
+R=$(as "$TA" POST "venue" "$BODY")
+check "players cannot add venues" "ERR:42501" "$(count "$R")"
+
+echo
 echo "== 6. ownership rules on game posts =="
-POST=$(as "$TA" POST "game_post" "{\"organiser_id\":\"$IDA\",\"format\":\"doubles\",\"proposed_time\":\"2026-10-01T18:00:00Z\",\"suburb\":\"Carlton\"}")
+POST=$(as "$TA" POST "game_post" "{\"organiser_id\":\"$IDA\",\"format\":\"doubles\",\"proposed_time\":\"$(future 3)\",\"suburb\":\"Carlton\"}")
 check "alice can create her own post" 1 "$(count "$POST")"
 PID=$(echo "$POST" | python3 -c 'import sys,json
 d=json.load(sys.stdin)
 print(d[0]["post_id"] if isinstance(d,list) and d else "")')
 check "bob can see it on the board"   1 "$(count "$(as "$TB" GET "game_post?post_id=eq.$PID")")"
 check "bob cannot edit it"            0 "$(count "$(as "$TB" PATCH "game_post?post_id=eq.$PID" '{"status":"cancelled"}')")"
-BODY="{\"organiser_id\":\"$IDA\",\"format\":\"singles\",\"proposed_time\":\"2026-10-02T18:00:00Z\"}"
+BODY="{\"organiser_id\":\"$IDA\",\"format\":\"singles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 4)\"}"
 R=$(as "$TB" POST "game_post" "$BODY")
 check "bob cannot post as alice"      "ERR:42501" "$(count "$R")"
-check "alice can cancel her own post" 1 "$(count "$(as "$TA" PATCH "game_post?post_id=eq.$PID" '{"status":"cancelled"}')")"
+check "alice cannot cancel by editing the status" "ERR:42501" \
+  "$(count "$(as "$TA" PATCH "game_post?post_id=eq.$PID" '{"status":"cancelled"}')")"
+check "alice can cancel her own post" "" \
+  "$(as "$TA" POST "rpc/cancel_game_post" "{\"p_post_id\":\"$PID\"}")"
 
 echo
 echo "== 7. private helper schema is not reachable over the API =="
 check "private.is_admin is not exposed as an RPC" "ERR:PGRST202" \
   "$(count "$(as "$TA" POST "rpc/is_admin" '{}')")"
 echo
-echo "== 8. clubs as organisers =="
-SLUG="test-club-$RANDOM"
+echo "== 8. groups as organisers =="
+SLUG="test-group-$RANDOM"
 BODY="{\"name\":\"Test Smashers\",\"slug\":\"$SLUG\",\"created_by\":\"$IDA\",\"state\":\"VIC\"}"
-R=$(as "$TA" POST "club" "$BODY")
-check "alice can register a club" 1 "$(count "$R")"
-CLUB=$(echo "$R" | python3 -c 'import sys,json
+R=$(as "$TA" POST "groups" "$BODY")
+check "alice can register a group" 1 "$(count "$R")"
+GROUP=$(echo "$R" | python3 -c 'import sys,json
 d=json.load(sys.stdin)
-print(d[0]["club_id"] if isinstance(d,list) and d else "")')
+print(d[0]["group_id"] if isinstance(d,list) and d else "")')
 
-check "the trigger made her a representative" 1 \
-  "$(count "$(as "$TA" GET "club_representative?club_id=eq.$CLUB&player_id=eq.$IDA")")"
-check "bob is not a representative" 0 \
-  "$(count "$(as "$TB" GET "club_representative?club_id=eq.$CLUB&player_id=eq.$IDB")")"
+check "the trigger made her an approved group admin" 1 \
+  "$(count "$(as "$TA" GET "group_member?group_id=eq.$GROUP&player_id=eq.$IDA&role=eq.admin&status=eq.approved")")"
+check "bob is not a member" 0 \
+  "$(count "$(as "$TB" GET "group_member?group_id=eq.$GROUP&player_id=eq.$IDB")")"
 
-BODY="{\"organiser_club_id\":\"$CLUB\",\"format\":\"doubles\",\"proposed_time\":\"2026-10-05T18:00:00Z\"}"
+BODY="{\"organiser_group_id\":\"$GROUP\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 5)\"}"
 R=$(as "$TA" POST "game_post" "$BODY")
-check "a rep can post on the club's behalf" 1 "$(count "$R")"
+check "a group admin can post on the group's behalf" 1 "$(count "$R")"
 CPOST=$(echo "$R" | python3 -c 'import sys,json
 d=json.load(sys.stdin)
 print(d[0]["post_id"] if isinstance(d,list) and d else "")')
 
 R=$(as "$TB" POST "game_post" "$BODY")
-check "bob cannot post as a club he does not represent" "ERR:42501" "$(count "$R")"
+check "bob cannot post as a group he does not represent" "ERR:42501" "$(count "$R")"
 
-check "bob cannot edit the club's post" 0 \
+check "bob cannot edit the group's post" 0 \
   "$(count "$(as "$TB" PATCH "game_post?post_id=eq.$CPOST" '{"status":"cancelled"}')")"
-check "the rep can edit the club's post" 1 \
+check "the rep can edit the group's post" 1 \
   "$(count "$(as "$TA" PATCH "game_post?post_id=eq.$CPOST" '{"suburb":"Box Hill"}')")"
 
 echo
@@ -150,30 +376,72 @@ echo "== 9. exactly one organiser, enforced by the database =="
 # the three policy clauses can be true, so this is refused as a permission
 # error (42501) and never reaches game_post_exactly_one_organiser. The test
 # below proves the constraint itself still fires.
-BODY="{\"format\":\"singles\",\"proposed_time\":\"2026-10-06T18:00:00Z\"}"
+BODY="{\"format\":\"singles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 6)\"}"
 R=$(as "$TA" POST "game_post" "$BODY")
 check "a post with no organiser is refused" "ERR:42501" "$(count "$R")"
 
-BODY="{\"organiser_id\":\"$IDA\",\"organiser_club_id\":\"$CLUB\",\"format\":\"singles\",\"proposed_time\":\"2026-10-06T18:00:00Z\"}"
+BODY="{\"organiser_id\":\"$IDA\",\"organiser_group_id\":\"$GROUP\",\"format\":\"singles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 6)\"}"
 R=$(as "$TA" POST "game_post" "$BODY")
 check "a post with both organisers is rejected" "ERR:23514" "$(count "$R")"
 
 echo
-echo "== 10. club integrity =="
-check "nobody can verify their own club" "ERR:42501" \
-  "$(count "$(as "$TA" PATCH "club?club_id=eq.$CLUB" '{"is_verified":true}')")"
-check "bob cannot edit alice's club" 0 \
-  "$(count "$(as "$TB" PATCH "club?club_id=eq.$CLUB" '{"name":"Hijacked"}')")"
+echo "== 10. group integrity =="
+check "nobody can verify their own group" "ERR:42501" \
+  "$(count "$(as "$TA" PATCH "groups?group_id=eq.$GROUP" '{"is_verified":true}')")"
+check "bob cannot edit alice's group" 0 \
+  "$(count "$(as "$TB" PATCH "groups?group_id=eq.$GROUP" '{"name":"Hijacked"}')")"
 
-BODY="{\"club_id\":\"$CLUB\",\"player_id\":\"$IDB\"}"
-R=$(as "$TB" POST "club_representative" "$BODY")
-check "bob cannot make himself a representative" "ERR:42501" "$(count "$R")"
-R=$(as "$TA" POST "club_representative" "$BODY")
-check "a rep can add another rep" 1 "$(count "$R")"
-check "a rep cannot remove another rep" 0 \
-  "$(count "$(as "$TB" DELETE "club_representative?club_id=eq.$CLUB&player_id=eq.$IDA")")"
-check "a rep can step down" 1 \
-  "$(count "$(as "$TB" DELETE "club_representative?club_id=eq.$CLUB&player_id=eq.$IDB")")"
+BREP="group_member?group_id=eq.$GROUP&player_id=eq.$IDB"
+AREP="group_member?group_id=eq.$GROUP&player_id=eq.$IDA"
+
+BODY="{\"group_id\":\"$GROUP\",\"player_id\":\"$IDB\",\"status\":\"approved\"}"
+R=$(as "$TB" POST "group_member" "$BODY")
+check "bob cannot let himself straight into the group" "ERR:42501" "$(count "$R")"
+BODY="{\"group_id\":\"$GROUP\",\"player_id\":\"$IDB\",\"role\":\"admin\",\"status\":\"approved\"}"
+R=$(as "$TB" POST "group_member" "$BODY")
+check "bob cannot make himself a group admin" "ERR:42501" "$(count "$R")"
+BODY="{\"group_id\":\"$GROUP\",\"player_id\":\"$IDA\"}"
+R=$(as "$TB" POST "group_member" "$BODY")
+check "bob cannot file a join request for someone else" "ERR:42501" "$(count "$R")"
+
+BODY="{\"group_id\":\"$GROUP\",\"player_id\":\"$IDB\"}"
+R=$(as "$TB" POST "group_member" "$BODY")
+check "bob can request to join (pending by default)" '["pending","member"]' \
+  "$(echo "$R" | python3 -c 'import sys,json
+d=json.load(sys.stdin)
+r=d[0] if isinstance(d,list) and d else {}
+print(json.dumps([r.get("status"), r.get("role")], separators=(",",":")))')"
+check "bob cannot approve his own request" 0 \
+  "$(count "$(as "$TB" PATCH "$BREP" '{"status":"approved"}')")"
+
+BODY="{\"organiser_group_id\":\"$GROUP\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 7)\"}"
+R=$(as "$TB" POST "game_post" "$BODY")
+check "a pending member cannot post for the group" "ERR:42501" "$(count "$R")"
+
+check "the group admin approves bob" 1 \
+  "$(count "$(as "$TA" PATCH "$BREP" '{"status":"approved"}')")"
+R=$(as "$TB" POST "game_post" "$BODY")
+check "an approved member still cannot post for the group" "ERR:42501" "$(count "$R")"
+check "an approved member cannot rename the group" 0 \
+  "$(count "$(as "$TB" PATCH "groups?group_id=eq.$GROUP" '{"name":"Hijacked"}')")"
+
+check "the group admin promotes bob to admin" 1 \
+  "$(count "$(as "$TA" PATCH "$BREP" '{"role":"admin"}')")"
+check "a second admin can edit the group" 1 \
+  "$(count "$(as "$TB" PATCH "groups?group_id=eq.$GROUP" '{"description":"Tuesday nights"}')")"
+R=$(as "$TB" POST "game_post" "$BODY")
+check "a second admin can post for the group" 1 "$(count "$R")"
+
+check "an admin cannot demote another admin" 0 \
+  "$(count "$(as "$TB" PATCH "$AREP" '{"role":"member"}')")"
+check "an admin cannot remove another admin" 0 \
+  "$(count "$(as "$TB" DELETE "$AREP")")"
+check "not even a group admin can delete the group" "ERR:42501" \
+  "$(count "$(as "$TB" DELETE "groups?group_id=eq.$GROUP")")"
+check "an admin can step down while another remains" 1 \
+  "$(count "$(as "$TB" DELETE "$BREP")")"
+check "the last admin cannot step down" "ERR:23514" \
+  "$(count "$(as "$TA" DELETE "$AREP")")"
 
 echo
 echo "== 11. the organiser embeds in one request =="
@@ -181,29 +449,30 @@ echo "== 11. the organiser embeds in one request =="
 # bare player(...) embed is ambiguous and PostgREST refuses it with PGRST201.
 # The hint after ! can be the column name or the constraint name; the column
 # name is shorter and survives a constraint being renamed.
-ORG='organiser:player!organiser_id(display_name)'
-EMB=$(as "$TA" GET "game_post?post_id=eq.$CPOST&select=post_id,club(name,slug),$ORG")
-check "club post embeds the club and a null organiser" '["Test Smashers",null]' \
+ORG='organiser:player!organiser_id(username)'
+EMB=$(as "$TA" GET "game_post?post_id=eq.$CPOST&select=post_id,groups(name,slug),$ORG")
+check "group post embeds the group and a null organiser" '["Test Smashers",null]' \
   "$(echo "$EMB" | python3 -c 'import sys,json
 d=json.load(sys.stdin)
 r=d[0] if isinstance(d,list) and d else {}
-c=r.get("club") or {}
+c=r.get("groups") or {}
 print(json.dumps([c.get("name"), r.get("organiser")], separators=(",",":")))')"
-EMB=$(as "$TA" GET "game_post?post_id=eq.$PID&select=post_id,club(name),$ORG")
-check "player post embeds the organiser and a null club" '["Alice",null]' \
+EMB=$(as "$TA" GET "game_post?post_id=eq.$PID&select=post_id,groups(name),$ORG")
+check "player post embeds the organiser and a null group" "[\"$UNA\",null]" \
   "$(echo "$EMB" | python3 -c 'import sys,json
 d=json.load(sys.stdin)
 r=d[0] if isinstance(d,list) and d else {}
 p=r.get("organiser") or {}
-print(json.dumps([p.get("display_name"), r.get("club")], separators=(",",":")))')"
+print(json.dumps([p.get("username"), r.get("groups")], separators=(",",":")))')"
 echo
 echo "== 12. requesting to join a game =="
 C=$(signup "carol-$RANDOM@example.com" 'Passw0rd!x' 'Carol')
 TC=$(echo "$C" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("access_token",""))')
 IDC=$(echo "$C" | python3 -c 'import sys,json;d=json.load(sys.stdin);print((d.get("user") or d).get("id",""))')
+register "$TC" > /dev/null
 
 # A singles game with two places. Alice organises, so she takes one of them.
-BODY="{\"organiser_id\":\"$IDA\",\"format\":\"singles\",\"player_limit\":2,\"proposed_time\":\"2026-11-01T18:00:00Z\"}"
+BODY="{\"organiser_id\":\"$IDA\",\"format\":\"singles\",\"player_limit\":2,\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 30)\"}"
 R=$(as "$TA" POST "game_post" "$BODY")
 GAME=$(echo "$R" | python3 -c 'import sys,json
 d=json.load(sys.stdin)
@@ -290,26 +559,27 @@ as "$TA" POST "match_participant" "$BODY" > /dev/null
 BODY="{\"match_id\":\"$M2\",\"player_id\":\"$IDB\",\"side\":\"a\"}"
 R=$(as "$TA" POST "match_participant" "$BODY")
 check "a singles side cannot hold two players" "ERR:23514" "$(count "$R")"
+# 3 recorded by hand, plus the one BL-017 creates when bob was accepted.
 check "several matches can belong to one game" 3 \
   "$(count "$(as "$TA" GET "match?post_id=eq.$GAME&select=match_id")")"
 
 # game_participant is what makes a bare player(...) embed on game_post
 # ambiguous: before this migration there was only one route to player.
 check "a bare player embed is refused as ambiguous" "ERR:PGRST201" \
-  "$(count "$(as "$TA" GET "game_post?post_id=eq.$PID&select=post_id,player(display_name)")")"
+  "$(count "$(as "$TA" GET "game_post?post_id=eq.$PID&select=post_id,player(username)")")"
 
 # The query the game screen needs: a post, its organiser, and its
 # accepted roster, in one round trip.
-SEL="post_id,player_limit,organiser:player!organiser_id(display_name)"
-SEL="$SEL,game_participant(status,player(display_name))"
+SEL="post_id,player_limit,organiser:player!organiser_id(username)"
+SEL="$SEL,game_participant(status,player(username))"
 EMB=$(as "$TA" GET "game_post?post_id=eq.$GAME&select=$SEL")
-check "post, organiser and roster embed together" '["Alice",2]' \
+check "post, organiser and roster embed together" "[\"$UNA\",2]" \
   "$(echo "$EMB" | python3 -c 'import sys,json
 d=json.load(sys.stdin)
 r=d[0] if isinstance(d,list) and d else {}
 o=r.get("organiser") or {}
 roster=[p for p in (r.get("game_participant") or []) if p.get("status")=="accepted"]
-print(json.dumps([o.get("display_name"), len(roster)], separators=(",",":")))')"
+print(json.dumps([o.get("username"), len(roster)], separators=(",",":")))')"
 echo
 echo "== 15. updated_at / updated_by =="
 field() { python3 -c 'import sys,json
@@ -318,7 +588,7 @@ r=d[0] if isinstance(d,list) and d else {}
 v=r.get(sys.argv[1])
 print("" if v is None else v)' "$1"; }
 
-BODY="{\"organiser_id\":\"$IDA\",\"format\":\"doubles\",\"proposed_time\":\"2026-12-01T18:00:00Z\",\"suburb\":\"Clayton\"}"
+BODY="{\"organiser_id\":\"$IDA\",\"format\":\"doubles\",\"proposed_time\":\"$(future 60)\",\"suburb\":\"Clayton\"}"
 R=$(as "$TA" POST "game_post" "$BODY")
 APOST=$(echo "$R" | field post_id)
 check "updated_by is stamped on insert" "$IDA" "$(echo "$R" | field updated_by)"
@@ -347,17 +617,660 @@ check "updated_by records who made the change, not whose row it is" "$IDA" \
 # columns fails with 42703 if either is missing.
 MISSING=""
 for tbl in player player_profile venue mini_league league_standing game_post \
-           game_participant cancellation_record club match match_participant \
-           check_in match_result dispute ranking notification report admin_post
+           game_participant cancellation_record groups group_member \
+           match match_participant check_in match_result dispute ranking \
+           notification report admin_post
 do
   RES=$(as "$TA" GET "$tbl?select=updated_at,updated_by&limit=1")
   echo "$RES" | grep -q '"code"' && MISSING="$MISSING $tbl"
 done
-check "all 18 changeable tables expose the pair" "" "$MISSING"
+check "all 19 changeable tables expose the pair" "" "$MISSING"
 
-# club_representative has no updatable column, so it deliberately has neither.
-check "club_representative is deliberately excluded" "ERR:42703" \
-  "$(count "$(as "$TA" GET "club_representative?select=updated_at&limit=1")")"
+echo
+echo "== 16. group join requests are private, membership is public =="
+BODY="{\"group_id\":\"$GROUP\",\"player_id\":\"$IDC\"}"
+R=$(as "$TC" POST "group_member" "$BODY")
+check "carol can request to join" 1 "$(count "$R")"
+CREP="group_member?group_id=eq.$GROUP&player_id=eq.$IDC"
+check "bob cannot see carol's pending request" 0 "$(count "$(as "$TB" GET "$CREP")")"
+check "the group admin can see it" 1 "$(count "$(as "$TA" GET "$CREP")")"
+check "the group admin can decline it" 1 "$(count "$(as "$TA" DELETE "$CREP")")"
+
+BODY="{\"group_id\":\"$GROUP\",\"player_id\":\"$IDC\",\"status\":\"approved\"}"
+R=$(as "$TA" POST "group_member" "$BODY")
+check "a group admin cannot add a member directly (players must ask)" "ERR:42501" "$(count "$R")"
+BODY="{\"group_id\":\"$GROUP\",\"player_id\":\"$IDC\"}"
+as "$TC" POST "group_member" "$BODY" > /dev/null
+check "carol asks again and the admin approves" 1 \
+  "$(count "$(as "$TA" PATCH "$CREP" '{"status":"approved"}')")"
+check "approved membership is visible to other players" 1 "$(count "$(as "$TB" GET "$CREP")")"
+check "approval is stamped with the admin, not the member" "$IDA" \
+  "$(as "$TA" GET "$CREP&select=updated_by" | field updated_by)"
+check "a member can leave" 1 "$(count "$(as "$TC" DELETE "$CREP")")"
+
+echo
+echo "== 17. groups are deactivated, not deleted =="
+# Bob is an approved member again, not an admin: he asks, Alice approves.
+BODY="{\"group_id\":\"$GROUP\",\"player_id\":\"$IDB\"}"
+as "$TB" POST "group_member" "$BODY" > /dev/null
+as "$TA" PATCH "$BREP" '{"status":"approved"}' > /dev/null
+check "a plain member cannot deactivate the group" 0 \
+  "$(count "$(as "$TB" PATCH "groups?group_id=eq.$GROUP" '{"is_active":false}')")"
+check "a group with upcoming games cannot be deactivated" "ERR:23514" \
+  "$(count "$(as "$TA" PATCH "groups?group_id=eq.$GROUP" '{"is_active":false}')")"
+for G in $(as "$TA" GET "game_post?organiser_group_id=eq.$GROUP&status=in.(open,full)&select=post_id" |
+           python3 -c 'import sys,json;[print(r["post_id"]) for r in json.load(sys.stdin)]'); do
+  BODY="{\"p_post_id\":\"$G\",\"p_reason\":\"Group closing\"}"
+  as "$TA" POST "rpc/cancel_game_post" "$BODY" > /dev/null
+done
+check "once they are cancelled, a group admin can deactivate it" 1 \
+  "$(count "$(as "$TA" PATCH "groups?group_id=eq.$GROUP" '{"is_active":false}')")"
+
+check "its game posts are still there" 1 \
+  "$(count "$(as "$TB" GET "game_post?post_id=eq.$CPOST")")"
+check "the post can show the group as inactive" '[false]' \
+  "$(as "$TB" GET "game_post?post_id=eq.$CPOST&select=groups(is_active)" | python3 -c 'import sys,json
+d=json.load(sys.stdin)
+print(json.dumps([(d[0].get("groups") or {}).get("is_active")] if d else []))')"
+
+BODY="{\"organiser_group_id\":\"$GROUP\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 61)\"}"
+R=$(as "$TA" POST "game_post" "$BODY")
+check "an inactive group cannot post a game" "ERR:23514" "$(count "$R")"
+BODY="{\"group_id\":\"$GROUP\",\"player_id\":\"$IDC\"}"
+R=$(as "$TC" POST "group_member" "$BODY")
+check "an inactive group cannot take join requests" "ERR:23514" "$(count "$R")"
+check "a member can still leave an inactive group" 1 \
+  "$(count "$(as "$TB" DELETE "$BREP")")"
+check "an admin can still edit the group's existing posts" 1 \
+  "$(count "$(as "$TA" PATCH "game_post?post_id=eq.$CPOST" '{"suburb":"Richmond"}')")"
+
+check "a group admin can reactivate it" 1 \
+  "$(count "$(as "$TA" PATCH "groups?group_id=eq.$GROUP" '{"is_active":true}')")"
+BODY="{\"organiser_group_id\":\"$GROUP\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 61)\"}"
+R=$(as "$TA" POST "game_post" "$BODY")
+check "once reactivated it can post again" 1 "$(count "$R")"
+echo
+echo "== 18. posting, cancelling and deleting games (BL-013) =="
+code() { python3 -c 'import sys,json
+try:
+  d=json.load(sys.stdin); print(d.get("code","?") if isinstance(d,dict) else "OK")
+except Exception: print("EMPTY")'; }
+VENUE=$(as "$TA" GET "venue?name=like.Melbourne%20Sports%20and%20Aquatic%20Centre*&select=venue_id" | field venue_id)
+BODY="{\"organiser_id\":\"$IDA\",\"format\":\"singles\",\"proposed_time\":\"$(future 20)\",\"venue_id\":\"$VENUE\",\"style\":\"competitive\",\"duration_minutes\":90,\"ability_level\":\"intermediate\",\"notes\":\"Bring your own shuttles\",\"player_limit\":2}"
+R=$(as "$TA" POST "game_post" "$BODY")
+G1=$(echo "$R" | field post_id)
+check "a post stores the form's fields, suburb taken from the venue" \
+  '["Albert Park","competitive",90,"intermediate","Bring your own shuttles"]' \
+  "$(echo "$R" | python3 -c 'import sys,json
+r=json.load(sys.stdin)[0]
+print(json.dumps([r["suburb"],r["style"],r["duration_minutes"],r["ability_level"],r["notes"]], separators=(",",":")))')"
+BODY="{\"organiser_id\":\"$IDA\",\"format\":\"singles\",\"proposed_time\":\"$(future 20)\"}"
+check "a post needs a venue or a suburb" "ERR:23514" "$(count "$(as "$TA" POST "game_post" "$BODY")")"
+BODY="{\"organiser_id\":\"$IDA\",\"format\":\"singles\",\"suburb\":\"Carlton\",\"proposed_time\":\"2020-01-01T08:00:00Z\"}"
+check "a post cannot start in the past" "ERR:23514" "$(count "$(as "$TA" POST "game_post" "$BODY")")"
+BODY="{\"organiser_id\":\"$IDA\",\"format\":\"singles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 20)\",\"style\":\"casual\"}"
+check "an unknown style is rejected" "ERR:23514" "$(count "$(as "$TA" POST "game_post" "$BODY")")"
+
+as "$TB" POST "game_participant" "{\"post_id\":\"$G1\",\"player_id\":\"$IDB\"}" > /dev/null
+check "deleted_at cannot be set directly" "ERR:42501" \
+  "$(count "$(as "$TA" PATCH "game_post?post_id=eq.$G1" '{"deleted_at":"2026-01-01T00:00:00Z"}')")"
+check "a non-organiser cannot cancel" "42501" \
+  "$(as "$TB" POST "rpc/cancel_game_post" "{\"p_post_id\":\"$G1\"}" | code)"
+
+SOON=$(python3 -c 'import datetime;print((datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%SZ"))')
+G2=$(as "$TA" POST "game_post" "{\"organiser_id\":\"$IDA\",\"format\":\"singles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$SOON\"}" | field post_id)
+check "cancelling within 4 hours of the start is refused" "23514" \
+  "$(as "$TA" POST "rpc/cancel_game_post" "{\"p_post_id\":\"$G2\"}" | code)"
+check "so is deleting" "23514" \
+  "$(as "$TA" POST "rpc/delete_game_post" "{\"p_post_id\":\"$G2\"}" | code)"
+
+BODY="{\"p_post_id\":\"$G1\",\"p_reason\":\"Court closed\"}"
+check "the organiser cancels with a reason" "" "$(as "$TA" POST "rpc/cancel_game_post" "$BODY")"
+check "the post stays visible as cancelled" "cancelled" \
+  "$(as "$TB" GET "game_post?post_id=eq.$G1&select=status" | field status)"
+check "a cancellation record keeps the reason" "Court closed" \
+  "$(as "$TB" GET "cancellation_record?post_id=eq.$G1&select=reason" | field reason)"
+check "the player who asked to join is notified" "game_cancelled" \
+  "$(as "$TB" GET "notification?type=eq.game_cancelled&order=created_at.desc&limit=1&select=type" | field type)"
+check "a game cannot be cancelled twice" "23505" \
+  "$(as "$TA" POST "rpc/cancel_game_post" "{\"p_post_id\":\"$G1\"}" | code)"
+check "a cancelled game cannot be reopened" "ERR:23514" \
+  "$(count "$(as "$TA" PATCH "game_post?post_id=eq.$G1" '{"status":"open"}')")"
+
+G3=$(as "$TA" POST "game_post" "{\"organiser_id\":\"$IDA\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 21)\"}" | field post_id)
+as "$TB" POST "game_participant" "{\"post_id\":\"$G3\",\"player_id\":\"$IDB\"}" > /dev/null
+check "a hard delete is not allowed" "ERR:42501" "$(count "$(as "$TA" DELETE "game_post?post_id=eq.$G3")")"
+check "a game someone has asked to join cannot be deleted (cancel it instead)" "23514" \
+  "$(as "$TA" POST "rpc/delete_game_post" "{\"p_post_id\":\"$G3\"}" | code)"
+check "so it stays visible" 1 "$(count "$(as "$TB" GET "game_post?post_id=eq.$G3")")"
+G3E=$(as "$TA" POST "game_post" "{\"organiser_id\":\"$IDA\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 22)\"}" | field post_id)
+check "the organiser deletes an upcoming game nobody has asked to join" "" \
+  "$(as "$TA" POST "rpc/delete_game_post" "{\"p_post_id\":\"$G3E\"}")"
+check "it is hidden from players" 0 "$(count "$(as "$TB" GET "game_post?post_id=eq.$G3E")")"
+check "including the organiser" 0 "$(count "$(as "$TA" GET "game_post?post_id=eq.$G3E")")"
+
+check "a game that has happened cannot be deleted by its organiser" "42501" \
+  "$(as "$TA" POST "rpc/delete_game_post" "{\"p_post_id\":\"$GAME\"}" | code)"
+check "players cannot see the admin warning data" "42501" \
+  "$(as "$TA" POST "rpc/admin_game_post_deletion_impact" "{\"p_post_id\":\"$GAME\"}" | code)"
+
+AEMAIL="admin-$RANDOM@example.com"
+curl -s "$API/auth/v1/admin/users" -H "apikey: $SERVICE" -H "Authorization: Bearer $SERVICE" \
+  -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$AEMAIL\",\"password\":\"Passw0rd!x\",\"email_confirm\":true,\"app_metadata\":{\"role\":\"admin\"},\"user_metadata\":{\"username\":\"admin_$RANDOM\"}}" > /dev/null
+TADM=$(curl -s "$API/auth/v1/token?grant_type=password" -H "apikey: $ANON" -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$AEMAIL\",\"password\":\"Passw0rd!x\"}" | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
+check "admins still see deleted posts" 1 "$(count "$(as "$TADM" GET "game_post?post_id=eq.$G3E")")"
+check "the admin warning shows what would change" '[true,3]' \
+  "$(as "$TADM" POST "rpc/admin_game_post_deletion_impact" "{\"p_post_id\":\"$GAME\"}" | python3 -c 'import sys,json
+d=json.load(sys.stdin); print(json.dumps([d["has_happened"], d["matches"]], separators=(",",":")))')"
+BODY="{\"p_post_id\":\"$GAME\",\"p_reason\":\" \"}"
+check "an admin delete needs a reason" "23514" "$(as "$TADM" POST "rpc/admin_delete_game_post" "$BODY" | code)"
+BODY="{\"p_post_id\":\"$GAME\",\"p_reason\":\"Fabricated results\"}"
+check "an admin can delete a game that has happened" "" "$(as "$TADM" POST "rpc/admin_delete_game_post" "$BODY")"
+check "its matches are kept" 3 "$(count "$(as "$TADM" GET "match?post_id=eq.$GAME&select=match_id")")"
+check "its results stop counting towards rankings" "True" \
+  "$(as "$TADM" GET "match_result?match_id=eq.$M1&select=excluded_from_ranking" | field excluded_from_ranking)"
+
+echo
+echo "== 19. join requests (BL-017) =="
+rpc() { # rpc <token> <function> <json body>; prints the error code, or OK
+  as "$1" POST "rpc/$2" "$3" | code; }
+G4=$(as "$TA" POST "game_post" "{\"organiser_id\":\"$IDA\",\"title\":\"Singles ladder\",\"format\":\"singles\",\"player_limit\":2,\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 25)\"}" | field post_id)
+BODY="{\"p_post_id\":\"$G4\",\"p_message\":\"Hi! Keen for a hit if there is room.\"}"
+check "a player asks to join with a message" "EMPTY" "$(rpc "$TC" request_to_join "$BODY")"
+BODY="{\"p_post_id\":\"$G4\"}"
+check "asking twice is refused" "23505" "$(rpc "$TC" request_to_join "$BODY")"
+BODY="{\"p_post_id\":\"$G4\"}"
+check "the organiser cannot ask to join their own game" "23514" "$(rpc "$TA" request_to_join "$BODY")"
+check "the requester can read their message" 1 \
+  "$(count "$(as "$TC" GET "game_request_message?post_id=eq.$G4&select=message")")"
+check "other players cannot" 0 \
+  "$(count "$(as "$TB" GET "game_request_message?post_id=eq.$G4&select=message")")"
+BODY="{\"post_id\":\"$G4\",\"player_id\":\"$IDC\",\"message\":\"forged\"}"
+check "messages cannot be written directly" "ERR:42501" "$(count "$(as "$TC" POST "game_request_message" "$BODY")")"
+
+BODY="{\"p_post_id\":\"$G4\"}"
+REQ=$(as "$TA" POST "rpc/get_join_requests" "$BODY")
+check "the host sees the request as the Play Request screen needs it" \
+  '["pending","Hi! Keen for a hit if there is room.",true]' \
+  "$(echo "$REQ" | python3 -c 'import sys,json
+r=json.load(sys.stdin)[0]; q=r["requester"]
+print(json.dumps([r["status"], q["message"], all(k in q for k in ("name","initials","rating","verifiedMatches","reliability","level","preferredFormat"))], separators=(",",":")))')"
+BODY="{\"p_post_id\":\"$G4\"}"
+check "other players cannot list a game's requests" "42501" "$(rpc "$TB" get_join_requests "$BODY")"
+BODY="{\"p_post_id\":\"$G4\",\"p_player_id\":\"$IDC\"}"
+check "only the organiser can accept" "42501" \
+  "$(rpc "$TB" accept_request "$BODY")"
+BODY="{\"p_post_id\":\"$G4\",\"p_player_id\":\"$IDC\"}"
+check "the organiser accepts" "EMPTY" \
+  "$(rpc "$TA" accept_request "$BODY")"
+check "accepting does not create a match (matches are the results work)" 0 \
+  "$(count "$(as "$TA" GET "match?post_id=eq.$G4&select=match_id")")"
+# A match for the profile and history checks below, set up through the match
+# tables as the results work will: alice (side a) against carol (side b).
+BODY="{\"post_id\":\"$G4\",\"created_by\":\"$IDA\",\"format\":\"singles\"}"
+GM=$(as "$TA" POST "match" "$BODY" | field match_id)
+BODY="{\"match_id\":\"$GM\",\"player_id\":\"$IDA\",\"side\":\"a\"}"; as "$TA" POST "match_participant" "$BODY" > /dev/null
+BODY="{\"match_id\":\"$GM\",\"player_id\":\"$IDC\",\"side\":\"b\"}"; as "$TA" POST "match_participant" "$BODY" > /dev/null
+check "the match tables still let the game's host set one up" '["a","b"]' \
+  "$(as "$TA" GET "match_participant?match_id=eq.$GM&select=player_id,side" | python3 -c 'import sys,json
+rows={r["player_id"]:r["side"] for r in json.load(sys.stdin)}
+print(json.dumps([rows.get("'$IDA'"), rows.get("'$IDC'")], separators=(",",":")))')"
+BODY="{\"p_post_id\":\"$G4\",\"p_player_id\":\"$IDC\"}"
+check "accepting again is refused" "23514" \
+  "$(rpc "$TA" accept_request "$BODY")"
+
+BODY="{\"p_post_id\":\"$G4\"}"
+check "bob can still ask while the game is full" "EMPTY" "$(rpc "$TB" request_to_join "$BODY")"
+BODY="{\"p_post_id\":\"$G4\",\"p_player_id\":\"$IDB\"}"
+check "but accepting him would overfill it" "23514" \
+  "$(rpc "$TA" accept_request "$BODY")"
+BODY="{\"p_post_id\":\"$G4\",\"p_player_id\":\"$IDB\"}"
+check "the organiser declines him" "EMPTY" \
+  "$(rpc "$TA" decline_request "$BODY")"
+BODY="{\"p_post_id\":\"$G4\"}"
+check "a declined player cannot ask again" "23514" "$(rpc "$TB" request_to_join "$BODY")"
+BODY="{\"p_post_id\":\"$G1\"}"
+check "requests to a cancelled game are refused" "23514" "$(rpc "$TC" request_to_join "$BODY")"
+
+check "the status history records each step" '["requested","accepted"]' \
+  "$(as "$TC" GET "game_participant_history?post_id=eq.$G4&player_id=eq.$IDC&order=history_id&select=to_status" | python3 -c 'import sys,json
+print(json.dumps([r["to_status"] for r in json.load(sys.stdin)], separators=(",",":")))')"
+check "history cannot be edited" "ERR:42501" \
+  "$(count "$(as "$TC" PATCH "game_participant_history?post_id=eq.$G4" '{"to_status":"accepted"}')")"
+check "other players cannot read someone's history" 0 \
+  "$(count "$(as "$TB" GET "game_participant_history?post_id=eq.$G4&player_id=eq.$IDC")")"
+
+echo
+echo "== 20. player profiles (BL-019) =="
+SUB="{\"match_id\":\"$GM\",\"submitted_by\":\"$IDC\",\"score\":\"21-15 21-17\",\"winning_side\":\"b\"}"
+RID=$(as "$TC" POST "match_result" "$SUB" | field result_id)
+as "$TADM" PATCH "match_result?result_id=eq.$RID" '{"status":"confirmed"}' > /dev/null
+BODY="{\"p_player_id\":\"$IDC\"}"
+PROF=$(as "$TB" POST "rpc/get_player_profile" "$BODY")
+check "a profile has the Player Profile screen's fields" "yes" \
+  "$(echo "$PROF" | python3 -c 'import sys,json
+p=json.load(sys.stdin)
+keys=("name","initials","level","status","rating","wins","losses","matches","reliability","recentForm","preferredFormat","area","league")
+print("yes" if all(k in p for k in keys) else "missing "+str([k for k in keys if k not in p]))')"
+check "wins, losses and form come from confirmed results" '[1,0,1,["W"],"Provisional"]' \
+  "$(echo "$PROF" | python3 -c 'import sys,json
+p=json.load(sys.stdin); print(json.dumps([p["wins"],p["losses"],p["matches"],p["recentForm"],p["status"]], separators=(",",":")))')"
+BODY="{\"p_player_id\":\"$IDA\"}"
+check "the loser's record shows the loss" '[0,1]' \
+  "$(as "$TC" POST "rpc/get_player_profile" "$BODY" | python3 -c 'import sys,json
+p=json.load(sys.stdin); print(json.dumps([p["wins"],p["losses"]], separators=(",",":")))')"
+check "a profile never carries real names or birth dates" "clean" \
+  "$(echo "$PROF" | python3 -c 'import sys
+t=sys.stdin.read(); print("leak" if any(k in t for k in ("first_name","last_name","date_of_birth","email")) else "clean")')"
+# Bob hid his profile in section 2. Carol shares no game with him.
+BODY="{\"p_player_id\":\"$IDB\"}"
+check "a hidden profile is private to strangers" "null" \
+  "$(as "$TC" POST "rpc/get_player_profile" "$BODY")"
+BODY="{\"p_player_id\":\"$IDB\"}"
+check "but visible to the host of a game he asked to join" "$(as "$TB" GET "player?player_id=eq.$IDB&select=username" | field username)" \
+  "$(as "$TA" POST "rpc/get_player_profile" "$BODY" | python3 -c 'import sys,json;print(json.load(sys.stdin)["name"])')"
+BODY="{\"p_player_id\":\"$IDB\"}"
+check "and to the player themselves" "yes" \
+  "$([[ "$(as "$TB" POST "rpc/get_player_profile" "$BODY")" != "null" ]] && echo yes || echo no)"
+
+echo
+echo "== 21. find games and players (BL-015) =="
+G5=$(as "$TA" POST "game_post" "{\"organiser_id\":\"$IDA\",\"title\":\"Friday Night Doubles\",\"format\":\"doubles\",\"player_limit\":4,\"venue_id\":\"$VENUE\",\"ability_level\":\"beginner\",\"duration_minutes\":90,\"proposed_time\":\"$(future 26)\"}" | field post_id)
+has() { # has <json array> <post id>: yes if the id is in it
+  echo "$1" | python3 -c 'import sys,json;print("yes" if sys.argv[1] in [g["id"] for g in json.load(sys.stdin)] else "no")' "$2"; }
+# Searches look at the two hours around G5 only, 50 to a page, so games left
+# by earlier runs (the suite does not reset the database) cannot push it off
+# the first page. A body that sets p_limit keeps its own.
+G5_AT=$(future 26)
+search() { as "$TB" POST "rpc/search_games" "$(python3 -c 'import sys,json,datetime as d
+b=json.loads(sys.argv[1]); t=d.datetime.strptime(sys.argv[2],"%Y-%m-%dT%H:%M:%SZ")
+b.setdefault("p_from",(t-d.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ"))
+b.setdefault("p_to",(t+d.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ"))
+b.setdefault("p_limit",50); print(json.dumps(b))' "$1" "$G5_AT")"; }
+check "search finds an upcoming game" "yes" "$(has "$(search '{}')" "$G5")"
+CARD=$(search '{"p_query":"friday"}')
+check "by title" "yes" "$(has "$CARD" "$G5")"
+check "a card has the Find Games fields" '["Friday Night Doubles","Doubles","Beginner","Melbourne Sports and Aquatic Centre@ MSAC, Albert Park",1,4]' \
+  "$(echo "$CARD" | python3 -c 'import sys,json
+g=[x for x in json.load(sys.stdin) if x["id"]=="'$G5'"][0]
+print(json.dumps([g["title"],g["format"],g["rank"],g["location"],g["playerCount"],g["maxPlayers"]], separators=(",",":")))')"
+check "the time shows start and end" "yes" \
+  "$(echo "$CARD" | python3 -c 'import sys,json
+g=[x for x in json.load(sys.stdin) if x["id"]=="'$G5'"][0]; print("yes" if " – " in g["time"] else g["time"])')"
+check "by suburb" "yes" "$(has "$(search '{"p_suburb":"albert park"}')" "$G5")"
+check "by venue name in the search box" "yes" "$(has "$(search '{"p_query":"aquatic"}')" "$G5")"
+check "the level filter keeps matching games" "yes" "$(has "$(search '{"p_level":"beginner"}')" "$G5")"
+check "and drops others" "no" "$(has "$(search '{"p_level":"advanced"}')" "$G5")"
+check "the format filter drops other formats" "no" "$(has "$(search '{"p_format":"singles"}')" "$G5")"
+check "cancelled games are not listed" "no" "$(has "$(search '{}')" "$G1")"
+check "deleted games are not listed" "no" "$(has "$(as "$TB" POST "rpc/search_games" "$(around 22)")" "$G3E")"
+check "results come in pages" 1 "$(search '{"p_limit":1}' | python3 -c 'import sys,json;print(len(json.load(sys.stdin)))')"
+TN=$(signup_meta "nobody-$RANDOM@example.com" '{"first_name":"Ned"}')
+check "unregistered accounts find nothing" "[]" "$(as "$TN" POST "rpc/search_games" '{}')"
+
+BODY="{\"p_post_id\":\"$G4\"}"
+DET=$(as "$TB" POST "rpc/get_game_details" "$BODY")
+check "game details show the host's stats and the roster" "yes" \
+  "$(echo "$DET" | python3 -c 'import sys,json
+d=json.load(sys.stdin); h=d["host"]
+ok=all(k in h for k in ("name","rating","verifiedMatches","reliability")) and len(d["players"])==2 and d["players"][0]["host"]
+print("yes" if ok else json.dumps(d)[:300])')"
+check "and the caller's own request status" "declined" \
+  "$(echo "$DET" | python3 -c 'import sys,json;print(json.load(sys.stdin)["myStatus"])')"
+check "players do not manage someone else's game" "False" \
+  "$(echo "$DET" | python3 -c 'import sys,json;print(json.load(sys.stdin)["canManage"])')"
+
+BODY="{\"p_query\":\"$UNA\"}"
+PLAYERS=$(as "$TC" POST "rpc/search_players" "$BODY")
+check "player search finds discoverable players" "yes" \
+  "$(echo "$PLAYERS" | python3 -c 'import sys,json;print("yes" if "'$IDA'" in [p["id"] for p in json.load(sys.stdin)] else "no")')"
+check "but never hidden ones" "no" \
+  "$(as "$TC" POST "rpc/search_players" '{}' | python3 -c 'import sys,json;print("yes" if "'$IDB'" in [p["id"] for p in json.load(sys.stdin)] else "no")')"
+BODY="{\"p_query\":\"$UNA\"}"
+check "or the person searching" "no" \
+  "$(as "$TA" POST "rpc/search_players" "$BODY" | python3 -c 'import sys,json;print("yes" if "'$IDA'" in [p["id"] for p in json.load(sys.stdin)] else "no")')"
+BODY="{\"p_post_id\":\"$G4\"}"
+check "carol withdraws her place" "EMPTY" "$(rpc "$TC" withdraw_request "$BODY")"
+
+echo
+echo "== 22. blocking (BL-027) =="
+sub_of() { echo "$1" | python3 -c 'import sys,json,base64;t=sys.stdin.read().split(".")[1];print(json.loads(base64.urlsafe_b64decode(t+"=="))["sub"])'; }
+ADULT='"date_of_birth":"1990-01-01","age_declared":true,"terms_version":"2026-10","privacy_version":"2026-10","state":"VIC"'
+TP=$(signup_meta "pat-$RANDOM@example.com" "{\"first_name\":\"Pat\",$ADULT}");   IDP=$(sub_of "$TP")
+TQ=$(signup_meta "quinn-$RANDOM@example.com" "{\"first_name\":\"Quinn\",$ADULT}"); IDQ=$(sub_of "$TQ")
+BODY="{\"organiser_id\":\"$IDQ\",\"format\":\"singles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 27)\"}"
+GQ=$(as "$TQ" POST "game_post" "$BODY" | field post_id)
+BODY="{\"organiser_id\":\"$IDP\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 28)\"}"
+GP=$(as "$TP" POST "game_post" "$BODY" | field post_id)
+BODY="{\"p_post_id\":\"$GQ\"}";  rpc "$TP" request_to_join "$BODY" > /dev/null
+BODY="{\"p_post_id\":\"$GP\"}";  rpc "$TQ" request_to_join "$BODY" > /dev/null
+BODY="{\"p_post_id\":\"$GP\",\"p_player_id\":\"$IDQ\"}"; rpc "$TP" accept_request "$BODY" > /dev/null
+check "before blocking, they can see each other" 1 "$(count "$(as "$TP" GET "player?player_id=eq.$IDQ&select=player_id")")"
+
+BODY="{\"p_player_id\":\"$IDQ\"}"
+check "pat blocks quinn" "EMPTY" "$(rpc "$TP" block_player "$BODY")"
+check "blocking twice is harmless" "EMPTY" "$(rpc "$TP" block_player "$BODY")"
+BODY="{\"p_player_id\":\"$IDP\"}"
+check "nobody can block themselves" "23514" "$(rpc "$TP" block_player "$BODY")"
+BODY="{\"blocker_id\":\"$IDQ\",\"blocked_id\":\"$IDP\"}"
+check "blocks cannot be written directly" "ERR:42501" "$(count "$(as "$TQ" POST "blocks" "$BODY")")"
+
+echo "-- blocker's side: pat still sees quinn, with a Blocked badge"
+has_id() { echo "$1" | python3 -c 'import sys,json;print("yes" if sys.argv[1] in [g["id"] for g in json.load(sys.stdin)] else "no")' "$2"; }
+check "pat still sees quinn's name" 1 "$(count "$(as "$TP" GET "player?player_id=eq.$IDQ&select=player_id")")"
+flag() { python3 -c 'import sys,json
+d=json.load(sys.stdin)
+r=[x for x in (d if isinstance(d,list) else []) if x.get("id")==sys.argv[1]]
+print(r[0].get("isBlocked") if r else "absent")' "$1"; }
+BODY="{\"p_query\":\"$(as "$TQ" GET "player?player_id=eq.$IDQ&select=username" | field username)\"}"
+check "pat finds quinn in player search, badged" "True" "$(as "$TP" POST "rpc/search_players" "$BODY" | flag "$IDQ")"
+check "pat still sees quinn's game, organiser badged" "True" \
+  "$(as "$TP" POST "rpc/search_games" "$(around 27)" | python3 -c 'import sys,json
+g=[x for x in json.load(sys.stdin) if x["id"]=="'$GQ'"]; print(g[0]["host"]["isBlocked"] if g else "absent")')"
+BODY="{\"p_post_id\":\"$GQ\"}"
+check "and its details, host badged" "True" \
+  "$(as "$TP" POST "rpc/get_game_details" "$BODY" | python3 -c 'import sys,json;d=json.load(sys.stdin);print(d["host"]["isBlocked"] if d else "null")')"
+check "but cannot join it" "42501" "$(rpc "$TP" request_to_join "$BODY")"
+BODY="{\"p_player_id\":\"$IDQ\"}"
+check "the blocker can still open the profile, badged" "True" \
+  "$(as "$TP" POST "rpc/get_player_profile" "$BODY" | python3 -c 'import sys,json;d=json.load(sys.stdin);print(d["isBlocked"] if d else "null")')"
+
+echo "-- blocked side: quinn loses sight of pat"
+check "quinn cannot see pat's name" 0 "$(count "$(as "$TQ" GET "player?player_id=eq.$IDP&select=player_id")")"
+check "nor pat's profile row" 0 "$(count "$(as "$TQ" GET "player_profile?player_id=eq.$IDP&select=player_id")")"
+BODY="{\"p_player_id\":\"$IDP\"}"
+check "nor pat's profile" "null" "$(as "$TQ" POST "rpc/get_player_profile" "$BODY")"
+check "nor find pat in player search" "absent" "$(as "$TQ" POST "rpc/search_players" '{"p_limit":50}' | flag "$IDP")"
+check "nor pat's games" 0 "$(count "$(as "$TQ" GET "game_post?post_id=eq.$GP&select=post_id")")"
+check "other players still see both" 2 \
+  "$(count "$(as "$TA" GET "player?player_id=in.($IDP,$IDQ)&select=player_id")")"
+check "pat's request to quinn's game was withdrawn" "withdrawn" \
+  "$(as "$TP" GET "game_participant?post_id=eq.$GQ&player_id=eq.$IDP&select=status" | field status)"
+check "quinn's place in pat's game was closed" "rejected" \
+  "$(as "$TQ" GET "game_participant?post_id=eq.$GP&player_id=eq.$IDQ&select=status" | field status)"
+
+echo "-- a third player's game"
+BODY="{\"organiser_id\":\"$IDA\",\"format\":\"doubles\",\"player_limit\":4,\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 31)\"}"
+GA=$(as "$TA" POST "game_post" "$BODY" | field post_id)
+BODY="{\"p_post_id\":\"$GA\"}"; rpc "$TP" request_to_join "$BODY" > /dev/null
+BODY="{\"p_post_id\":\"$GA\",\"p_player_id\":\"$IDP\"}"; rpc "$TA" accept_request "$BODY" > /dev/null
+check "once pat joins alice's game, quinn cannot see it" "no" "$(has_id "$(as "$TQ" POST "rpc/search_games" "$(around 31)")" "$GA")"
+check "(while others still can)" "yes" "$(has_id "$(as "$TA" POST "rpc/search_games" "$(around 31)")" "$GA")"
+BODY="{\"p_post_id\":\"$GA\"}"
+check "nor its details" "null" "$(as "$TQ" POST "rpc/get_game_details" "$BODY")"
+check "nor join it" "42501" "$(rpc "$TQ" request_to_join "$BODY")"
+BODY="{\"organiser_id\":\"$IDA\",\"format\":\"doubles\",\"player_limit\":4,\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 32)\"}"
+GA2=$(as "$TA" POST "game_post" "$BODY" | field post_id)
+BODY="{\"p_post_id\":\"$GA2\"}"; rpc "$TQ" request_to_join "$BODY" > /dev/null
+BODY="{\"p_post_id\":\"$GA2\",\"p_player_id\":\"$IDQ\"}"; rpc "$TA" accept_request "$BODY" > /dev/null
+BODY="{\"p_post_id\":\"$GA2\"}"
+check "where quinn is playing, pat sees quinn on the roster, badged" "True" \
+  "$(as "$TP" POST "rpc/get_game_details" "$BODY" | python3 -c 'import sys,json
+p=[x for x in json.load(sys.stdin)["players"] if x["id"]=="'$IDQ'"]; print(p[0]["isBlocked"] if p else "absent")')"
+check "and pat may still choose to join" "EMPTY" "$(rpc "$TP" request_to_join "$BODY")"
+check "quinn, already in it, keeps seeing it" "yes" \
+  "$([[ "$(as "$TQ" POST "rpc/get_game_details" "$BODY")" != "null" ]] && echo yes || echo no)"
+check "but without pat on the roster" "absent" \
+  "$(as "$TQ" POST "rpc/get_game_details" "$BODY" | python3 -c 'import sys,json
+print("present" if "'$IDP'" in [x["id"] for x in json.load(sys.stdin)["players"]] else "absent")')"
+
+BODY="{\"organiser_id\":\"$IDP\",\"format\":\"singles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 29)\"}"
+GP2=$(as "$TP" POST "game_post" "$BODY" | field post_id)
+BODY="{\"p_post_id\":\"$GP2\"}"
+check "quinn cannot ask to join pat's new game" "42501" "$(rpc "$TQ" request_to_join "$BODY")"
+BODY="{\"post_id\":\"$GP2\",\"player_id\":\"$IDQ\"}"
+check "not even with a direct insert" "ERR:42501" "$(count "$(as "$TQ" POST "game_participant" "$BODY")")"
+
+check "pat's blocked list shows quinn" "yes" \
+  "$(has_id "$(as "$TP" POST "rpc/get_blocked_players" '{}')" "$IDQ")"
+check "quinn cannot see that pat blocked them" 0 "$(count "$(as "$TQ" GET "blocks?select=blocker_id")")"
+BODY="{\"p_player_id\":\"$IDQ\",\"p_category\":\"harassment\",\"p_reason\":\"Kept messaging after I said no\"}"
+check "a blocked player can still be reported" "OK" "$(as "$TP" POST "rpc/report_player" "$BODY" | python3 -c 'import sys,json;d=json.load(sys.stdin);print("OK" if isinstance(d,str) else d.get("code"))')"
+
+BODY="{\"p_player_id\":\"$IDQ\"}"
+check "pat unblocks quinn" "EMPTY" "$(rpc "$TP" unblock_player "$BODY")"
+check "they can see each other again" 1 "$(count "$(as "$TP" GET "player?player_id=eq.$IDQ&select=player_id")")"
+
+echo
+echo "== 23. reporting (BL-028) =="
+report() { # report <token> <function> <json body>; prints OK for a new report id, else the error code
+  as "$1" POST "rpc/$2" "$3" | python3 -c 'import sys,json;d=json.load(sys.stdin);print("OK" if isinstance(d,str) else d.get("code"))'; }
+BODY="{\"p_player_id\":\"$IDA\",\"p_category\":\"harassment\",\"p_reason\":\"Rude at the last game\"}"
+RID=$(as "$TC" POST "rpc/report_player" "$BODY" | python3 -c 'import sys,json;print(json.load(sys.stdin))')
+check "a player reports another, and gets the report id" "yes" "$([[ ${#RID} -eq 36 ]] && echo yes || echo "no ($RID)")"
+check "the server captured evidence of the profile" "$UNA" \
+  "$(as "$TC" GET "report?report_id=eq.$RID&select=evidence" | python3 -c 'import sys,json;print(json.load(sys.stdin)[0]["evidence"]["username"])')"
+check "the same item cannot be reported twice while open" "23505" "$(report "$TC" report_player "$BODY")"
+BODY="{\"p_player_id\":\"$IDJ\",\"p_category\":\"spam\"}"
+check "every report needs details, not only 'other'" "23514" "$(report "$TC" report_player "$BODY")"
+BODY="{\"p_player_id\":\"$IDJ\",\"p_category\":\"other\",\"p_reason\":\"   \"}"
+check "blank details do not count" "23514" "$(report "$TC" report_player "$BODY")"
+BODY="{\"p_player_id\":\"$IDJ\",\"p_category\":\"rude\",\"p_reason\":\"x\"}"
+check "unknown categories are rejected" "23514" "$(report "$TC" report_player "$BODY")"
+BODY="{\"p_player_id\":\"$IDC\",\"p_category\":\"spam\",\"p_reason\":\"x\"}"
+check "nobody can report themselves" "23514" "$(report "$TC" report_player "$BODY")"
+
+BODY="{\"p_post_id\":\"$G5\",\"p_category\":\"spam\",\"p_reason\":\"Advertising, not a game\"}"
+check "a game post can be reported" "OK" "$(report "$TC" report_post "$BODY")"
+check "with the post's title in the evidence" "Friday Night Doubles" \
+  "$(as "$TC" GET "report?target_id=eq.$G5&select=evidence" | python3 -c 'import sys,json;print(json.load(sys.stdin)[0]["evidence"]["title"])')"
+check "but not by its organiser" "23514" "$(report "$TA" report_post "$BODY")"
+BODY="{\"p_group_id\":\"$GROUP\",\"p_category\":\"fake_account\",\"p_reason\":\"Pretends to be an official group\"}"
+check "a group can be reported" "OK" "$(report "$TC" report_group "$BODY")"
+BODY="{\"p_league_id\":\"00000000-0000-0000-0000-000000000000\",\"p_category\":\"spam\",\"p_reason\":\"x\"}"
+check "a league that does not exist cannot" "42501" "$(report "$TC" report_league "$BODY")"
+BODY="{\"reported_by_player_id\":\"$IDC\",\"target_type\":\"player\",\"target_id\":\"$IDB\",\"reason\":\"x\",\"category\":\"spam\",\"evidence\":{\"username\":\"made up\"}}"
+check "reports cannot be inserted directly (no faked evidence)" "ERR:42501" "$(count "$(as "$TC" POST "report" "$BODY")")"
+
+check "other players cannot read the report" 0 "$(count "$(as "$TB" GET "report?report_id=eq.$RID&select=report_id")")"
+check "admins see it in the queue" 1 "$(count "$(as "$TADM" GET "report?report_id=eq.$RID&status=eq.open&select=report_id")")"
+
+# Carol has filed 3 reports this hour. Two more reach the limit of 5.
+IDK=$(sub_of "$TK"); IDD=$(sub_of "$TD")
+BODY="{\"p_player_id\":\"$IDJ\",\"p_category\":\"spam\",\"p_reason\":\"Spam messages\"}";  report "$TC" report_player "$BODY" > /dev/null
+BODY="{\"p_player_id\":\"$IDK\",\"p_category\":\"spam\",\"p_reason\":\"Spam messages\"}";  report "$TC" report_player "$BODY" > /dev/null
+BODY="{\"p_player_id\":\"$IDD\",\"p_category\":\"spam\",\"p_reason\":\"Spam messages\"}"
+check "a sixth report within the hour is refused" "23514" "$(report "$TC" report_player "$BODY")"
+
+echo
+echo "== 24. notifications (BL-050) =="
+TH=$(signup_meta "host-$RANDOM@example.com" "{\"first_name\":\"Hana\",$ADULT}"); IDH=$(sub_of "$TH")
+TR=$(signup_meta "req-$RANDOM@example.com" "{\"first_name\":\"Ravi\",$ADULT}");  IDR=$(sub_of "$TR")
+UNR=$(as "$TR" GET "player?player_id=eq.$IDR&select=username" | field username)
+latest() { # latest <token> <type> <field>: that field of the newest notification of that type
+  as "$1" GET "notification?type=eq.$2&order=created_at.desc&limit=1&select=$3" | field "$3"; }
+BODY="{\"organiser_id\":\"$IDH\",\"format\":\"singles\",\"player_limit\":2,\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 33)\"}"
+GN=$(as "$TH" POST "game_post" "$BODY" | field post_id)
+
+BODY="{\"p_post_id\":\"$GN\"}"; rpc "$TR" request_to_join "$BODY" > /dev/null
+check "the host hears about a new request" "$GN" "$(latest "$TH" join_request post_id)"
+check "naming the player" "yes" \
+  "$([[ "$(latest "$TH" join_request message)" == "$UNR asked to join your Singles game on"* ]] && echo yes || echo "no: $(latest "$TH" join_request message)")"
+BODY="{\"p_post_id\":\"$GN\",\"p_player_id\":\"$IDR\"}"; rpc "$TH" accept_request "$BODY" > /dev/null
+check "the player hears they were accepted" "$GN" "$(latest "$TR" request_accepted post_id)"
+check "opening the game, not a match" "" "$(latest "$TR" request_accepted match_id)"
+BODY="{\"p_post_id\":\"$GN\"}"; rpc "$TR" withdraw_request "$BODY" > /dev/null
+check "the host hears that an accepted player withdrew" "A place has opened up" "$(latest "$TH" request_withdrawn detail)"
+rpc "$TR" request_to_join "$BODY" > /dev/null
+BODY="{\"p_post_id\":\"$GN\",\"p_player_id\":\"$IDR\"}"; rpc "$TH" decline_request "$BODY" > /dev/null
+check "the player hears they were declined" "$GN" "$(latest "$TR" request_declined post_id)"
+check "nobody else can read them" 0 "$(count "$(as "$TA" GET "notification?player_id=eq.$IDR&select=notification_id")")"
+
+BODY="{\"organiser_group_id\":\"$GROUP\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 34)\"}"
+GC=$(as "$TA" POST "game_post" "$BODY" | field post_id)
+BODY="{\"p_post_id\":\"$GC\"}"; rpc "$TR" request_to_join "$BODY" > /dev/null
+check "for a group game, the group's admins hear about requests" "$GC" "$(latest "$TA" join_request post_id)"
+
+LIST=$(as "$TR" POST "rpc/get_notifications" '{}')
+check "the screen gets title, message, unread and the game to open" "yes" \
+  "$(echo "$LIST" | python3 -c 'import sys,json
+n=json.load(sys.stdin)[0]; print("yes" if all(k in n for k in ("id","type","title","message","unread","createdAt","postId","matchId")) and n["unread"] else json.dumps(n))')"
+check "mark all read reports how many changed" "yes" \
+  "$([[ $(as "$TR" POST "rpc/mark_all_notifications_read" '{}') -ge 2 ]] && echo yes || echo no)"
+check "after which nothing is unread" 0 "$(count "$(as "$TR" GET "notification?is_read=eq.false&select=notification_id")")"
+BODY="{\"player_id\":\"$IDR\",\"type\":\"system\",\"message\":\"x\"}"
+check "players cannot write notifications" "ERR:42501" "$(count "$(as "$TR" POST "notification" "$BODY")")"
+
+BODY="{\"organiser_id\":\"$IDH\",\"format\":\"singles\",\"player_limit\":2,\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 35)\"}"
+GN2=$(as "$TH" POST "game_post" "$BODY" | field post_id)
+BODY="{\"p_post_id\":\"$GN2\"}"; rpc "$TR" request_to_join "$BODY" > /dev/null
+BODY="{\"p_player_id\":\"$IDR\"}"; rpc "$TH" block_player "$BODY" > /dev/null
+check "blocking closes the request without telling the blocked player" 0 \
+  "$(count "$(as "$TR" GET "notification?type=eq.request_declined&post_id=eq.$GN2&select=notification_id")")"
+
+echo
+echo "== 25. no-shows, late withdrawals, reliability, history (BL-054, BL-052, BL-060) =="
+TO=$(signup_meta "org-$RANDOM@example.com" "{\"first_name\":\"Olga\",$ADULT}"); IDO=$(sub_of "$TO")
+TW=$(signup_meta "wil-$RANDOM@example.com" "{\"first_name\":\"Wil\",$ADULT}");  IDW=$(sub_of "$TW")
+in_secs() { python3 -c 'import sys,datetime;print((datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(seconds=int(sys.argv[1]))).strftime("%Y-%m-%dT%H:%M:%SZ"))' "$1"; }
+rel() { # rel <token> <player id> <key>: a reliability figure from the profile
+  BODY="{\"p_player_id\":\"$2\"}"; as "$1" POST "rpc/get_player_profile" "$BODY" | python3 -c 'import sys,json;print(json.load(sys.stdin)[sys.argv[1]])' "$3"; }
+join_and_accept() { # join_and_accept <post id>
+  BODY="{\"p_post_id\":\"$1\"}"; rpc "$TW" request_to_join "$BODY" > /dev/null
+  BODY="{\"p_post_id\":\"$1\",\"p_player_id\":\"$IDW\"}"; rpc "$TO" accept_request "$BODY" > /dev/null; }
+check "a new player starts at 100% reliability" 100 "$(rel "$TA" "$IDW" reliability)"
+
+# A game starting in 20 seconds, so a no-show can be recorded during the run.
+BODY="{\"organiser_id\":\"$IDO\",\"format\":\"singles\",\"player_limit\":2,\"duration_minutes\":15,\"suburb\":\"Carlton\",\"proposed_time\":\"$(in_secs 20)\"}"
+GS=$(as "$TO" POST "game_post" "$BODY" | field post_id)
+join_and_accept "$GS"
+BODY="{\"p_post_id\":\"$GS\",\"p_player_id\":\"$IDW\"}"
+check "a no-show cannot be recorded before the start" "23514" "$(rpc "$TO" mark_no_show "$BODY")"
+sleep 21
+check "only the host can record one" "42501" "$(rpc "$TA" mark_no_show "$BODY")"
+check "nobody can set it by editing the status" "ERR:42501" \
+  "$(count "$(as "$TO" PATCH "game_participant?post_id=eq.$GS&player_id=eq.$IDW" '{"status":"no_show"}')")"
+check "after the start, the host records the no-show" "EMPTY" "$(rpc "$TO" mark_no_show "$BODY")"
+check "the player is told" "$GS" "$(latest "$TW" no_show post_id)"
+check "and their reliability drops (2 / 3 = 67%)" "[67,1]" \
+  "[$(rel "$TA" "$IDW" reliability),$(rel "$TA" "$IDW" noShows)]"
+check "the copy on their profile row is refreshed too" 67 \
+  "$(as "$TW" GET "player_profile?player_id=eq.$IDW&select=reliability_score" | python3 -c 'import sys,json;print(round(json.load(sys.stdin)[0]["reliability_score"]))')"
+check "the host can undo a mistaken no-show" "EMPTY" "$(rpc "$TO" clear_no_show "$BODY")"
+check "which restores the score" 100 "$(rel "$TA" "$IDW" reliability)"
+check "undoing it does not send an 'accepted' notification" 1 \
+  "$(count "$(as "$TW" GET "notification?type=eq.request_accepted&post_id=eq.$GS&select=notification_id")")"
+
+BODY="{\"organiser_id\":\"$IDO\",\"format\":\"singles\",\"player_limit\":2,\"suburb\":\"Carlton\",\"proposed_time\":\"$(future 40)\"}"
+GE=$(as "$TO" POST "game_post" "$BODY" | field post_id)
+join_and_accept "$GE"
+BODY="{\"p_post_id\":\"$GE\"}"; rpc "$TW" withdraw_request "$BODY" > /dev/null
+check "withdrawing weeks ahead is not late" "False" \
+  "$(as "$TW" GET "game_participant?post_id=eq.$GE&player_id=eq.$IDW&select=late_withdrawal" | field late_withdrawal)"
+BODY="{\"organiser_id\":\"$IDO\",\"format\":\"singles\",\"player_limit\":2,\"suburb\":\"Carlton\",\"proposed_time\":\"$(in_secs 36000)\"}"
+GL=$(as "$TO" POST "game_post" "$BODY" | field post_id)
+join_and_accept "$GL"
+BODY="{\"p_post_id\":\"$GL\"}"; rpc "$TW" withdraw_request "$BODY" > /dev/null
+check "withdrawing within 24 hours is late" "True" \
+  "$(as "$TW" GET "game_participant?post_id=eq.$GL&player_id=eq.$IDW&select=late_withdrawal" | field late_withdrawal)"
+check "and costs reliability (2 / 2.5 = 80%)" "[80,1]" \
+  "[$(rel "$TA" "$IDW" reliability),$(rel "$TA" "$IDW" lateWithdrawals)]"
+BODY="{\"organiser_id\":\"$IDO\",\"format\":\"singles\",\"player_limit\":2,\"suburb\":\"Carlton\",\"proposed_time\":\"$(in_secs 36000)\"}"
+GLC=$(as "$TO" POST "game_post" "$BODY" | field post_id)
+BODY="{\"p_post_id\":\"$GLC\"}"; rpc "$TO" cancel_game_post "$BODY" > /dev/null
+check "an organiser cancelling within 24 hours loses reliability too" 80 "$(rel "$TA" "$IDO" reliability)"
+
+BODY="{\"p_player_id\":\"$IDC\"}"
+HIST=$(as "$TB" POST "rpc/get_player_history" "$BODY")
+check "history lists verified matches with result, score and opponent" "[\"W\",\"21-15 21-17\",\"$UNA\"]" \
+  "$(echo "$HIST" | python3 -c 'import sys,json
+h=[x for x in json.load(sys.stdin) if x["matchId"]=="'$GM'"][0]
+print(json.dumps([h["result"],h["score"],h["opponents"][0]["name"]], separators=(",",":")))')"
+BODY="{\"p_player_id\":\"$IDB\"}"
+check "a private profile's history is private too" "null" "$(as "$TC" POST "rpc/get_player_history" "$BODY")"
+check "profiles now include games played" "yes" \
+  "$(rel "$TA" "$IDW" gamesPlayed >/dev/null && echo yes)"
+
+check "a player can turn notification emails off" 1 \
+  "$(count "$(as "$TW" PATCH "player_profile?player_id=eq.$IDW" '{"email_notifications":false}')")"
+check "but not for someone else" 0 \
+  "$(count "$(as "$TA" PATCH "player_profile?player_id=eq.$IDW" '{"email_notifications":false}')")"
+
+echo
+echo "== 26. venue geocoding queue =="
+check "players cannot read the geocoding queue" 0 "$(count "$(as "$TA" GET "venue_geocode_queue?select=queue_id")")"
+check "players cannot take the worker lease" "42501" "$(rpc "$TA" geocode_claim_batch '{}')"
+BODY='{"p_queue_id":1,"p_lat":-37.8,"p_lng":144.9}'
+check "players cannot write a pin through the worker functions" "42501" "$(rpc "$TA" geocode_complete "$BODY")"
+check "players cannot release the lease" "42501" "$(rpc "$TA" geocode_release '{}')"
+SUBP=$(as "$TA" GET "suburb?name=eq.Parkville&postcode=eq.3052&select=suburb_id" | field suburb_id)
+BODY="{\"name\":\"Queue Test Hall $RANDOM\",\"address\":\"103 Tin Alley, Parkville VIC 3010\",\"suburb_id\":\"$SUBP\"}"
+NEWV=$(as "$TADM" POST "venue" "$BODY" | field venue_id)
+check "a venue added without a pin is queued for a look-up" 1 \
+  "$(count "$(as "$TADM" GET "venue_geocode_queue?venue_id=eq.$NEWV&status=eq.pending&select=queue_id")")"
+check "and links to Google Maps by address until then" "yes" \
+  "$(as "$TADM" GET "venue?venue_id=eq.$NEWV&select=maps_url" | field maps_url | grep -q 'query=Queue+Test+Hall' && echo yes || echo no)"
+BODY="{\"name\":\"Pinned Hall $RANDOM\",\"suburb_id\":\"$SUBP\",\"latitude\":-37.79,\"longitude\":144.96}"
+PINNED=$(as "$TADM" POST "venue" "$BODY" | field venue_id)
+check "a venue added with a pin is not queued" 0 \
+  "$(count "$(as "$TADM" GET "venue_geocode_queue?venue_id=eq.$PINNED&select=queue_id")")"
+
+echo
+echo "== 16. my home and my profile =="
+errcode() { python3 -c 'import sys,json
+try:
+  d=json.load(sys.stdin); print(d.get("code","?") if isinstance(d,dict) and "code" in d else "OK")
+except Exception: print("EMPTY")'; }
+key() { python3 -c 'import sys,json
+d=json.load(sys.stdin)
+for k in sys.argv[1].split("."): d=d[k] if d is not None else None
+print(json.dumps(d, ensure_ascii=False))' "$1"; }
+
+HOME_J=$(as "$TJ" POST "rpc/get_my_home" '{}')
+check "home greets the player by their own name" '"Jane Smyth"' "$(echo "$HOME_J" | key greetingName)"
+check "with initials for the top bar" '"JS"' "$(echo "$HOME_J" | key initials)"
+check "and a rating card" '[0,0]' "[$(echo "$HOME_J" | key ratingCard.matches),$(echo "$HOME_J" | key ratingCard.winRate)]"
+check "no rating yet means no state rank" "null" "$(echo "$HOME_J" | key ratingCard.stateRank)"
+check "no upcoming game: nextGames is empty (No game planned)" "[]" "$(echo "$HOME_J" | key nextGames)"
+check "unread notifications are counted" "0" "$(echo "$HOME_J" | key unreadNotifications)"
+
+FUTURE=$(python3 -c 'import datetime;print((datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(days=12)).strftime("%Y-%m-%dT08:00:00Z"))')
+BODY="{\"organiser_id\":\"$IDA\",\"format\":\"doubles\",\"suburb\":\"Carlton\",\"proposed_time\":\"$FUTURE\"}"
+GH=$(as "$TA" POST "game_post" "$BODY" | field post_id)
+BODY="{\"post_id\":\"$GH\",\"player_id\":\"$IDB\"}"; as "$TB" POST "game_participant" "$BODY" > /dev/null
+as "$TA" PATCH "game_participant?post_id=eq.$GH&player_id=eq.$IDB" '{"status":"accepted"}' > /dev/null
+ids_of() { python3 -c 'import sys,json;print(json.dumps([g["id"] for g in json.load(sys.stdin)]))'; }
+check "a game the player is accepted into is in their games, as player" "player" \
+  "$(as "$TB" POST "rpc/get_my_games" '{"p_limit":50}' | python3 -c 'import sys,json
+g=[x for x in json.load(sys.stdin) if x["id"]=="'$GH'"]; print(g[0]["myRole"] if g else "absent")')"
+check "and the host's, as host" "host" \
+  "$(as "$TA" POST "rpc/get_my_games" '{"p_filter":"organised","p_limit":50}' | python3 -c 'import sys,json
+g=[x for x in json.load(sys.stdin) if x["id"]=="'$GH'"]; print(g[0]["myRole"] if g else "absent")')"
+check "home's nextGames are the first 3 confirmed games of that list" \
+  "$(as "$TB" POST "rpc/get_my_games" '{"p_include_pending":false,"p_limit":3}' | ids_of)" \
+  "$(as "$TB" POST "rpc/get_my_home" '{}' | python3 -c 'import sys,json;print(json.dumps([g["id"] for g in json.load(sys.stdin)["nextGames"]]))')"
+
+PROF_J=$(as "$TJ" POST "rpc/get_my_profile" '{}')
+check "my profile has my real name and username" "[\"Jane Smyth\",\"${UN}_x\"]" \
+  "[$(echo "$PROF_J" | key name),$(echo "$PROF_J" | key username)]"
+check "and the editable fields" "yes" \
+  "$(echo "$PROF_J" | python3 -c 'import sys,json
+p=json.load(sys.stdin)
+keys=("firstName","lastName","selfRatingBand","bio","suburb","state","isDiscoverable","reliability","ratingCard","location")
+print("yes" if all(k in p for k in keys) else [k for k in keys if k not in p])')"
+check "it only ever returns the caller's own profile" "\"$IDA\"" \
+  "$(as "$TA" POST "rpc/get_my_profile" '{}' | key id)"
+check "signed-out callers get nothing" "42501" \
+  "$(curl -s "$API/rest/v1/rpc/get_my_profile" -H "apikey: $ANON" -H 'Content-Type: application/json' -d '{}' | errcode)"
+
+BODY='{"p_bio":"Weeknight doubles","p_suburb":"Carlton","p_state":"VIC","p_self_rating_band":"upper_intermediate"}'
+UPD=$(as "$TJ" POST "rpc/update_my_profile" "$BODY")
+check "update saves several fields and returns the profile" '["Weeknight doubles","Carlton area · VIC","Upper Intermediate"]' \
+  "[$(echo "$UPD" | key bio),$(echo "$UPD" | key location),$(echo "$UPD" | key level)]"
+BODY='{"p_bio":""}'
+check "an empty string clears a field" "null" "$(as "$TJ" POST "rpc/update_my_profile" "$BODY" | key bio)"
+check "fields not sent stay as they were" '"Carlton"' "$(as "$TJ" POST "rpc/get_my_profile" '{}' | key suburb)"
+BODY="{\"p_username\":\"$UNA\"}"
+check "a taken username is refused" "23505" "$(as "$TJ" POST "rpc/update_my_profile" "$BODY" | errcode)"
+BODY='{"p_self_rating_band":"pro"}'
+check "an unknown level is refused" "22023" "$(as "$TJ" POST "rpc/update_my_profile" "$BODY" | errcode)"
+BODY='{"p_first_name":"  "}'
+check "a blank first name is refused" "23514" "$(as "$TJ" POST "rpc/update_my_profile" "$BODY" | errcode)"
+BODY='{"p_is_discoverable":false}'
+check "a player can hide their profile" "false" "$(as "$TJ" POST "rpc/update_my_profile" "$BODY" | key isDiscoverable)"
+
 echo
 echo "-------------------------------------"
 echo "  $pass passed, $fail failed"
