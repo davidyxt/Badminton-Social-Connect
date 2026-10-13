@@ -5,7 +5,7 @@
 openapi: 3.0.3
 info:
   title: Badminton Social Connect API (implemented)
-  version: 0.3.0
+  version: 0.4.0
   description: |
     How the frontend talks to the backend. Everything goes through the Supabase client:
 
@@ -70,13 +70,20 @@ tags:
   description: No-shows and the reliability score (BL-052, BL-054).
 - name: Groups
   description: Groups, their admins and members (BL-080). Players join by asking; a group admin approves.
+- name: Results
+  description: >-
+    Recording a result, confirming or disputing it, and match quick messages (BL-021, BL-023, BL-056,
+    BL-058, BL-085). Players never write the result tables directly.
+- name: Rankings
+  description: >-
+    Rating summary, trend and leaderboards (BL-024, BL-025, BL-062). Ratings are worked out once a night,
+    so each returns ratingsUpdatedAt.
 - name: Results (tables)
   description: >-
-    Matches, results, disputes and check-ins. Result submission and confirmation screens are not built
-    in the backend yet (Planned).
+    Matches, results, disputes, check-ins, result flags and quick messages. Read only: every write goes
+    through the Results functions.
 - name: Rankings and leagues (tables)
-  description: Read access to rankings and Mini Leagues. Their calculations and league management are
-    Planned.
+  description: Read access to rankings, rating history and Mini Leagues. League management is Planned.
 - name: Announcements
   description: Admin posts shown on the home page.
 - name: Reference data
@@ -532,11 +539,12 @@ paths:
       x-implementation: supabase-postgrest
       summary: Read dispute rows
       description: |-
+        A challenge to a pending result, raised by the other side with raise_dispute. It holds the result out of the ratings until an admin decides it.
+
         Row Level Security decides which rows each player can see or change:
 
         - admins remove [delete]
         - admins resolve [update]
-        - participants raise one [insert]
         - (restrictive) registered players only [all]
         - visible to everyone in the match [read]
       parameters:
@@ -557,52 +565,18 @@ paths:
         '401':
           "$ref": "#/components/responses/Unauthorized"
       operationId: select_dispute_rows
-    post:
-      tags:
-      - Results (tables)
-      x-implementation: supabase-postgrest
-      summary: Create a dispute row
-      description: |-
-        Row Level Security decides which rows each player can see or change:
-
-        - admins remove [delete]
-        - admins resolve [update]
-        - participants raise one [insert]
-        - (restrictive) registered players only [all]
-        - visible to everyone in the match [read]
-      parameters:
-      - "$ref": "#/components/parameters/preferParam"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              "$ref": "#/components/schemas/DisputeWrite"
-      responses:
-        '201':
-          description: 'Created (with Prefer: return=representation).'
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  "$ref": "#/components/schemas/Dispute"
-        '400':
-          "$ref": "#/components/responses/RuleBroken"
-        '403':
-          "$ref": "#/components/responses/Forbidden"
-      operationId: insert_dispute_rows
     patch:
       tags:
       - Results (tables)
       x-implementation: supabase-postgrest
       summary: Update dispute rows
       description: |-
+        A challenge to a pending result, raised by the other side with raise_dispute. It holds the result out of the ratings until an admin decides it.
+
         Row Level Security decides which rows each player can see or change:
 
         - admins remove [delete]
         - admins resolve [update]
-        - participants raise one [insert]
         - (restrictive) registered players only [all]
         - visible to everyone in the match [read]
 
@@ -634,11 +608,12 @@ paths:
       x-implementation: supabase-postgrest
       summary: Delete dispute rows
       description: |-
+        A challenge to a pending result, raised by the other side with raise_dispute. It holds the result out of the ratings until an admin decides it.
+
         Row Level Security decides which rows each player can see or change:
 
         - admins remove [delete]
         - admins resolve [update]
-        - participants raise one [insert]
         - (restrictive) registered players only [all]
         - visible to everyone in the match [read]
       parameters:
@@ -1358,14 +1333,14 @@ paths:
       x-implementation: supabase-postgrest
       summary: Read match rows
       description: |-
-        One contest between two sides (match_participant.side a and b). Matches within a game are being built separately (with results and rankings); games do not create them.
+        One contest between two sides (match_participant.side a and b): 1 v 1 for singles, 2 v 2 for doubles, within a game (post_id). Created by submit_result when a player records a result; players never write it directly. Admins may correct it.
 
         Row Level Security decides which rows each player can see or change:
 
-        - creator, league organiser or admin deletes [delete]
-        - creator, league organiser or admin edits [update]
+        - admins create [insert]
+        - admins delete [delete]
+        - admins edit [update]
         - readable by signed-in players [read]
-        - record one in a game you are in, or a league you run [insert]
         - (restrictive) registered players only [all]
       parameters:
       - "$ref": "#/components/parameters/selectParam"
@@ -1391,14 +1366,14 @@ paths:
       x-implementation: supabase-postgrest
       summary: Create a match row
       description: |-
-        One contest between two sides (match_participant.side a and b). Matches within a game are being built separately (with results and rankings); games do not create them.
+        One contest between two sides (match_participant.side a and b): 1 v 1 for singles, 2 v 2 for doubles, within a game (post_id). Created by submit_result when a player records a result; players never write it directly. Admins may correct it.
 
         Row Level Security decides which rows each player can see or change:
 
-        - creator, league organiser or admin deletes [delete]
-        - creator, league organiser or admin edits [update]
+        - admins create [insert]
+        - admins delete [delete]
+        - admins edit [update]
         - readable by signed-in players [read]
-        - record one in a game you are in, or a league you run [insert]
         - (restrictive) registered players only [all]
       parameters:
       - "$ref": "#/components/parameters/preferParam"
@@ -1428,14 +1403,14 @@ paths:
       x-implementation: supabase-postgrest
       summary: Update match rows
       description: |-
-        One contest between two sides (match_participant.side a and b). Matches within a game are being built separately (with results and rankings); games do not create them.
+        One contest between two sides (match_participant.side a and b): 1 v 1 for singles, 2 v 2 for doubles, within a game (post_id). Created by submit_result when a player records a result; players never write it directly. Admins may correct it.
 
         Row Level Security decides which rows each player can see or change:
 
-        - creator, league organiser or admin deletes [delete]
-        - creator, league organiser or admin edits [update]
+        - admins create [insert]
+        - admins delete [delete]
+        - admins edit [update]
         - readable by signed-in players [read]
-        - record one in a game you are in, or a league you run [insert]
         - (restrictive) registered players only [all]
 
         Only the columns in the request schema can be changed. A row the caller may not change is silently skipped: check the returned rows.
@@ -1466,14 +1441,14 @@ paths:
       x-implementation: supabase-postgrest
       summary: Delete match rows
       description: |-
-        One contest between two sides (match_participant.side a and b). Matches within a game are being built separately (with results and rankings); games do not create them.
+        One contest between two sides (match_participant.side a and b): 1 v 1 for singles, 2 v 2 for doubles, within a game (post_id). Created by submit_result when a player records a result; players never write it directly. Admins may correct it.
 
         Row Level Security decides which rows each player can see or change:
 
-        - creator, league organiser or admin deletes [delete]
-        - creator, league organiser or admin edits [update]
+        - admins create [insert]
+        - admins delete [delete]
+        - admins edit [update]
         - readable by signed-in players [read]
-        - record one in a game you are in, or a league you run [insert]
         - (restrictive) registered players only [all]
       parameters:
       - "$ref": "#/components/parameters/rowFilter"
@@ -1490,6 +1465,101 @@ paths:
         '400':
           "$ref": "#/components/responses/RuleBroken"
       operationId: delete_match_rows
+  "/match_message":
+    get:
+      tags:
+      - Results (tables)
+      x-implementation: supabase-postgrest
+      summary: Read match_message rows
+      description: |-
+        A preset status message from one player in a match to the other(s). Access rules and the Realtime channel come in the BL-085 migration.
+
+        Row Level Security decides which rows each player can see or change:
+
+        - send as yourself, as a player in the match [insert]
+        - the players in the match read them [read]
+      parameters:
+      - "$ref": "#/components/parameters/selectParam"
+      - "$ref": "#/components/parameters/orderParam"
+      - "$ref": "#/components/parameters/limitParam"
+      - "$ref": "#/components/parameters/offsetParam"
+      - "$ref": "#/components/parameters/rowFilter"
+      responses:
+        '200':
+          description: Rows the caller may see (empty if none).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/MatchMessage"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+      operationId: select_match_message_rows
+    post:
+      tags:
+      - Results (tables)
+      x-implementation: supabase-postgrest
+      summary: Create a match_message row
+      description: |-
+        A preset status message from one player in a match to the other(s). Access rules and the Realtime channel come in the BL-085 migration.
+
+        Row Level Security decides which rows each player can see or change:
+
+        - send as yourself, as a player in the match [insert]
+        - the players in the match read them [read]
+      parameters:
+      - "$ref": "#/components/parameters/preferParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/MatchMessageWrite"
+      responses:
+        '201':
+          description: 'Created (with Prefer: return=representation).'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/MatchMessage"
+        '400':
+          "$ref": "#/components/responses/RuleBroken"
+        '403':
+          "$ref": "#/components/responses/Forbidden"
+      operationId: insert_match_message_rows
+  "/match_message_template":
+    get:
+      tags:
+      - Results (tables)
+      x-implementation: supabase-postgrest
+      summary: Read match_message_template rows
+      description: |-
+        The fixed preset messages a player can send to the other player in a match. No free text: match_message.template_code must be one of these.
+
+        Row Level Security decides which rows each player can see or change:
+
+        - readable by signed-in players [read]
+      parameters:
+      - "$ref": "#/components/parameters/selectParam"
+      - "$ref": "#/components/parameters/orderParam"
+      - "$ref": "#/components/parameters/limitParam"
+      - "$ref": "#/components/parameters/offsetParam"
+      - "$ref": "#/components/parameters/rowFilter"
+      responses:
+        '200':
+          description: Rows the caller may see (empty if none).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/MatchMessageTemplate"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+      operationId: select_match_message_template_rows
   "/match_participant":
     get:
       tags:
@@ -1497,12 +1567,14 @@ paths:
       x-implementation: supabase-postgrest
       summary: Read match_participant rows
       description: |-
+        Who played on which side of a match. Written by submit_result from the game's accepted roster; players never write it directly. Admins may correct it.
+
         Row Level Security decides which rows each player can see or change:
 
-        - join yourself, or be added by the organiser [insert]
-        - leave, or be removed by the organiser [delete]
+        - admins add [insert]
+        - admins edit [update]
+        - admins remove [delete]
         - (restrictive) registered players only [all]
-        - set own attendance, or the organiser sets an [update]
         - the line-up is visible to those in it [read]
       parameters:
       - "$ref": "#/components/parameters/selectParam"
@@ -1528,12 +1600,14 @@ paths:
       x-implementation: supabase-postgrest
       summary: Create a match_participant row
       description: |-
+        Who played on which side of a match. Written by submit_result from the game's accepted roster; players never write it directly. Admins may correct it.
+
         Row Level Security decides which rows each player can see or change:
 
-        - join yourself, or be added by the organiser [insert]
-        - leave, or be removed by the organiser [delete]
+        - admins add [insert]
+        - admins edit [update]
+        - admins remove [delete]
         - (restrictive) registered players only [all]
-        - set own attendance, or the organiser sets an [update]
         - the line-up is visible to those in it [read]
       parameters:
       - "$ref": "#/components/parameters/preferParam"
@@ -1563,12 +1637,14 @@ paths:
       x-implementation: supabase-postgrest
       summary: Update match_participant rows
       description: |-
+        Who played on which side of a match. Written by submit_result from the game's accepted roster; players never write it directly. Admins may correct it.
+
         Row Level Security decides which rows each player can see or change:
 
-        - join yourself, or be added by the organiser [insert]
-        - leave, or be removed by the organiser [delete]
+        - admins add [insert]
+        - admins edit [update]
+        - admins remove [delete]
         - (restrictive) registered players only [all]
-        - set own attendance, or the organiser sets an [update]
         - the line-up is visible to those in it [read]
 
         Only the columns in the request schema can be changed. A row the caller may not change is silently skipped: check the returned rows.
@@ -1599,12 +1675,14 @@ paths:
       x-implementation: supabase-postgrest
       summary: Delete match_participant rows
       description: |-
+        Who played on which side of a match. Written by submit_result from the game's accepted roster; players never write it directly. Admins may correct it.
+
         Row Level Security decides which rows each player can see or change:
 
-        - join yourself, or be added by the organiser [insert]
-        - leave, or be removed by the organiser [delete]
+        - admins add [insert]
+        - admins edit [update]
+        - admins remove [delete]
         - (restrictive) registered players only [all]
-        - set own attendance, or the organiser sets an [update]
         - the line-up is visible to those in it [read]
       parameters:
       - "$ref": "#/components/parameters/rowFilter"
@@ -1628,13 +1706,12 @@ paths:
       x-implementation: supabase-postgrest
       summary: Read match_result rows
       description: |-
-        The ERD allows many results per match, read here as "each side submits a score and one gets confirmed". The unique index below enforces that at most one result per match can reach confirmed status.
+        The result of a match: games (side a points first), the winning side and its status (pending, confirmed, disputed, rejected, expired). Created only by submit_result, confirmed by the other side with confirm_result, challenged with raise_dispute, and expired by an hourly job after 7 days. Admins may confirm, reject or remove one. A unique index keeps at most one confirmed result per match.
 
         Row Level Security decides which rows each player can see or change:
 
         - admins confirm or reject [update]
         - admins remove [delete]
-        - participants submit a pending result [insert]
         - (restrictive) registered players only [all]
         - visible to everyone in the match [read]
       parameters:
@@ -1655,56 +1732,18 @@ paths:
         '401':
           "$ref": "#/components/responses/Unauthorized"
       operationId: select_match_result_rows
-    post:
-      tags:
-      - Results (tables)
-      x-implementation: supabase-postgrest
-      summary: Create a match_result row
-      description: |-
-        The ERD allows many results per match, read here as "each side submits a score and one gets confirmed". The unique index below enforces that at most one result per match can reach confirmed status.
-
-        Row Level Security decides which rows each player can see or change:
-
-        - admins confirm or reject [update]
-        - admins remove [delete]
-        - participants submit a pending result [insert]
-        - (restrictive) registered players only [all]
-        - visible to everyone in the match [read]
-      parameters:
-      - "$ref": "#/components/parameters/preferParam"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              "$ref": "#/components/schemas/MatchResultWrite"
-      responses:
-        '201':
-          description: 'Created (with Prefer: return=representation).'
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  "$ref": "#/components/schemas/MatchResult"
-        '400':
-          "$ref": "#/components/responses/RuleBroken"
-        '403':
-          "$ref": "#/components/responses/Forbidden"
-      operationId: insert_match_result_rows
     patch:
       tags:
       - Results (tables)
       x-implementation: supabase-postgrest
       summary: Update match_result rows
       description: |-
-        The ERD allows many results per match, read here as "each side submits a score and one gets confirmed". The unique index below enforces that at most one result per match can reach confirmed status.
+        The result of a match: games (side a points first), the winning side and its status (pending, confirmed, disputed, rejected, expired). Created only by submit_result, confirmed by the other side with confirm_result, challenged with raise_dispute, and expired by an hourly job after 7 days. Admins may confirm, reject or remove one. A unique index keeps at most one confirmed result per match.
 
         Row Level Security decides which rows each player can see or change:
 
         - admins confirm or reject [update]
         - admins remove [delete]
-        - participants submit a pending result [insert]
         - (restrictive) registered players only [all]
         - visible to everyone in the match [read]
 
@@ -1736,13 +1775,12 @@ paths:
       x-implementation: supabase-postgrest
       summary: Delete match_result rows
       description: |-
-        The ERD allows many results per match, read here as "each side submits a score and one gets confirmed". The unique index below enforces that at most one result per match can reach confirmed status.
+        The result of a match: games (side a points first), the winning side and its status (pending, confirmed, disputed, rejected, expired). Created only by submit_result, confirmed by the other side with confirm_result, challenged with raise_dispute, and expired by an hourly job after 7 days. Admins may confirm, reject or remove one. A unique index keeps at most one confirmed result per match.
 
         Row Level Security decides which rows each player can see or change:
 
         - admins confirm or reject [update]
         - admins remove [delete]
-        - participants submit a pending result [insert]
         - (restrictive) registered players only [all]
         - visible to everyone in the match [read]
       parameters:
@@ -2485,6 +2523,36 @@ paths:
         '400':
           "$ref": "#/components/responses/RuleBroken"
       operationId: delete_ranking_rows
+  "/rating_history":
+    get:
+      tags:
+      - Rankings and leagues (tables)
+      x-implementation: supabase-postgrest
+      summary: Read rating_history rows
+      description: |-
+        One row per player per processed result: the rating and RD before and after. The source for the rating trend and the rating change shown against a match.
+
+        Row Level Security decides which rows each player can see or change:
+
+        - your own, or an admin's [read]
+      parameters:
+      - "$ref": "#/components/parameters/selectParam"
+      - "$ref": "#/components/parameters/orderParam"
+      - "$ref": "#/components/parameters/limitParam"
+      - "$ref": "#/components/parameters/offsetParam"
+      - "$ref": "#/components/parameters/rowFilter"
+      responses:
+        '200':
+          description: Rows the caller may see (empty if none).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/RatingHistory"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+      operationId: select_rating_history_rows
   "/report":
     get:
       tags:
@@ -2578,6 +2646,36 @@ paths:
         '400':
           "$ref": "#/components/responses/RuleBroken"
       operationId: delete_report_rows
+  "/result_flag":
+    get:
+      tags:
+      - Results (tables)
+      x-implementation: supabase-postgrest
+      summary: Read result_flag rows
+      description: |-
+        Unusual patterns logged for an admin to review (BL-023, BL-056). A flag never blocks a result. Written only by the result functions.
+
+        Row Level Security decides which rows each player can see or change:
+
+        - admins read [read]
+      parameters:
+      - "$ref": "#/components/parameters/selectParam"
+      - "$ref": "#/components/parameters/orderParam"
+      - "$ref": "#/components/parameters/limitParam"
+      - "$ref": "#/components/parameters/offsetParam"
+      - "$ref": "#/components/parameters/rowFilter"
+      responses:
+        '200':
+          description: Rows the caller may see (empty if none).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/ResultFlag"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+      operationId: select_result_flag_rows
   "/state":
     get:
       tags:
@@ -2938,7 +3036,7 @@ paths:
                 firstName: Alice
                 nextGames:
                 - id: 00000000-0000-0000-0000-00000000b001
-                  date: Sat, 10 Oct
+                  date: Thu, 15 Oct
                   host:
                     id: 00000000-0000-0000-0000-00000000a001
                     name: alice
@@ -2952,7 +3050,7 @@ paths:
                   style: Social
                   title: Friday Night Doubles
                   venue: Melbourne Sports and Aquatic Centre@ MSAC
-                  endsAt: '2026-10-10T08:30:00+00:00'
+                  endsAt: '2026-10-15T08:30:00+00:00'
                   format: Doubles
                   myRole: host
                   status: open
@@ -2963,12 +3061,12 @@ paths:
                   isInvite: false
                   location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
                   myStatus: accepted
-                  startsAt: '2026-10-10T07:00:00+00:00'
+                  startsAt: '2026-10-15T07:00:00+00:00'
                   maxPlayers: 4
                   playerCount: 3
                   durationMinutes: 90
                 - id: 00000000-0000-0000-0000-00000000b004
-                  date: Wed, 14 Oct
+                  date: Mon, 19 Oct
                   host:
                     id: 00000000-0000-0000-0000-00000000c001
                     name: Smash Group
@@ -2980,7 +3078,7 @@ paths:
                   style: Social
                   title: Smash Group social night
                   venue: Melbourne University Badminton Club
-                  endsAt: '2026-10-14T10:00:00+00:00'
+                  endsAt: '2026-10-19T10:00:00+00:00'
                   format: Doubles
                   myRole: host
                   status: open
@@ -2991,26 +3089,32 @@ paths:
                   isInvite: false
                   location: Melbourne University Badminton Club, Parkville
                   myStatus: accepted
-                  startsAt: '2026-10-14T08:00:00+00:00'
+                  startsAt: '2026-10-19T08:00:00+00:00'
                   maxPlayers: 8
                   playerCount: 2
                   durationMinutes: 120
                 ratingCard:
                   band: Intermediate
-                  wins: 2
-                  grade: 
-                  rating: 1240
-                  status: Provisional
-                  matches: 4
-                  winRate: 50
+                  wins: 15
+                  grade: B2
+                  rating: 1618
+                  status: Established
+                  matches: 23
+                  winRate: 65
+                  placement:
+                    played: 22
+                    required: 10
+                    opponents: 16
+                    opponentsRequired: 5
                   rankState: VIC
-                  stateRank: 3
+                  stateRank: 11
                   ratingFormat: singles
-                  ratingChangeThisMonth: 
+                  ratingsUpdatedAt: '2026-10-13T02:52:54.805627+00:00'
+                  ratingChangeThisMonth: 22
                 registered: true
                 greetingName: Alice Nguyen
                 profileImageUrl: 
-                unreadNotifications: 4
+                unreadNotifications: 5
         '400':
           "$ref": "#/components/responses/RuleBroken"
         '401':
@@ -3044,7 +3148,7 @@ paths:
                 suburb: Carlton
                 noShows: 0
                 initials: AN
-                joinedAt: '2026-07-10T10:54:08.45014+00:00'
+                joinedAt: '2026-07-15T02:52:54.609125+00:00'
                 lastName: Nguyen
                 location: Carlton area · VIC
                 username: alice
@@ -3053,17 +3157,23 @@ paths:
                 isVerified: true
                 ratingCard:
                   band: Intermediate
-                  wins: 2
-                  grade: 
-                  rating: 1240
-                  status: Provisional
-                  matches: 4
-                  winRate: 50
+                  wins: 15
+                  grade: B2
+                  rating: 1618
+                  status: Established
+                  matches: 23
+                  winRate: 65
+                  placement:
+                    played: 22
+                    required: 10
+                    opponents: 16
+                    opponentsRequired: 5
                   rankState: VIC
-                  stateRank: 3
+                  stateRank: 11
                   ratingFormat: singles
-                  ratingChangeThisMonth: 
-                gamesPlayed: 4
+                  ratingsUpdatedAt: '2026-10-13T02:52:54.805627+00:00'
+                  ratingChangeThisMonth: 22
+                gamesPlayed: 5
                 reliability: 100
                 availability:
                 - mon_evening
@@ -3077,7 +3187,7 @@ paths:
                 availabilityNote: Most weeknights after 6
                 lateCancellations: 0
                 emailNotifications: true
-                unreadNotifications: 4
+                unreadNotifications: 5
         '400':
           "$ref": "#/components/responses/RuleBroken"
         '401':
@@ -3234,7 +3344,7 @@ paths:
                   summary: All my upcoming games
                   value:
                   - id: 00000000-0000-0000-0000-00000000b001
-                    date: Sat, 10 Oct
+                    date: Thu, 15 Oct
                     host:
                       id: 00000000-0000-0000-0000-00000000a001
                       name: alice
@@ -3248,7 +3358,7 @@ paths:
                     style: Social
                     title: Friday Night Doubles
                     venue: Melbourne Sports and Aquatic Centre@ MSAC
-                    endsAt: '2026-10-10T08:30:00+00:00'
+                    endsAt: '2026-10-15T08:30:00+00:00'
                     format: Doubles
                     myRole: host
                     status: open
@@ -3259,12 +3369,12 @@ paths:
                     isInvite: false
                     location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
                     myStatus: accepted
-                    startsAt: '2026-10-10T07:00:00+00:00'
+                    startsAt: '2026-10-15T07:00:00+00:00'
                     maxPlayers: 4
                     playerCount: 3
                     durationMinutes: 90
                   - id: 00000000-0000-0000-0000-00000000b004
-                    date: Wed, 14 Oct
+                    date: Mon, 19 Oct
                     host:
                       id: 00000000-0000-0000-0000-00000000c001
                       name: Smash Group
@@ -3276,7 +3386,7 @@ paths:
                     style: Social
                     title: Smash Group social night
                     venue: Melbourne University Badminton Club
-                    endsAt: '2026-10-14T10:00:00+00:00'
+                    endsAt: '2026-10-19T10:00:00+00:00'
                     format: Doubles
                     myRole: host
                     status: open
@@ -3287,7 +3397,7 @@ paths:
                     isInvite: false
                     location: Melbourne University Badminton Club, Parkville
                     myStatus: accepted
-                    startsAt: '2026-10-14T08:00:00+00:00'
+                    startsAt: '2026-10-19T08:00:00+00:00'
                     maxPlayers: 8
                     playerCount: 2
                     durationMinutes: 120
@@ -3295,7 +3405,7 @@ paths:
                   summary: Organised by me
                   value:
                   - id: 00000000-0000-0000-0000-00000000b001
-                    date: Sat, 10 Oct
+                    date: Thu, 15 Oct
                     host:
                       id: 00000000-0000-0000-0000-00000000a001
                       name: alice
@@ -3309,7 +3419,7 @@ paths:
                     style: Social
                     title: Friday Night Doubles
                     venue: Melbourne Sports and Aquatic Centre@ MSAC
-                    endsAt: '2026-10-10T08:30:00+00:00'
+                    endsAt: '2026-10-15T08:30:00+00:00'
                     format: Doubles
                     myRole: host
                     status: open
@@ -3320,12 +3430,12 @@ paths:
                     isInvite: false
                     location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
                     myStatus: accepted
-                    startsAt: '2026-10-10T07:00:00+00:00'
+                    startsAt: '2026-10-15T07:00:00+00:00'
                     maxPlayers: 4
                     playerCount: 3
                     durationMinutes: 90
                   - id: 00000000-0000-0000-0000-00000000b004
-                    date: Wed, 14 Oct
+                    date: Mon, 19 Oct
                     host:
                       id: 00000000-0000-0000-0000-00000000c001
                       name: Smash Group
@@ -3337,7 +3447,7 @@ paths:
                     style: Social
                     title: Smash Group social night
                     venue: Melbourne University Badminton Club
-                    endsAt: '2026-10-14T10:00:00+00:00'
+                    endsAt: '2026-10-19T10:00:00+00:00'
                     format: Doubles
                     myRole: host
                     status: open
@@ -3348,15 +3458,45 @@ paths:
                     isInvite: false
                     location: Melbourne University Badminton Club, Parkville
                     myStatus: accepted
-                    startsAt: '2026-10-14T08:00:00+00:00'
+                    startsAt: '2026-10-19T08:00:00+00:00'
                     maxPlayers: 8
                     playerCount: 2
                     durationMinutes: 120
                 past:
                   summary: My past games
                   value:
+                  - id: 00000000-0000-0000-0000-00000000c108
+                    date: Sun, 11 Oct
+                    host:
+                      id: 00000000-0000-0000-0000-00000000a002
+                      name: bob
+                      isGroup: false
+                      initials: BO
+                      isBlocked: false
+                      isDeleted: false
+                      profileImageUrl: 
+                    rank: Any Rank
+                    time: 7:00 PM – 8:00 PM
+                    style: Social
+                    title: Evening singles
+                    venue: Melbourne Badminton Centre
+                    endsAt: '2026-10-11T09:00:00+00:00'
+                    format: Singles
+                    myRole: player
+                    status: completed
+                    suburb: Blackburn North
+                    mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.799510,145.144072
+                    duration: 60 mins
+                    imageUrl: 
+                    isInvite: false
+                    location: Melbourne Badminton Centre, Blackburn North
+                    myStatus: accepted
+                    startsAt: '2026-10-11T08:00:00+00:00'
+                    maxPlayers: 2
+                    playerCount: 2
+                    durationMinutes: 60
                   - id: 00000000-0000-0000-0000-00000000c106
-                    date: Sat, 3 Oct
+                    date: Thu, 8 Oct
                     host:
                       id: 00000000-0000-0000-0000-00000000a001
                       name: alice
@@ -3370,7 +3510,7 @@ paths:
                     style: Competitive
                     title: 'Spring ladder: round 3'
                     venue: Melbourne Sports and Aquatic Centre@ MSAC
-                    endsAt: '2026-10-03T09:00:00+00:00'
+                    endsAt: '2026-10-08T08:00:00+00:00'
                     format: Singles
                     myRole: host
                     status: completed
@@ -3381,40 +3521,10 @@ paths:
                     isInvite: false
                     location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
                     myStatus: accepted
-                    startsAt: '2026-10-03T08:00:00+00:00'
+                    startsAt: '2026-10-08T07:00:00+00:00'
                     maxPlayers: 2
                     playerCount: 2
                     durationMinutes: 60
-                  - id: 00000000-0000-0000-0000-00000000c102
-                    date: Mon, 28 Sep
-                    host:
-                      id: 00000000-0000-0000-0000-00000000a002
-                      name: bob
-                      isGroup: false
-                      initials: BO
-                      isBlocked: false
-                      isDeleted: false
-                      profileImageUrl: 
-                    rank: Any Rank
-                    time: 7:00 PM – 8:30 PM
-                    style: Social
-                    title: Clayton doubles
-                    venue: Melbourne Badminton Centre
-                    endsAt: '2026-09-28T10:30:00+00:00'
-                    format: Doubles
-                    myRole: player
-                    status: completed
-                    suburb: Blackburn North
-                    mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.799510,145.144072
-                    duration: 90 mins
-                    imageUrl: 
-                    isInvite: false
-                    location: Melbourne Badminton Centre, Blackburn North
-                    myStatus: accepted
-                    startsAt: '2026-09-28T09:00:00+00:00'
-                    maxPlayers: 6
-                    playerCount: 4
-                    durationMinutes: 90
         '400':
           "$ref": "#/components/responses/RuleBroken"
         '401':
@@ -3525,7 +3635,7 @@ paths:
                 items:
                   "$ref": "#/components/schemas/VenueOption"
               example:
-              - id: 8b7d6f35-6480-4958-a143-855a8813bdb3
+              - id: b262557a-8f6f-4f41-876d-22cfe11e054c
                 name: Badminton Court
                 label: Badminton Court — Wantirna VIC
                 state: VIC
@@ -3533,7 +3643,7 @@ paths:
                 address: Badminton Ct, Wantirna VIC 3152
                 mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.849473,145.230175
                 postcode: '3152'
-              - id: a0adabdb-7bf4-4050-ad30-23ca81c0f2c0
+              - id: f96fee7b-25ca-4588-9b27-209e52baf331
                 name: Badminton Court
                 label: Badminton Court — Marshall VIC
                 state: VIC
@@ -3580,62 +3690,62 @@ paths:
                 items:
                   "$ref": "#/components/schemas/GameCard"
               example:
-              - id: 8328cf64-3573-4484-8787-296c268ae3ae
-                date: Thu, 8 Oct
+              - id: 00000000-0000-0000-0000-00000000b001
+                date: Thu, 15 Oct
                 host:
-                  id: 1fd73ec1-8452-48cb-a228-546012c72910
-                  name: Alice_21551
+                  id: 00000000-0000-0000-0000-00000000a001
+                  name: alice
                   isGroup: false
                   initials: AL
                   isBlocked: false
                   isDeleted: false
                   profileImageUrl: 
-                rank: Any Rank
-                time: 11:54 PM – 12:54 AM
+                rank: Intermediate
+                time: 6:00 PM – 7:30 PM
                 style: Social
-                title: Badminton game
-                venue: 
-                endsAt: '2026-10-08T13:54:43+00:00'
-                format: Singles
+                title: Friday Night Doubles
+                venue: Melbourne Sports and Aquatic Centre@ MSAC
+                endsAt: '2026-10-15T08:30:00+00:00'
+                format: Doubles
                 status: open
-                suburb: Carlton
-                mapsUrl: 
-                duration: 60 mins
+                suburb: Albert Park
+                mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000
+                duration: 90 mins
                 imageUrl: 
                 isInvite: false
-                location: Carlton
-                myStatus: 
-                startsAt: '2026-10-08T12:54:43+00:00'
+                location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
+                myStatus: accepted
+                startsAt: '2026-10-15T07:00:00+00:00'
                 maxPlayers: 4
-                playerCount: 1
-                durationMinutes: 60
-              - id: 27286faa-59e0-4097-a3f0-666b63842199
-                date: Thu, 8 Oct
+                playerCount: 3
+                durationMinutes: 90
+              - id: 00000000-0000-0000-0000-00000000b002
+                date: Fri, 16 Oct
                 host:
-                  id: b5b59ac7-8f38-4bd7-9b7c-f585c086a24f
-                  name: t5107_host
+                  id: 00000000-0000-0000-0000-00000000a002
+                  name: bob
                   isGroup: false
-                  initials: TH
+                  initials: BO
                   isBlocked: false
                   isDeleted: false
                   profileImageUrl: 
                 rank: Any Rank
-                time: 11:55 PM – 12:55 AM
+                time: 10:00 AM – 11:00 AM
                 style: Social
                 title: Badminton game
-                venue: 
-                endsAt: '2026-10-08T13:55:19.338356+00:00'
+                venue: Melbourne Badminton Centre
+                endsAt: '2026-10-16T00:00:00+00:00'
                 format: Singles
                 status: open
-                suburb: Carlton
-                mapsUrl: 
+                suburb: Blackburn North
+                mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.799510,145.144072
                 duration: 60 mins
                 imageUrl: 
                 isInvite: false
-                location: Carlton
+                location: Melbourne Badminton Centre, Blackburn North
                 myStatus: 
-                startsAt: '2026-10-08T12:55:19.338356+00:00'
-                maxPlayers: 4
+                startsAt: '2026-10-15T23:00:00+00:00'
+                maxPlayers: 2
                 playerCount: 1
                 durationMinutes: 60
         '401':
@@ -3673,10 +3783,9 @@ paths:
       summary: Game Details screen
       x-implementation: postgres-rpc
       description: >-
-        Game Details screen: the card plus duration, venue, address, Maps link, notes, host, accepted
-        players, matches (every match in the game: number, sideA, sideB, status, result), the caller's
-        request status, canManage and, for the host, hostActions. Null if the game is removed (admins
-        excepted), hidden by a block, or the caller is not registered.
+        Game Details: supabase.rpc('get_game_details', { p_post_id }). The game card plus host, players,
+        canManage, hostActions, invite, and matches (the matches you played in, each shaped as get_match
+        returns it) and canRecordResult.
       responses:
         '200':
           description: OK.
@@ -3689,25 +3798,25 @@ paths:
                   summary: A game the caller asked to join
                   value:
                     id: 00000000-0000-0000-0000-00000000b001
-                    date: Sat, 10 Oct
+                    date: Thu, 15 Oct
                     host:
                       id: 00000000-0000-0000-0000-00000000a001
                       name: alice
-                      rating: 1240
+                      rating: 1618
                       isGroup: false
                       initials: AL
                       isBlocked: false
                       isDeleted: false
                       reliability: 100
                       profileImageUrl: 
-                      verifiedMatches: 4
+                      verifiedMatches: 23
                     rank: Intermediate
                     time: 6:00 PM – 7:30 PM
                     notes: Bring your own racquet. Shuttles provided.
                     style: Social
                     title: Friday Night Doubles
                     venue: Melbourne Sports and Aquatic Centre@ MSAC
-                    endsAt: '2026-10-10T08:30:00+00:00'
+                    endsAt: '2026-10-15T08:30:00+00:00'
                     format: Doubles
                     invite: 
                     status: open
@@ -3740,25 +3849,26 @@ paths:
                       isBlocked: false
                       isDeleted: false
                       profileImageUrl: 
-                    venueId: 3fefbd57-5378-4458-95b5-6eb338c8ad7c
+                    venueId: f2f297f2-c6fa-4e34-9ce7-6916ff4b848a
                     duration: 90 mins
                     imageUrl: 
                     isInvite: false
                     location: Melbourne Sports and Aquatic Centre@ MSAC
                     myStatus: pending
-                    startsAt: '2026-10-10T07:00:00+00:00'
+                    startsAt: '2026-10-15T07:00:00+00:00'
                     canManage: false
                     maxPlayers: 4
                     hostActions: 
                     playerCount: 3
                     abilityLevel: intermediate
                     locationDetail: Albert Park
+                    canRecordResult: false
                     durationMinutes: 90
                 groupGame:
                   summary: A group's game
                   value:
                     id: 00000000-0000-0000-0000-00000000b004
-                    date: Wed, 14 Oct
+                    date: Mon, 19 Oct
                     host:
                       id: 00000000-0000-0000-0000-00000000c001
                       name: Smash Group
@@ -3772,7 +3882,7 @@ paths:
                     style: Social
                     title: Smash Group social night
                     venue: Melbourne University Badminton Club
-                    endsAt: '2026-10-14T10:00:00+00:00'
+                    endsAt: '2026-10-19T10:00:00+00:00'
                     format: Doubles
                     invite: 
                     status: open
@@ -3797,50 +3907,51 @@ paths:
                       isBlocked: false
                       isDeleted: false
                       profileImageUrl: 
-                    venueId: 157e5368-e534-42d1-bfa5-c08d53136960
+                    venueId: 5939eb45-f66e-4f1f-9fa9-7053c28af638
                     duration: 120 mins
                     imageUrl: 
                     isInvite: false
                     location: Melbourne University Badminton Club
                     myStatus: accepted
-                    startsAt: '2026-10-14T08:00:00+00:00'
+                    startsAt: '2026-10-19T08:00:00+00:00'
                     canManage: true
                     maxPlayers: 8
                     hostActions:
                       canCancel: true
                       canDelete: false
-                      noShowsOpenAt: '2026-10-14T08:00:00+00:00'
+                      noShowsOpenAt: '2026-10-19T08:00:00+00:00'
                       canMarkNoShows: false
-                      cancelClosesAt: '2026-10-14T04:00:00+00:00'
-                      noShowsCloseAt: '2026-10-16T10:00:00+00:00'
-                      cancelIsLateFrom: '2026-10-13T08:00:00+00:00'
+                      cancelClosesAt: '2026-10-19T04:00:00+00:00'
+                      noShowsCloseAt: '2026-10-21T10:00:00+00:00'
+                      cancelIsLateFrom: '2026-10-18T08:00:00+00:00'
                     playerCount: 2
                     abilityLevel: any
                     locationDetail: Parkville
+                    canRecordResult: false
                     durationMinutes: 120
                 inviteOrganiser:
                   summary: An invitation (Request Game), the organiser's view
                   value:
                     id: 00000000-0000-0000-0000-00000000b009
-                    date: Tue, 13 Oct
+                    date: Sun, 18 Oct
                     host:
                       id: 00000000-0000-0000-0000-00000000a003
                       name: carol
-                      rating: 1310
+                      rating: 1646
                       isGroup: false
                       initials: CA
                       isBlocked: false
                       isDeleted: false
                       reliability: 100
                       profileImageUrl: 
-                      verifiedMatches: 2
+                      verifiedMatches: 37
                     rank: Any Rank
                     time: 6:00 PM – 7:00 PM
                     notes: 
                     style: Social
                     title: Singles hit?
                     venue: Melbourne Badminton Centre
-                    endsAt: '2026-10-13T08:00:00+00:00'
+                    endsAt: '2026-10-18T08:00:00+00:00'
                     format: Singles
                     invite:
                       name: ivy
@@ -3862,50 +3973,51 @@ paths:
                       isBlocked: false
                       isDeleted: false
                       profileImageUrl: 
-                    venueId: 17e9bfb1-c039-46ff-b42c-13fd97113e8f
+                    venueId: 11e40d2d-74ad-4d90-a900-7e576dfca2ae
                     duration: 60 mins
                     imageUrl: 
                     isInvite: true
                     location: Melbourne Badminton Centre
                     myStatus: accepted
-                    startsAt: '2026-10-13T07:00:00+00:00'
+                    startsAt: '2026-10-18T07:00:00+00:00'
                     canManage: true
                     maxPlayers: 2
                     hostActions:
                       canCancel: true
                       canDelete: false
-                      noShowsOpenAt: '2026-10-13T07:00:00+00:00'
+                      noShowsOpenAt: '2026-10-18T07:00:00+00:00'
                       canMarkNoShows: false
-                      cancelClosesAt: '2026-10-13T03:00:00+00:00'
-                      noShowsCloseAt: '2026-10-15T08:00:00+00:00'
-                      cancelIsLateFrom: '2026-10-12T07:00:00+00:00'
+                      cancelClosesAt: '2026-10-18T03:00:00+00:00'
+                      noShowsCloseAt: '2026-10-20T08:00:00+00:00'
+                      cancelIsLateFrom: '2026-10-17T07:00:00+00:00'
                     playerCount: 1
                     abilityLevel: any
                     locationDetail: Blackburn North
+                    canRecordResult: false
                     durationMinutes: 60
                 inviteInvitedPlayer:
                   summary: 'An invitation (Request Game), the invited player''s view: myStatus is invited'
                   value:
                     id: 00000000-0000-0000-0000-00000000b009
-                    date: Tue, 13 Oct
+                    date: Sun, 18 Oct
                     host:
                       id: 00000000-0000-0000-0000-00000000a003
                       name: carol
-                      rating: 1310
+                      rating: 1646
                       isGroup: false
                       initials: CA
                       isBlocked: false
                       isDeleted: false
                       reliability: 100
                       profileImageUrl: 
-                      verifiedMatches: 2
+                      verifiedMatches: 37
                     rank: Any Rank
                     time: 6:00 PM – 7:00 PM
                     notes: 
                     style: Social
                     title: Singles hit?
                     venue: Melbourne Badminton Centre
-                    endsAt: '2026-10-13T08:00:00+00:00'
+                    endsAt: '2026-10-18T08:00:00+00:00'
                     format: Singles
                     invite:
                       name: ivy
@@ -3927,50 +4039,119 @@ paths:
                       isBlocked: false
                       isDeleted: false
                       profileImageUrl: 
-                    venueId: 17e9bfb1-c039-46ff-b42c-13fd97113e8f
+                    venueId: 11e40d2d-74ad-4d90-a900-7e576dfca2ae
                     duration: 60 mins
                     imageUrl: 
                     isInvite: true
                     location: Melbourne Badminton Centre
                     myStatus: invited
-                    startsAt: '2026-10-13T07:00:00+00:00'
+                    startsAt: '2026-10-18T07:00:00+00:00'
                     canManage: false
                     maxPlayers: 2
                     hostActions: 
                     playerCount: 1
                     abilityLevel: any
                     locationDetail: Blackburn North
+                    canRecordResult: false
                     durationMinutes: 60
                 playedGame:
                   summary: 'A game that has happened, seen by its host: a no-show on the roster, hostActions'
                   value:
                     id: 00000000-0000-0000-0000-00000000c102
-                    date: Mon, 28 Sep
+                    date: Sat, 3 Oct
                     host:
                       id: 00000000-0000-0000-0000-00000000a002
                       name: bob
-                      rating: 980
+                      rating: 1227
                       isGroup: false
                       initials: BO
                       isBlocked: false
                       isDeleted: false
-                      reliability: 89
+                      reliability: 91
                       profileImageUrl: 
-                      verifiedMatches: 1
+                      verifiedMatches: 31
                     rank: Any Rank
                     time: 7:00 PM – 8:30 PM
                     notes: 
                     style: Social
                     title: Clayton doubles
                     venue: Melbourne Badminton Centre
-                    endsAt: '2026-09-28T10:30:00+00:00'
+                    endsAt: '2026-10-03T10:30:00+00:00'
                     format: Doubles
                     invite: 
                     status: completed
                     suburb: Blackburn North
                     address: 16 Joseph Street
                     mapsUrl: https://www.google.com/maps/search/?api=1&query=-37.799510,145.144072
-                    matches: []
+                    matches:
+                    - sides:
+                        a:
+                        - id: 00000000-0000-0000-0000-00000000a001
+                          isMe: false
+                          name: alice
+                          noShow: false
+                          initials: AL
+                          isBlocked: false
+                          isDeleted: false
+                          profileImageUrl: 
+                        - id: 00000000-0000-0000-0000-00000000a002
+                          isMe: true
+                          name: bob
+                          noShow: false
+                          initials: BO
+                          isBlocked: false
+                          isDeleted: false
+                          profileImageUrl: 
+                        b:
+                        - id: 00000000-0000-0000-0000-00000000a003
+                          isMe: false
+                          name: carol
+                          noShow: false
+                          initials: CA
+                          isBlocked: false
+                          isDeleted: false
+                          profileImageUrl: 
+                        - id: 00000000-0000-0000-0000-00000000a005
+                          isMe: false
+                          name: erin
+                          noShow: false
+                          initials: ER
+                          isBlocked: false
+                          isDeleted: false
+                          profileImageUrl: 
+                      format: Doubles
+                      gameId: 00000000-0000-0000-0000-00000000c102
+                      mySide: a
+                      result:
+                        id: ff4f9355-9073-42c5-a64d-c73a0d7266bb
+                        iWon: false
+                        games:
+                        - - 18
+                          - 21
+                        - - 21
+                          - 19
+                        - - 16
+                          - 21
+                        score: 18-21 21-19 16-21
+                        status: confirmed
+                        dispute: 
+                        expiresAt: 
+                        canConfirm: false
+                        canDispute: false
+                        confirmedAt: '2026-10-03T03:52:54.744091+00:00'
+                        submittedAt: '2026-10-03T02:52:54.744091+00:00'
+                        submittedBy:
+                          id: 00000000-0000-0000-0000-00000000a003
+                          name: carol
+                          initials: CA
+                        winningSide: b
+                        ratingChange: 
+                        ratingPending: false
+                        verificationStatus: verified
+                      matchId: 00000000-0000-0000-0000-00000000d102
+                      location: Melbourne Badminton Centre
+                      playedAt: '2026-10-03T09:00:00+00:00'
+                      formatValue: doubles
                     players:
                     - id: 00000000-0000-0000-0000-00000000a002
                       host: true
@@ -4012,26 +4193,27 @@ paths:
                       isBlocked: false
                       isDeleted: false
                       profileImageUrl: 
-                    venueId: 17e9bfb1-c039-46ff-b42c-13fd97113e8f
+                    venueId: 11e40d2d-74ad-4d90-a900-7e576dfca2ae
                     duration: 90 mins
                     imageUrl: 
                     isInvite: false
                     location: Melbourne Badminton Centre
                     myStatus: accepted
-                    startsAt: '2026-09-28T09:00:00+00:00'
+                    startsAt: '2026-10-03T09:00:00+00:00'
                     canManage: true
                     maxPlayers: 6
                     hostActions:
                       canCancel: false
                       canDelete: false
-                      noShowsOpenAt: '2026-09-28T09:00:00+00:00'
+                      noShowsOpenAt: '2026-10-03T09:00:00+00:00'
                       canMarkNoShows: false
-                      cancelClosesAt: '2026-09-28T05:00:00+00:00'
-                      noShowsCloseAt: '2026-09-30T10:30:00+00:00'
-                      cancelIsLateFrom: '2026-09-27T09:00:00+00:00'
+                      cancelClosesAt: '2026-10-03T05:00:00+00:00'
+                      noShowsCloseAt: '2026-10-05T10:30:00+00:00'
+                      cancelIsLateFrom: '2026-10-02T09:00:00+00:00'
                     playerCount: 4
                     abilityLevel: any
                     locationDetail: Blackburn North
+                    canRecordResult: true
                     durationMinutes: 90
         '401':
           "$ref": "#/components/responses/Unauthorized"
@@ -4146,7 +4328,7 @@ paths:
               - id: 00000000-0000-0000-0000-00000000b001:00000000-0000-0000-0000-00000000a003
                 game:
                   id: 00000000-0000-0000-0000-00000000b001
-                  date: Sat, 10 Oct
+                  date: Thu, 15 Oct
                   host:
                     id: 00000000-0000-0000-0000-00000000a001
                     name: alice
@@ -4160,7 +4342,7 @@ paths:
                   style: Social
                   title: Friday Night Doubles
                   venue: Melbourne Sports and Aquatic Centre@ MSAC
-                  endsAt: '2026-10-10T08:30:00+00:00'
+                  endsAt: '2026-10-15T08:30:00+00:00'
                   format: Doubles
                   status: open
                   suburb: Albert Park
@@ -4170,7 +4352,7 @@ paths:
                   isInvite: false
                   location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
                   myStatus: accepted
-                  startsAt: '2026-10-10T07:00:00+00:00'
+                  startsAt: '2026-10-15T07:00:00+00:00'
                   maxPlayers: 4
                   playerCount: 3
                   durationMinutes: 90
@@ -4187,7 +4369,7 @@ paths:
                   id: 00000000-0000-0000-0000-00000000a003
                   name: carol
                   level: Upper Intermediate
-                  rating: 1310
+                  rating: 1646
                   message: 
                   noShows: 0
                   initials: CA
@@ -4195,12 +4377,12 @@ paths:
                   lateWithdrawals: 0
                   preferredFormat: Singles
                   profileImageUrl: 
-                  verifiedMatches: 2
-                requestedAt: '2026-10-05T10:54:08.514826+00:00'
+                  verifiedMatches: 37
+                requestedAt: '2026-10-10T02:52:54.704179+00:00'
               - id: 00000000-0000-0000-0000-00000000b001:00000000-0000-0000-0000-00000000a005
                 game:
                   id: 00000000-0000-0000-0000-00000000b001
-                  date: Sat, 10 Oct
+                  date: Thu, 15 Oct
                   host:
                     id: 00000000-0000-0000-0000-00000000a001
                     name: alice
@@ -4214,7 +4396,7 @@ paths:
                   style: Social
                   title: Friday Night Doubles
                   venue: Melbourne Sports and Aquatic Centre@ MSAC
-                  endsAt: '2026-10-10T08:30:00+00:00'
+                  endsAt: '2026-10-15T08:30:00+00:00'
                   format: Doubles
                   status: open
                   suburb: Albert Park
@@ -4224,7 +4406,7 @@ paths:
                   isInvite: false
                   location: Melbourne Sports and Aquatic Centre@ MSAC, Albert Park
                   myStatus: accepted
-                  startsAt: '2026-10-10T07:00:00+00:00'
+                  startsAt: '2026-10-15T07:00:00+00:00'
                   maxPlayers: 4
                   playerCount: 3
                   durationMinutes: 90
@@ -4241,7 +4423,7 @@ paths:
                   id: 00000000-0000-0000-0000-00000000a005
                   name: erin
                   level: Lower Intermediate
-                  rating: 1050
+                  rating: 1345
                   message: 
                   noShows: 0
                   initials: ER
@@ -4249,8 +4431,8 @@ paths:
                   lateWithdrawals: 1
                   preferredFormat: Mixed Doubles
                   profileImageUrl: 
-                  verifiedMatches: 1
-                requestedAt: '2026-10-06T10:54:08.514826+00:00'
+                  verifiedMatches: 29
+                requestedAt: '2026-10-11T02:52:54.704179+00:00'
         '400':
           "$ref": "#/components/responses/RuleBroken"
         '401':
@@ -4571,19 +4753,19 @@ paths:
                 items:
                   "$ref": "#/components/schemas/PlayerCard"
               example:
-              - id: 58fd71b3-fb86-4407-8a64-c3353d720770
-                name: ada_4059_605
+              - id: 00000000-0000-0000-0000-00000000a002
+                name: bob
                 rank: Beginner
-                initials: AD
-                location: 
+                initials: BO
+                location: Clayton
                 isBlocked: false
-                reliability: 100
+                reliability: 91
                 profileImageUrl: 
-              - id: 1fd73ec1-8452-48cb-a228-546012c72910
-                name: Alice_21551
-                rank: Beginner
-                initials: AL
-                location: 
+              - id: 00000000-0000-0000-0000-00000000a003
+                name: carol
+                rank: Upper Intermediate
+                initials: CA
+                location: Box Hill
                 isBlocked: false
                 reliability: 100
                 profileImageUrl: 
@@ -4623,38 +4805,74 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/PlayerProfileView"
-              example:
-                id: 00000000-0000-0000-0000-00000000a003
-                bio: Looking for competitive singles.
-                area: Box Hill
-                name: carol
-                wins: 1
-                level: Upper Intermediate
-                league:
-                  id: 00000000-0000-0000-0000-00000000e001
-                  name: Spring Singles Ladder
-                  position: 2
-                losses: 1
-                rating: 1310
-                status: Provisional
-                matches: 2
-                noShows: 0
-                initials: CA
-                isBlocked: false
-                isVerified: true
-                recentForm:
-                - W
-                - L
-                gamesPlayed: 3
-                reliability: 100
-                availability:
-                - tue_evening
-                - thu_evening
-                lateWithdrawals: 0
-                preferredFormat: Singles
-                profileImageUrl: 
-                availabilityNote: Competitive singles only
-                lateCancellations: 0
+              examples:
+                rated:
+                  summary: 'An established player: rating and grade set'
+                  value:
+                    id: 00000000-0000-0000-0000-00000000a001
+                    bio: Social doubles most weeknights.
+                    area: Carlton
+                    name: alice
+                    wins: 15
+                    grade: B2
+                    level: Intermediate
+                    league:
+                      id: 00000000-0000-0000-0000-00000000e001
+                      name: Spring Singles Ladder
+                      position: 1
+                    losses: 8
+                    rating: 1618
+                    status: Established
+                    matches: 23
+                    noShows: 0
+                    initials: AL
+                    isBlocked: false
+                    isVerified: true
+                    recentForm:
+                    - L
+                    - L
+                    - L
+                    - W
+                    - L
+                    gamesPlayed: 5
+                    reliability: 100
+                    availability:
+                    - mon_evening
+                    - wed_evening
+                    - sat_morning
+                    lateWithdrawals: 0
+                    preferredFormat: Doubles
+                    profileImageUrl: 
+                    availabilityNote: Most weeknights after 6
+                    lateCancellations: 0
+                unrated:
+                  summary: 'A player with no rated match yet: rating and grade null'
+                  value:
+                    id: 00000000-0000-0000-0000-00000000a009
+                    bio: Just moved here, looking for games.
+                    area: Southbank
+                    name: ivy
+                    wins: 0
+                    grade: 
+                    level: Beginner
+                    league: 
+                    losses: 0
+                    rating: 
+                    status: Provisional
+                    matches: 0
+                    noShows: 0
+                    initials: IV
+                    isBlocked: false
+                    isVerified: false
+                    recentForm: []
+                    gamesPlayed: 0
+                    reliability: 100
+                    availability: []
+                    lateWithdrawals: 0
+                    preferredFormat: Any
+                    profileImageUrl: 
+                    availabilityNote: 
+                    lateCancellations: 0
         '401':
           "$ref": "#/components/responses/Unauthorized"
       requestBody:
@@ -4677,9 +4895,10 @@ paths:
       summary: A player's verified match history
       x-implementation: postgres-rpc
       description: >-
-        BL-060. supabase.rpc('get_player_history', { p_player_id, p_limit, p_offset }): verified matches,
-        newest first, each with date, format, location, result (W/L), score, opponents and partner. Null
-        when the profile is private to the caller.
+        BL-060. A player's verified matches, newest first: supabase.rpc('get_player_history', { p_player_id,
+        p_limit, p_offset }). Each has matchId, gameId, playedAt, date, format, location, result (W or
+        L), score, verificationStatus, ratingChange (displayed points, null for doubles), opponents and
+        partner. Null when the profile is private to you.
       responses:
         '200':
           description: OK.
@@ -4690,7 +4909,23 @@ paths:
                 items:
                   "$ref": "#/components/schemas/HistoryEntry"
               example:
-              - date: Sat 3 Oct 2026
+              - date: Sat 10 Oct 2026
+                score: 8-21 12-21
+                format: Singles
+                gameId: 
+                result: L
+                matchId: 302ece44-5095-4df2-bddd-b622b7086ee0
+                partner: 
+                location: 
+                playedAt: '2026-10-09T15:35:06.805627+00:00'
+                opponents:
+                - id: 00000000-0000-0000-0000-0000000b0004
+                  name: rally_04
+                  initials: RA
+                  isBlocked: false
+                ratingChange: -16
+                verificationStatus: verified
+              - date: Thu 8 Oct 2026
                 score: 17-21 21-23
                 format: Singles
                 gameId: 00000000-0000-0000-0000-00000000c106
@@ -4698,34 +4933,14 @@ paths:
                 matchId: 00000000-0000-0000-0000-00000000d106
                 partner: 
                 location: Albert Park
-                playedAt: '2026-10-03T08:00:00+00:00'
+                playedAt: '2026-10-08T07:00:00+00:00'
                 opponents:
                 - id: 00000000-0000-0000-0000-00000000a004
                   name: dan
                   initials: DA
                   isBlocked: false
-              - date: Mon 28 Sep 2026
-                score: 21-18 19-21 21-16
-                format: Doubles
-                gameId: 00000000-0000-0000-0000-00000000c102
-                result: L
-                matchId: 00000000-0000-0000-0000-00000000d102
-                partner:
-                  id: 00000000-0000-0000-0000-00000000a002
-                  name: bob
-                  initials: BO
-                  isBlocked: false
-                location: Blackburn North
-                playedAt: '2026-09-28T09:00:00+00:00'
-                opponents:
-                - id: 00000000-0000-0000-0000-00000000a003
-                  name: carol
-                  initials: CA
-                  isBlocked: false
-                - id: 00000000-0000-0000-0000-00000000a005
-                  name: erin
-                  initials: ER
-                  isBlocked: false
+                ratingChange: -3
+                verificationStatus: verified
         '401':
           "$ref": "#/components/responses/Unauthorized"
       requestBody:
@@ -4834,7 +5049,7 @@ paths:
                 reason: Kept messaging me after our game.
                 category: harassment
                 initials: FR
-                blockedAt: '2026-10-04T10:54:08.568594+00:00'
+                blockedAt: '2026-10-09T02:52:54.759336+00:00'
                 categoryLabel: Harassment
                 profileImageUrl: 
         '401':
@@ -5046,23 +5261,23 @@ paths:
                 items:
                   "$ref": "#/components/schemas/NotificationItem"
               example:
-              - id: 2f4b94a3-67ad-4009-9d85-674d401fd459
+              - id: 4419e505-4e91-405a-92c3-72924a25d14d
                 type: game_cancelled
-                title: 'Doubles game on Thu 15 Oct, 6:00 PM in Richmond was cancelled: the organiser closed
+                title: 'Doubles game on Tue 20 Oct, 6:00 PM in Richmond was cancelled: the organiser closed
                   their account.'
                 postId: 00000000-0000-0000-0000-00000000b008
                 unread: true
                 matchId: 
                 message: Find another game or post your own
-                createdAt: '2026-10-08T10:54:08.576488+00:00'
-              - id: 551bef3b-cc74-4e90-9ec7-d76e7f1532fb
+                createdAt: '2026-10-13T02:52:54.769294+00:00'
+              - id: 73f902ef-d208-4a2c-9ebc-f9d4770050e1
                 type: request_accepted
-                title: Your request to join Doubles game on Sat 10 Oct, 6:00 PM in Albert Park was accepted.
+                title: Your request to join Doubles game on Thu 15 Oct, 6:00 PM in Albert Park was accepted.
                 postId: 00000000-0000-0000-0000-00000000b001
                 unread: true
                 matchId: 
                 message: Tap to view the game
-                createdAt: '2026-10-08T10:54:08.514826+00:00'
+                createdAt: '2026-10-13T02:52:54.704179+00:00'
         '401':
           "$ref": "#/components/responses/Unauthorized"
       requestBody:
@@ -5177,6 +5392,1329 @@ paths:
               required:
               - p_post_id
               - p_player_id
+  "/rpc/get_match":
+    post:
+      operationId: get_match
+      tags:
+      - Results
+      summary: Match Details, Result Submitted and Result Confirmed
+      x-implementation: postgres-rpc
+      description: >-
+        Match Details, Result Submitted and Result Confirmed: supabase.rpc('get_match', { p_match_id }).
+        Keys: matchId, gameId, format, playedAt, location, mySide, sides { a: [players], b: [players]
+        } and result (null until one is recorded): id, status, verificationStatus, score, games, winningSide,
+        iWon, submittedBy, expiresAt, canConfirm, canDispute, dispute, ratingChange { before, after, change
+        } (null until the nightly rating run), ratingPending (true for a confirmed singles result not
+        rated yet: "Your rating updates overnight"). Null unless you played in the match.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MatchDetails"
+              examples:
+                pending:
+                  summary: A pending result the caller can confirm or dispute
+                  value:
+                    sides:
+                      a:
+                      - id: 00000000-0000-0000-0000-00000000a002
+                        isMe: false
+                        name: bob
+                        noShow: false
+                        initials: BO
+                        isBlocked: false
+                        isDeleted: false
+                        profileImageUrl: 
+                      b:
+                      - id: 00000000-0000-0000-0000-00000000a001
+                        isMe: true
+                        name: alice
+                        noShow: false
+                        initials: AL
+                        isBlocked: false
+                        isDeleted: false
+                        profileImageUrl: 
+                    format: Singles
+                    gameId: 00000000-0000-0000-0000-00000000c108
+                    mySide: b
+                    result:
+                      id: 62ad8621-78cc-49d1-a303-15475cec90e1
+                      iWon: false
+                      games:
+                      - - 21
+                        - 17
+                      - - 18
+                        - 21
+                      - - 21
+                        - 19
+                      score: 21-17 18-21 21-19
+                      status: pending
+                      dispute: 
+                      expiresAt: '2026-10-19T02:52:54.744091+00:00'
+                      canConfirm: true
+                      canDispute: true
+                      confirmedAt: 
+                      submittedAt: '2026-10-12T02:52:54.744091+00:00'
+                      submittedBy:
+                        id: 00000000-0000-0000-0000-00000000a002
+                        name: bob
+                        initials: BO
+                      winningSide: a
+                      ratingChange: 
+                      ratingPending: false
+                      verificationStatus: pending
+                    matchId: 00000000-0000-0000-0000-00000000d108
+                    location: Melbourne Badminton Centre
+                    playedAt: '2026-10-11T08:00:00+00:00'
+                    formatValue: singles
+                singles:
+                  summary: A confirmed singles result, rated
+                  value:
+                    sides:
+                      a:
+                      - id: 00000000-0000-0000-0000-00000000a001
+                        isMe: true
+                        name: alice
+                        noShow: false
+                        initials: AL
+                        isBlocked: false
+                        isDeleted: false
+                        profileImageUrl: 
+                      b:
+                      - id: 00000000-0000-0000-0000-00000000a003
+                        isMe: false
+                        name: carol
+                        noShow: false
+                        initials: CA
+                        isBlocked: false
+                        isDeleted: false
+                        profileImageUrl: 
+                    format: Singles
+                    gameId: 00000000-0000-0000-0000-00000000c101
+                    mySide: a
+                    result:
+                      id: baa86199-7e8e-4e68-8d9d-82ba95a3fc13
+                      iWon: true
+                      games:
+                      - - 21
+                        - 15
+                      - - 21
+                        - 17
+                      score: 21-15 21-17
+                      status: confirmed
+                      dispute: 
+                      expiresAt: 
+                      canConfirm: false
+                      canDispute: false
+                      confirmedAt: '2026-09-29T03:52:54.744091+00:00'
+                      submittedAt: '2026-09-29T02:52:54.744091+00:00'
+                      submittedBy:
+                        id: 00000000-0000-0000-0000-00000000a001
+                        name: alice
+                        initials: AL
+                      winningSide: a
+                      ratingChange:
+                        after: 1647
+                        before: 1635
+                        change: 12
+                      ratingPending: false
+                      verificationStatus: verified
+                    matchId: 00000000-0000-0000-0000-00000000d101
+                    location: Melbourne Sports and Aquatic Centre@ MSAC
+                    playedAt: '2026-09-29T08:00:00+00:00'
+                    formatValue: singles
+                doubles:
+                  summary: A confirmed doubles result (never rated)
+                  value:
+                    sides:
+                      a:
+                      - id: 00000000-0000-0000-0000-00000000a001
+                        isMe: true
+                        name: alice
+                        noShow: false
+                        initials: AL
+                        isBlocked: false
+                        isDeleted: false
+                        profileImageUrl: 
+                      - id: 00000000-0000-0000-0000-00000000a002
+                        isMe: false
+                        name: bob
+                        noShow: false
+                        initials: BO
+                        isBlocked: false
+                        isDeleted: false
+                        profileImageUrl: 
+                      b:
+                      - id: 00000000-0000-0000-0000-00000000a003
+                        isMe: false
+                        name: carol
+                        noShow: false
+                        initials: CA
+                        isBlocked: false
+                        isDeleted: false
+                        profileImageUrl: 
+                      - id: 00000000-0000-0000-0000-00000000a005
+                        isMe: false
+                        name: erin
+                        noShow: false
+                        initials: ER
+                        isBlocked: false
+                        isDeleted: false
+                        profileImageUrl: 
+                    format: Doubles
+                    gameId: 00000000-0000-0000-0000-00000000c102
+                    mySide: a
+                    result:
+                      id: ff4f9355-9073-42c5-a64d-c73a0d7266bb
+                      iWon: false
+                      games:
+                      - - 18
+                        - 21
+                      - - 21
+                        - 19
+                      - - 16
+                        - 21
+                      score: 18-21 21-19 16-21
+                      status: confirmed
+                      dispute: 
+                      expiresAt: 
+                      canConfirm: false
+                      canDispute: false
+                      confirmedAt: '2026-10-03T03:52:54.744091+00:00'
+                      submittedAt: '2026-10-03T02:52:54.744091+00:00'
+                      submittedBy:
+                        id: 00000000-0000-0000-0000-00000000a003
+                        name: carol
+                        initials: CA
+                      winningSide: b
+                      ratingChange: 
+                      ratingPending: false
+                      verificationStatus: verified
+                    matchId: 00000000-0000-0000-0000-00000000d102
+                    location: Melbourne Badminton Centre
+                    playedAt: '2026-10-03T09:00:00+00:00'
+                    formatValue: doubles
+                disputed:
+                  summary: 'A disputed result: the rating is held'
+                  value:
+                    sides:
+                      a:
+                      - id: 00000000-0000-0000-0000-00000000a003
+                        isMe: true
+                        name: carol
+                        noShow: false
+                        initials: CA
+                        isBlocked: false
+                        isDeleted: false
+                        profileImageUrl: 
+                      b:
+                      - id: 00000000-0000-0000-0000-00000000a002
+                        isMe: false
+                        name: bob
+                        noShow: false
+                        initials: BO
+                        isBlocked: false
+                        isDeleted: false
+                        profileImageUrl: 
+                    format: Singles
+                    gameId: 00000000-0000-0000-0000-00000000c103
+                    mySide: a
+                    result:
+                      id: 1a1a0ee5-2aa1-4c77-b0cc-49c4e2535ded
+                      iWon: true
+                      games:
+                      - - 21
+                        - 19
+                      - - 21
+                        - 19
+                      score: 21-19 21-19
+                      status: disputed
+                      dispute:
+                        id: 07611442-eef1-4a71-890a-40ae485260bb
+                        reason: The score was 21-19 19-21 21-17. I won the third game.
+                        status: open
+                        createdAt: '2026-10-07T02:52:54.744091+00:00'
+                        raisedByMe: false
+                      expiresAt: 
+                      canConfirm: false
+                      canDispute: false
+                      confirmedAt: 
+                      submittedAt: '2026-10-06T02:52:54.744091+00:00'
+                      submittedBy:
+                        id: 00000000-0000-0000-0000-00000000a003
+                        name: carol
+                        initials: CA
+                      winningSide: a
+                      ratingChange: 
+                      ratingPending: false
+                      verificationStatus: disputed
+                    matchId: 00000000-0000-0000-0000-00000000d103
+                    location: Box Hill South
+                    playedAt: '2026-10-06T08:00:00+00:00'
+                    formatValue: singles
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_match_id:
+                  type: string
+                  format: uuid
+              required:
+              - p_match_id
+  "/rpc/submit_result":
+    post:
+      operationId: submit_result
+      tags:
+      - Results
+      summary: BL-021
+      x-implementation: postgres-rpc
+      description: |-
+        BL-021. A player records the result of a match played in a game: supabase.rpc('submit_result', { p_post_id, p_opponent_ids: [id], p_partner_id: null (doubles: your partner), p_games: [[21,15],[19,21],[21,16]] }). The games are your points then your opponent's. Creates the match and a pending result, and tells the opponents. Everyone must be accepted in the game, the game must have started, the scores must be legal (to 21, win by 2, cap 30, best of three) and the same two sides cannot be recorded twice. Returns { matchId, resultId, status }.
+
+        **Errors** (`code`: message, safe to show to players):
+
+        - `42501` (not allowed): Complete registration first.
+        - `23514` (a rule was broken): Results can only be recorded for a game that went ahead.
+        - `23514` (a rule was broken): This game has not started yet.
+        - `23514` (a rule was broken): A singles result needs exactly one opponent and no partner.
+        - `23514` (a rule was broken): A doubles result needs your partner and two opponents.
+        - `23514` (a rule was broken): A player cannot appear twice in a match.
+        - `42501` (not allowed): Everyone in the match must be an accepted player in this game, including you.
+        - `23505` (already done / taken): A result for these players has already been recorded in this game.
+        - `23514` (a rule was broken): A match is two or three games, for example [[21,15],[19,21],[21,16]].
+        - `23514` (a rule was broken): The match was already decided after game %.
+        - `23514` (a rule was broken): Game % must be two whole numbers, your points then your opponent's.
+        - `23514` (a rule was broken): Game % (% to %) is not a legal score: games go to 21, win by 2, capped at 30.
+        - `23514` (a rule was broken): The games are one all, so a third game is needed.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RecordedResult"
+              example:
+                matchId: 00000000-0000-0000-0000-00000000d108
+                resultId: 6f1c2b9e-4d3a-4f7e-9a51-2c8d0e7b3a14
+                status: pending
+        '400':
+          "$ref": "#/components/responses/RuleBroken"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_post_id:
+                  type: string
+                  format: uuid
+                p_opponent_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                p_partner_id:
+                  type: string
+                  format: uuid
+                p_games:
+                  type: object
+              required:
+              - p_post_id
+              - p_opponent_ids
+              - p_partner_id
+              - p_games
+  "/rpc/confirm_result":
+    post:
+      operationId: confirm_result
+      tags:
+      - Results
+      summary: BL-021
+      x-implementation: postgres-rpc
+      description: |-
+        BL-021. The opposing side confirms a pending result: supabase.rpc('confirm_result', { p_result_id }). Not the submitter or their partner, and only within 7 days. Ratings update overnight: until then a singles result has ratingPending true and ratingChange null. Returns the match as get_match does.
+
+        **Errors** (`code`: message, safe to show to players):
+
+        - `42501` (not allowed): Complete registration first.
+        - `42501` (not allowed): Result not found, or you did not play in this match.
+        - `42501` (not allowed): Your opponent has to confirm this result, not your side.
+        - `23514` (a rule was broken): This result is already confirmed.
+        - `23514` (a rule was broken): This result is disputed, so an admin will decide it.
+        - `23514` (a rule was broken): This result was rejected by an admin.
+        - `23514` (a rule was broken): This result has expired. Ask for it to be recorded again.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MatchDetails"
+        '400':
+          "$ref": "#/components/responses/RuleBroken"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_result_id:
+                  type: string
+                  format: uuid
+              required:
+              - p_result_id
+  "/rpc/raise_dispute":
+    post:
+      operationId: raise_dispute
+      tags:
+      - Results
+      summary: BL-058
+      x-implementation: postgres-rpc
+      description: |-
+        BL-058. The opposing side challenges a pending result: supabase.rpc('raise_dispute', { p_result_id, p_reason }). A reason is required. The result becomes disputed, the submitter is told, and the rating is held: a disputed result never counts until an admin resolves it. Returns the match as get_match does.
+
+        **Errors** (`code`: message, safe to show to players):
+
+        - `42501` (not allowed): Complete registration first.
+        - `23514` (a rule was broken): Say what is wrong with the result.
+        - `23514` (a rule was broken): Keep the reason under 1000 characters.
+        - `42501` (not allowed): Result not found, or you did not play in this match.
+        - `42501` (not allowed): Only your opponent can dispute this result.
+        - `23514` (a rule was broken): This result is already confirmed, so it can no longer be disputed.
+        - `23514` (a rule was broken): This result is already disputed.
+        - `23514` (a rule was broken): This result was rejected by an admin.
+        - `23514` (a rule was broken): This result has expired.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MatchDetails"
+        '400':
+          "$ref": "#/components/responses/RuleBroken"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_result_id:
+                  type: string
+                  format: uuid
+                p_reason:
+                  type: string
+              required:
+              - p_result_id
+              - p_reason
+  "/rpc/get_my_pending_results":
+    post:
+      operationId: get_my_pending_results
+      tags:
+      - Results
+      summary: get_my_pending_results
+      x-implementation: postgres-rpc
+      description: >-
+        supabase.rpc('get_my_pending_results'): { toConfirm: [match], waiting: [match] }. toConfirm are
+        pending results your opponent submitted; waiting are results your side submitted that are pending
+        or disputed. Each match is shaped as get_match returns it.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PendingResults"
+              examples:
+                toConfirm:
+                  summary: A result the other side recorded, waiting on the caller
+                  value:
+                    waiting: []
+                    toConfirm:
+                    - sides:
+                        a:
+                        - id: 00000000-0000-0000-0000-00000000a002
+                          isMe: false
+                          name: bob
+                          noShow: false
+                          initials: BO
+                          isBlocked: false
+                          isDeleted: false
+                          profileImageUrl: 
+                        b:
+                        - id: 00000000-0000-0000-0000-00000000a001
+                          isMe: true
+                          name: alice
+                          noShow: false
+                          initials: AL
+                          isBlocked: false
+                          isDeleted: false
+                          profileImageUrl: 
+                      format: Singles
+                      gameId: 00000000-0000-0000-0000-00000000c108
+                      mySide: b
+                      result:
+                        id: 62ad8621-78cc-49d1-a303-15475cec90e1
+                        iWon: false
+                        games:
+                        - - 21
+                          - 17
+                        - - 18
+                          - 21
+                        - - 21
+                          - 19
+                        score: 21-17 18-21 21-19
+                        status: pending
+                        dispute: 
+                        expiresAt: '2026-10-19T02:52:54.744091+00:00'
+                        canConfirm: true
+                        canDispute: true
+                        confirmedAt: 
+                        submittedAt: '2026-10-12T02:52:54.744091+00:00'
+                        submittedBy:
+                          id: 00000000-0000-0000-0000-00000000a002
+                          name: bob
+                          initials: BO
+                        winningSide: a
+                        ratingChange: 
+                        ratingPending: false
+                        verificationStatus: pending
+                      matchId: 00000000-0000-0000-0000-00000000d108
+                      location: Melbourne Badminton Centre
+                      playedAt: '2026-10-11T08:00:00+00:00'
+                      formatValue: singles
+                waiting:
+                  summary: A result the caller recorded, waiting on the other side
+                  value:
+                    waiting:
+                    - sides:
+                        a:
+                        - id: 00000000-0000-0000-0000-00000000a002
+                          isMe: true
+                          name: bob
+                          noShow: false
+                          initials: BO
+                          isBlocked: false
+                          isDeleted: false
+                          profileImageUrl: 
+                        b:
+                        - id: 00000000-0000-0000-0000-00000000a001
+                          isMe: false
+                          name: alice
+                          noShow: false
+                          initials: AL
+                          isBlocked: false
+                          isDeleted: false
+                          profileImageUrl: 
+                      format: Singles
+                      gameId: 00000000-0000-0000-0000-00000000c108
+                      mySide: a
+                      result:
+                        id: 62ad8621-78cc-49d1-a303-15475cec90e1
+                        iWon: true
+                        games:
+                        - - 21
+                          - 17
+                        - - 18
+                          - 21
+                        - - 21
+                          - 19
+                        score: 21-17 18-21 21-19
+                        status: pending
+                        dispute: 
+                        expiresAt: '2026-10-19T02:52:54.744091+00:00'
+                        canConfirm: false
+                        canDispute: false
+                        confirmedAt: 
+                        submittedAt: '2026-10-12T02:52:54.744091+00:00'
+                        submittedBy:
+                          id: 00000000-0000-0000-0000-00000000a002
+                          name: bob
+                          initials: BO
+                        winningSide: a
+                        ratingChange: 
+                        ratingPending: false
+                        verificationStatus: pending
+                      matchId: 00000000-0000-0000-0000-00000000d108
+                      location: Melbourne Badminton Centre
+                      playedAt: '2026-10-11T08:00:00+00:00'
+                      formatValue: singles
+                    toConfirm: []
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+  "/rpc/get_match_messages":
+    post:
+      operationId: get_match_messages
+      tags:
+      - Results
+      summary: BL-085
+      x-implementation: postgres-rpc
+      description: >-
+        BL-085. The preset messages in a match, oldest first: supabase.rpc('get_match_messages', { p_match_id,
+        p_limit }). Each has id, senderId, senderName, isMe, templateCode, label, createdAt. Empty unless
+        you played in the match. The labels to offer come from match_message_template. Live messages arrive
+        on the private Realtime channel match:{matchId}:messages (event 'message', same fields).
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/MatchMessageItem"
+              example:
+              - id: cde0b5ea-e1c5-4548-904c-654822879132
+                isMe: false
+                label: Running 5 min late
+                senderId: 00000000-0000-0000-0000-00000000a003
+                createdAt: '2026-09-29T02:32:54.744091+00:00'
+                senderName: carol
+                templateCode: running_late_5
+              - id: 317846e2-309a-458c-ad30-d42c6f32cdf0
+                isMe: true
+                label: Court is booked
+                senderId: 00000000-0000-0000-0000-00000000a001
+                createdAt: '2026-09-29T02:37:54.744091+00:00'
+                senderName: alice
+                templateCode: court_booked
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_match_id:
+                  type: string
+                  format: uuid
+                p_limit:
+                  type: integer
+              required:
+              - p_match_id
+  "/rpc/get_rating_summary":
+    post:
+      operationId: get_rating_summary
+      tags:
+      - Rankings
+      summary: BL-025
+      x-implementation: postgres-rpc
+      description: >-
+        BL-025. Rating card for the Rankings screen: supabase.rpc('get_rating_summary', { p_player_id
+        }) (omit for yourself). Keys: rating, isStartingRating, rd, grade, status (Provisional or Established),
+        placement { played, required: 10, opponents, opponentsRequired: 5 }, state, suburb, stateRank,
+        stateTotal, nearbyRank, nearbyTotal, change30Days, ratingsUpdatedAt (when the nightly rating run
+        last finished). The grade and ranks are null while provisional. Null when the profile is private
+        to you.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RatingSummary"
+              examples:
+                established:
+                  summary: An established player
+                  value:
+                    rd: 115
+                    grade: B2
+                    state: VIC
+                    rating: 1618
+                    status: Established
+                    suburb: Carlton
+                    playerId: 00000000-0000-0000-0000-00000000a001
+                    placement:
+                      played: 22
+                      required: 10
+                      opponents: 16
+                      opponentsRequired: 5
+                    stateRank: 11
+                    nearbyRank: 1
+                    stateTotal: 34
+                    nearbyTotal: 7
+                    change30Days: 22
+                    isStartingRating: false
+                    ratingsUpdatedAt: '2026-10-13T02:52:54.805627+00:00'
+                starting:
+                  summary: 'No rated match yet: the starting rating from the self-rating'
+                  value:
+                    rd: 350
+                    grade: 
+                    state: QLD
+                    rating: 1100
+                    status: Provisional
+                    suburb: Southbank
+                    playerId: 00000000-0000-0000-0000-00000000a009
+                    placement:
+                      played: 0
+                      required: 10
+                      opponents: 0
+                      opponentsRequired: 5
+                    stateRank: 
+                    nearbyRank: 
+                    stateTotal: 
+                    nearbyTotal: 
+                    change30Days: 
+                    isStartingRating: true
+                    ratingsUpdatedAt: '2026-10-13T02:52:54.805627+00:00'
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_player_id:
+                  type: string
+                  format: uuid
+  "/rpc/get_rating_trend":
+    post:
+      operationId: get_rating_trend
+      tags:
+      - Rankings
+      summary: BL-025
+      x-implementation: postgres-rpc
+      description: >-
+        BL-025. Rating over time for the trend chart: supabase.rpc('get_rating_trend', { p_player_id,
+        p_days }) (defaults: yourself, 30 days). { days, points: [{ date, rating }] }, one point per day
+        from the first rated match, in Melbourne time.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RatingTrend"
+              example:
+                days: 30
+                points:
+                - date: '2026-09-14'
+                  rating: 1594
+                - date: '2026-09-15'
+                  rating: 1629
+                - date: '2026-09-16'
+                  rating: 1629
+                - date: '2026-09-17'
+                  rating: 1629
+                - date: '2026-09-18'
+                  rating: 1629
+                - date: '2026-09-19'
+                  rating: 1629
+                - date: '2026-09-20'
+                  rating: 1629
+                - date: '2026-09-21'
+                  rating: 1629
+                - date: '2026-09-22'
+                  rating: 1629
+                - date: '2026-09-23'
+                  rating: 1648
+                - date: '2026-09-24'
+                  rating: 1648
+                - date: '2026-09-25'
+                  rating: 1648
+                - date: '2026-09-26'
+                  rating: 1648
+                - date: '2026-09-27'
+                  rating: 1648
+                - date: '2026-09-28'
+                  rating: 1653
+                - date: '2026-09-29'
+                  rating: 1647
+                - date: '2026-09-30'
+                  rating: 1647
+                - date: '2026-10-01'
+                  rating: 1647
+                - date: '2026-10-02'
+                  rating: 1647
+                - date: '2026-10-03'
+                  rating: 1647
+                - date: '2026-10-04'
+                  rating: 1647
+                - date: '2026-10-05'
+                  rating: 1647
+                - date: '2026-10-06'
+                  rating: 1647
+                - date: '2026-10-07'
+                  rating: 1647
+                - date: '2026-10-08'
+                  rating: 1634
+                - date: '2026-10-09'
+                  rating: 1634
+                - date: '2026-10-10'
+                  rating: 1618
+                - date: '2026-10-11'
+                  rating: 1618
+                - date: '2026-10-12'
+                  rating: 1618
+                - date: '2026-10-13'
+                  rating: 1618
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_player_id:
+                  type: string
+                  format: uuid
+                p_days:
+                  type: integer
+  "/rpc/get_leaderboard":
+    post:
+      operationId: get_leaderboard
+      tags:
+      - Rankings
+      summary: BL-025
+      x-implementation: postgres-rpc
+      description: |-
+        BL-025. Leaderboard for the Rankings screen: supabase.rpc('get_leaderboard', { p_scope: 'state' | 'nearby', p_state, p_limit, p_offset }). State defaults to yours (Victoria for a VIC player); nearby is your suburb. Established players only, highest rating first; exact ties share a rank. Entries: rank, id, name, initials, rating, grade, suburb, isMe, isBlocked, blockRelation (blocked_by_me, blocked_me or null: hide the picture and disable the row when set) and profileImageUrl. { scope, state, suburb, total, entries, me, ratingsUpdatedAt } where me is your own entry, or null while provisional, and ratingsUpdatedAt is when the nightly rating run last finished.
+
+        **Errors** (`code`: message, safe to show to players):
+
+        - `22023` (invalid value): Scope must be state or nearby.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Leaderboard"
+              examples:
+                state:
+                  summary: Your state
+                  value:
+                    me:
+                      id: 00000000-0000-0000-0000-00000000a001
+                      isMe: true
+                      name: alice
+                      rank: 11
+                      grade: B2
+                      rating: 1618
+                      suburb: Carlton
+                      initials: AL
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    scope: state
+                    state: VIC
+                    total: 34
+                    suburb: 
+                    entries:
+                    - id: 00000000-0000-0000-0000-0000000b0004
+                      isMe: false
+                      name: rally_04
+                      rank: 1
+                      grade: A3
+                      rating: 1874
+                      suburb: Richmond
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0019
+                      isMe: false
+                      name: rally_19
+                      rank: 2
+                      grade: A4
+                      rating: 1830
+                      suburb: Richmond
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0014
+                      isMe: false
+                      name: rally_14
+                      rank: 3
+                      grade: A4
+                      rating: 1794
+                      suburb: Richmond
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0024
+                      isMe: false
+                      name: rally_24
+                      rank: 4
+                      grade: A4
+                      rating: 1783
+                      suburb: Richmond
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0029
+                      isMe: false
+                      name: rally_29
+                      rank: 5
+                      grade: A5
+                      rating: 1750
+                      suburb: Richmond
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0009
+                      isMe: false
+                      name: rally_09
+                      rank: 6
+                      grade: B1
+                      rating: 1661
+                      suburb: Richmond
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0028
+                      isMe: false
+                      name: rally_28
+                      rank: 7
+                      grade: B1
+                      rating: 1660
+                      suburb: Brunswick
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0008
+                      isMe: false
+                      name: rally_08
+                      rank: 8
+                      grade: B1
+                      rating: 1652
+                      suburb: Brunswick
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-00000000a003
+                      isMe: false
+                      name: carol
+                      rank: 9
+                      grade: B1
+                      rating: 1646
+                      suburb: Box Hill
+                      initials: CA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0018
+                      isMe: false
+                      name: rally_18
+                      rank: 10
+                      grade: B1
+                      rating: 1644
+                      suburb: Brunswick
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-00000000a001
+                      isMe: true
+                      name: alice
+                      rank: 11
+                      grade: B2
+                      rating: 1618
+                      suburb: Carlton
+                      initials: AL
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0013
+                      isMe: false
+                      name: rally_13
+                      rank: 12
+                      grade: B2
+                      rating: 1606
+                      suburb: Brunswick
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0023
+                      isMe: false
+                      name: rally_23
+                      rank: 13
+                      grade: B2
+                      rating: 1586
+                      suburb: Brunswick
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0012
+                      isMe: false
+                      name: rally_12
+                      rank: 14
+                      grade: B2
+                      rating: 1544
+                      suburb: Box Hill
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0003
+                      isMe: false
+                      name: rally_03
+                      rank: 15
+                      grade: B3
+                      rating: 1536
+                      suburb: Brunswick
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0007
+                      isMe: false
+                      name: rally_07
+                      rank: 16
+                      grade: B3
+                      rating: 1525
+                      suburb: Box Hill
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0021
+                      isMe: false
+                      name: rally_21
+                      rank: 17
+                      grade: B3
+                      rating: 1518
+                      suburb: Clayton
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0027
+                      isMe: false
+                      name: rally_27
+                      rank: 18
+                      grade: B4
+                      rating: 1450
+                      suburb: Box Hill
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0017
+                      isMe: false
+                      name: rally_17
+                      rank: 19
+                      grade: B4
+                      rating: 1440
+                      suburb: Box Hill
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0006
+                      isMe: false
+                      name: rally_06
+                      rank: 20
+                      grade: B4
+                      rating: 1436
+                      suburb: Clayton
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0002
+                      isMe: false
+                      name: rally_02
+                      rank: 21
+                      grade: B4
+                      rating: 1425
+                      suburb: Box Hill
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0022
+                      isMe: false
+                      name: rally_22
+                      rank: 22
+                      grade: B4
+                      rating: 1409
+                      suburb: Box Hill
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0016
+                      isMe: false
+                      name: rally_16
+                      rank: 23
+                      grade: B4
+                      rating: 1387
+                      suburb: Clayton
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0001
+                      isMe: false
+                      name: rally_01
+                      rank: 24
+                      grade: B5
+                      rating: 1375
+                      suburb: Clayton
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0011
+                      isMe: false
+                      name: rally_11
+                      rank: 25
+                      grade: B5
+                      rating: 1351
+                      suburb: Clayton
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0005
+                      isMe: false
+                      name: rally_05
+                      rank: 26
+                      grade: B5
+                      rating: 1345
+                      suburb: Carlton
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-00000000a005
+                      isMe: false
+                      name: erin
+                      rank: 27
+                      grade: B5
+                      rating: 1345
+                      suburb: Brunswick
+                      initials: ER
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0026
+                      isMe: false
+                      name: rally_26
+                      rank: 28
+                      grade: B5
+                      rating: 1319
+                      suburb: Clayton
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0015
+                      isMe: false
+                      name: rally_15
+                      rank: 29
+                      grade: B5
+                      rating: 1310
+                      suburb: Carlton
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0020
+                      isMe: false
+                      name: rally_20
+                      rank: 30
+                      grade: C1
+                      rating: 1273
+                      suburb: Carlton
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0030
+                      isMe: false
+                      name: rally_30
+                      rank: 31
+                      grade: C1
+                      rating: 1236
+                      suburb: Carlton
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-00000000a002
+                      isMe: false
+                      name: bob
+                      rank: 32
+                      grade: C1
+                      rating: 1227
+                      suburb: Clayton
+                      initials: BO
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0010
+                      isMe: false
+                      name: rally_10
+                      rank: 33
+                      grade: C2
+                      rating: 1191
+                      suburb: Carlton
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0025
+                      isMe: false
+                      name: rally_25
+                      rank: 34
+                      grade: C2
+                      rating: 1161
+                      suburb: Carlton
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    ratingsUpdatedAt: '2026-10-13T02:52:54.805627+00:00'
+                nearby:
+                  summary: Your suburb
+                  value:
+                    me:
+                      id: 00000000-0000-0000-0000-00000000a001
+                      isMe: true
+                      name: alice
+                      rank: 1
+                      grade: B2
+                      rating: 1618
+                      suburb: Carlton
+                      initials: AL
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    scope: nearby
+                    state: VIC
+                    total: 7
+                    suburb: Carlton
+                    entries:
+                    - id: 00000000-0000-0000-0000-00000000a001
+                      isMe: true
+                      name: alice
+                      rank: 1
+                      grade: B2
+                      rating: 1618
+                      suburb: Carlton
+                      initials: AL
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0005
+                      isMe: false
+                      name: rally_05
+                      rank: 2
+                      grade: B5
+                      rating: 1345
+                      suburb: Carlton
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0015
+                      isMe: false
+                      name: rally_15
+                      rank: 3
+                      grade: B5
+                      rating: 1310
+                      suburb: Carlton
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0020
+                      isMe: false
+                      name: rally_20
+                      rank: 4
+                      grade: C1
+                      rating: 1273
+                      suburb: Carlton
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0030
+                      isMe: false
+                      name: rally_30
+                      rank: 5
+                      grade: C1
+                      rating: 1236
+                      suburb: Carlton
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0010
+                      isMe: false
+                      name: rally_10
+                      rank: 6
+                      grade: C2
+                      rating: 1191
+                      suburb: Carlton
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    - id: 00000000-0000-0000-0000-0000000b0025
+                      isMe: false
+                      name: rally_25
+                      rank: 7
+                      grade: C2
+                      rating: 1161
+                      suburb: Carlton
+                      initials: RA
+                      isBlocked: false
+                      blockRelation: 
+                      profileImageUrl: 
+                    ratingsUpdatedAt: '2026-10-13T02:52:54.805627+00:00'
+        '400':
+          "$ref": "#/components/responses/RuleBroken"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                p_scope:
+                  type: string
+                p_state:
+                  type: string
+                p_limit:
+                  type: integer
+                p_offset:
+                  type: integer
   "/rpc/admin_game_post_deletion_impact":
     post:
       operationId: admin_game_post_deletion_impact
@@ -5185,7 +6723,7 @@ paths:
       summary: What deleting this game would change, for the admin's warning
       x-implementation: postgres-rpc
       description: |-
-        What deleting this game would change, for the admin's warning: matches, confirmed results that would stop counting, and affected players. rating_changes is null until BL-024 provides the rating calculation.
+        What deleting this game would change, for the admin's warning: matches, confirmed results that would stop counting, affected players, and rating_changes: the points each player's rating gained or lost from this game's results (taken back when the ratings are replayed).
 
         **Errors** (`code`: message, safe to show to players):
 
@@ -5206,7 +6744,13 @@ paths:
                   player_id: 00000000-0000-0000-0000-00000000a003
                 post_id: 00000000-0000-0000-0000-00000000c101
                 has_happened: true
-                rating_changes: 
+                rating_changes:
+                - username: alice
+                  player_id: 00000000-0000-0000-0000-00000000a001
+                  points_from_this_game: 12
+                - username: carol
+                  player_id: 00000000-0000-0000-0000-00000000a003
+                  points_from_this_game: -9
                 confirmed_results: 1
         '400':
           "$ref": "#/components/responses/RuleBroken"
@@ -5224,6 +6768,30 @@ paths:
                   format: uuid
               required:
               - p_post_id
+  "/rpc/admin_rebuild_ratings":
+    post:
+      operationId: admin_rebuild_ratings
+      tags:
+      - Admin
+      summary: Admin only
+      x-implementation: postgres-rpc
+      description: |-
+        Admin only: supabase.rpc('admin_rebuild_ratings'). Replays every confirmed singles result now, instead of waiting for the nightly run, and returns how many it rated. Safe to run again.
+
+        **Errors** (`code`: message, safe to show to players):
+
+        - `42501` (not allowed): Admins only.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: integer
+        '400':
+          "$ref": "#/components/responses/RuleBroken"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
   "/rpc/admin_delete_game_post":
     post:
       operationId: admin_delete_game_post
@@ -5679,7 +7247,9 @@ components:
       - player_id
     Dispute:
       type: object
-      description: A row of dispute.
+      description: >-
+        A challenge to a pending result, raised by the other side with raise_dispute. It holds the result
+        out of the ratings until an admin decides it.
       properties:
         dispute_id:
           type: string
@@ -5717,6 +7287,11 @@ components:
             The player who last changed this row. Null when the change came from service_role, meaning
             a backend job rather than a person. Set by the dispute_set_updated_metadata trigger; a value
             sent by a client is ignored. Not a foreign key, so that player embeds stay unambiguous.
+        result_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The result being challenged. A match has one result, so this is set by raise_dispute.
     DisputeWrite:
       type: object
       properties:
@@ -5756,9 +7331,11 @@ components:
             The player who last changed this row. Null when the change came from service_role, meaning
             a backend job rather than a person. Set by the dispute_set_updated_metadata trigger; a value
             sent by a client is ignored. Not a foreign key, so that player embeds stay unambiguous.
-      required:
-      - match_id
-      - reason
+        result_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The result being challenged. A match has one result, so this is set by raise_dispute.
     GameParticipant:
       type: object
       description: >-
@@ -6420,8 +7997,9 @@ components:
     Match:
       type: object
       description: >-
-        One contest between two sides (match_participant.side a and b). Matches within a game are being
-        built separately (with results and rankings); games do not create them.
+        One contest between two sides (match_participant.side a and b): 1 v 1 for singles, 2 v 2 for doubles,
+        within a game (post_id). Created by submit_result when a player records a result; players never
+        write it directly. Admins may correct it.
       properties:
         match_id:
           type: string
@@ -6548,9 +8126,64 @@ components:
             sent by a client is ignored. Not a foreign key, so that player embeds stay unambiguous.
       required:
       - format
+    MatchMessage:
+      type: object
+      description: >-
+        A preset status message from one player in a match to the other(s). Access rules and the Realtime
+        channel come in the BL-085 migration.
+      properties:
+        message_id:
+          type: string
+          format: uuid
+        match_id:
+          type: string
+          format: uuid
+        sender_id:
+          type: string
+          format: uuid
+        template_code:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    MatchMessageWrite:
+      type: object
+      properties:
+        message_id:
+          type: string
+          format: uuid
+        match_id:
+          type: string
+          format: uuid
+        sender_id:
+          type: string
+          format: uuid
+        template_code:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - match_id
+      - sender_id
+      - template_code
+    MatchMessageTemplate:
+      type: object
+      description: >-
+        The fixed preset messages a player can send to the other player in a match. No free text: match_message.template_code
+        must be one of these.
+      properties:
+        template_code:
+          type: string
+        label:
+          type: string
+        sort_order:
+          type: integer
     MatchParticipant:
       type: object
-      description: A row of match_participant.
+      description: >-
+        Who played on which side of a match. Written by submit_result from the game's accepted roster;
+        players never write it directly. Admins may correct it.
       properties:
         match_id:
           type: string
@@ -6624,8 +8257,11 @@ components:
     MatchResult:
       type: object
       description: >-
-        The ERD allows many results per match, read here as "each side submits a score and one gets confirmed".
-        The unique index below enforces that at most one result per match can reach confirmed status.
+        The result of a match: games (side a points first), the winning side and its status (pending,
+        confirmed, disputed, rejected, expired). Created only by submit_result, confirmed by the other
+        side with confirm_result, challenged with raise_dispute, and expired by an hourly job after 7
+        days. Admins may confirm, reject or remove one. A unique index keeps at most one confirmed result
+        per match.
       properties:
         result_id:
           type: string
@@ -6642,6 +8278,11 @@ components:
           - confirmed
           - disputed
           - rejected
+          - expired
+          description: >-
+            pending (waiting for the opponent), confirmed (counts for ratings), disputed (held until an
+            admin resolves it), rejected (an admin threw it out) or expired (nobody confirmed it within
+            7 days; never counts).
         submitted_by:
           type: string
           format: uuid
@@ -6674,6 +8315,21 @@ components:
           description: >-
             True when an admin deleted the game this result belongs to. The result is kept for the record;
             the rating calculation (BL-024) must skip it.
+        games:
+          type: object
+          description: >-
+            The games as an ordered array of [side_a_points, side_b_points] pairs, for example [[21,15],[19,21],[21,16]].
+            Written only by submit_result, which checks the scores are legal. score is the same thing
+            as display text.
+        confirmed_by:
+          type: string
+          format: uuid
+          nullable: true
+          description: The opposing player who confirmed the result. Null until confirmed.
+        confirmed_at:
+          type: string
+          format: date-time
+          nullable: true
     MatchResultWrite:
       type: object
       properties:
@@ -6692,6 +8348,11 @@ components:
           - confirmed
           - disputed
           - rejected
+          - expired
+          description: >-
+            pending (waiting for the opponent), confirmed (counts for ratings), disputed (held until an
+            admin resolves it), rejected (an admin threw it out) or expired (nobody confirmed it within
+            7 days; never counts).
         submitted_by:
           type: string
           format: uuid
@@ -6724,9 +8385,21 @@ components:
           description: >-
             True when an admin deleted the game this result belongs to. The result is kept for the record;
             the rating calculation (BL-024) must skip it.
-      required:
-      - match_id
-      - score
+        games:
+          type: object
+          description: >-
+            The games as an ordered array of [side_a_points, side_b_points] pairs, for example [[21,15],[19,21],[21,16]].
+            Written only by submit_result, which checks the scores are legal. score is the same thing
+            as display text.
+        confirmed_by:
+          type: string
+          format: uuid
+          nullable: true
+          description: The opposing player who confirmed the result. Null until confirmed.
+        confirmed_at:
+          type: string
+          format: date-time
+          nullable: true
     MiniLeague:
       type: object
       description: A row of mini_league.
@@ -6850,6 +8523,8 @@ components:
           - no_show
           - invite_accepted
           - invite_declined
+          - result_confirmed
+          - result_expired
         message:
           type: string
           description: >-
@@ -6914,6 +8589,8 @@ components:
           - no_show
           - invite_accepted
           - invite_declined
+          - result_confirmed
+          - result_expired
         message:
           type: string
           description: >-
@@ -7405,6 +9082,40 @@ components:
       required:
       - player_id
       - format
+    RatingHistory:
+      type: object
+      description: >-
+        One row per player per processed result: the rating and RD before and after. The source for the
+        rating trend and the rating change shown against a match.
+      properties:
+        history_id:
+          type: string
+          format: uuid
+        player_id:
+          type: string
+          format: uuid
+        result_id:
+          type: string
+          format: uuid
+        match_id:
+          type: string
+          format: uuid
+        played_at:
+          type: string
+          format: date-time
+        rating_before:
+          type: number
+        rating_after:
+          type: number
+        rd_before:
+          type: number
+        rd_after:
+          type: number
+        is_established:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
     Report:
       type: object
       description: A row of report.
@@ -7536,6 +9247,32 @@ components:
           description: >-
             What the reported item looked like when it was reported, copied by the server. Never supplied
             by the reporter.
+    ResultFlag:
+      type: object
+      description: >-
+        Unusual patterns logged for an admin to review (BL-023, BL-056). A flag never blocks a result.
+        Written only by the result functions.
+      properties:
+        flag_id:
+          type: string
+          format: uuid
+        result_id:
+          type: string
+          format: uuid
+        match_id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+          - repeat_pairing
+          - unusual_win_pattern
+          - rating_swing
+        detail:
+          type: object
+        created_at:
+          type: string
+          format: date-time
     State:
       type: object
       description: >-
@@ -7856,7 +9593,6 @@ components:
             grade:
               type: string
               nullable: true
-              description: Null in every sample (not built yet).
             rating:
               type: integer
               nullable: true
@@ -7866,6 +9602,17 @@ components:
               type: integer
             winRate:
               type: integer
+            placement:
+              type: object
+              properties:
+                played:
+                  type: integer
+                required:
+                  type: integer
+                opponents:
+                  type: integer
+                opponentsRequired:
+                  type: integer
             rankState:
               type: string
               nullable: true
@@ -7875,10 +9622,12 @@ components:
             ratingFormat:
               type: string
               nullable: true
-            ratingChangeThisMonth:
+            ratingsUpdatedAt:
               type: string
+              format: date-time
+            ratingChangeThisMonth:
+              type: integer
               nullable: true
-              description: Null in every sample (not built yet).
         registered:
           type: boolean
         greetingName:
@@ -7936,7 +9685,6 @@ components:
             grade:
               type: string
               nullable: true
-              description: Null in every sample (not built yet).
             rating:
               type: integer
               nullable: true
@@ -7946,6 +9694,17 @@ components:
               type: integer
             winRate:
               type: integer
+            placement:
+              type: object
+              properties:
+                played:
+                  type: integer
+                required:
+                  type: integer
+                opponents:
+                  type: integer
+                opponentsRequired:
+                  type: integer
             rankState:
               type: string
             stateRank:
@@ -7954,10 +9713,12 @@ components:
             ratingFormat:
               type: string
               nullable: true
-            ratingChangeThisMonth:
+            ratingsUpdatedAt:
               type: string
+              format: date-time
+            ratingChangeThisMonth:
+              type: integer
               nullable: true
-              description: Null in every sample (not built yet).
         gamesPlayed:
           type: integer
         reliability:
@@ -8371,7 +10132,8 @@ components:
           nullable: true
         matches:
           type: array
-          items: {}
+          items:
+            "$ref": "#/components/schemas/MatchDetails"
         players:
           type: array
           items:
@@ -8458,6 +10220,8 @@ components:
           type: string
         locationDetail:
           type: string
+        canRecordResult:
+          type: boolean
         durationMinutes:
           type: integer
     JoinRequest:
@@ -8643,6 +10407,9 @@ components:
           type: string
         wins:
           type: integer
+        grade:
+          type: string
+          nullable: true
         level:
           type: string
         league:
@@ -8735,6 +10502,7 @@ components:
         gameId:
           type: string
           format: uuid
+          nullable: true
         result:
           type: string
         matchId:
@@ -8755,6 +10523,7 @@ components:
           nullable: true
         location:
           type: string
+          nullable: true
         playedAt:
           type: string
           format: date-time
@@ -8772,6 +10541,11 @@ components:
                 type: string
               isBlocked:
                 type: boolean
+        ratingChange:
+          type: integer
+          nullable: true
+        verificationStatus:
+          type: string
     BlockedPlayer:
       type: object
       properties:
@@ -8822,6 +10596,357 @@ components:
         createdAt:
           type: string
           format: date-time
+    MatchDetails:
+      type: object
+      properties:
+        sides:
+          type: object
+          properties:
+            a:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  isMe:
+                    type: boolean
+                  name:
+                    type: string
+                  noShow:
+                    type: boolean
+                  initials:
+                    type: string
+                  isBlocked:
+                    type: boolean
+                  isDeleted:
+                    type: boolean
+                  profileImageUrl:
+                    type: string
+                    format: uri
+                    nullable: true
+                    description: Public URL of the profile picture (avatars bucket); null when none.
+            b:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  isMe:
+                    type: boolean
+                  name:
+                    type: string
+                  noShow:
+                    type: boolean
+                  initials:
+                    type: string
+                  isBlocked:
+                    type: boolean
+                  isDeleted:
+                    type: boolean
+                  profileImageUrl:
+                    type: string
+                    format: uri
+                    nullable: true
+                    description: Public URL of the profile picture (avatars bucket); null when none.
+        format:
+          type: string
+        gameId:
+          type: string
+          format: uuid
+        mySide:
+          type: string
+        result:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            iWon:
+              type: boolean
+            games:
+              type: array
+              items:
+                type: array
+                items:
+                  type: integer
+            score:
+              type: string
+            status:
+              type: string
+            dispute:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                reason:
+                  type: string
+                status:
+                  type: string
+                createdAt:
+                  type: string
+                  format: date-time
+                raisedByMe:
+                  type: boolean
+              nullable: true
+            expiresAt:
+              type: string
+              format: date-time
+              nullable: true
+            canConfirm:
+              type: boolean
+            canDispute:
+              type: boolean
+            confirmedAt:
+              type: string
+              format: date-time
+              nullable: true
+            submittedAt:
+              type: string
+              format: date-time
+            submittedBy:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                initials:
+                  type: string
+            winningSide:
+              type: string
+            ratingChange:
+              type: object
+              properties:
+                after:
+                  type: integer
+                before:
+                  type: integer
+                change:
+                  type: integer
+              nullable: true
+            ratingPending:
+              type: boolean
+            verificationStatus:
+              type: string
+        matchId:
+          type: string
+          format: uuid
+        location:
+          type: string
+        playedAt:
+          type: string
+          format: date-time
+        formatValue:
+          type: string
+    RecordedResult:
+      type: object
+      properties:
+        matchId:
+          type: string
+          format: uuid
+        resultId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - pending
+      required:
+      - matchId
+      - resultId
+      - status
+    PendingResults:
+      type: object
+      properties:
+        waiting:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MatchDetails"
+        toConfirm:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MatchDetails"
+    MatchMessageItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        isMe:
+          type: boolean
+        label:
+          type: string
+        senderId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        senderName:
+          type: string
+        templateCode:
+          type: string
+    RatingSummary:
+      type: object
+      properties:
+        rd:
+          type: integer
+        grade:
+          type: string
+          nullable: true
+        state:
+          type: string
+        rating:
+          type: integer
+        status:
+          type: string
+        suburb:
+          type: string
+        playerId:
+          type: string
+          format: uuid
+        placement:
+          type: object
+          properties:
+            played:
+              type: integer
+            required:
+              type: integer
+            opponents:
+              type: integer
+            opponentsRequired:
+              type: integer
+        stateRank:
+          type: integer
+          nullable: true
+        nearbyRank:
+          type: integer
+          nullable: true
+        stateTotal:
+          type: integer
+          nullable: true
+        nearbyTotal:
+          type: integer
+          nullable: true
+        change30Days:
+          type: integer
+          nullable: true
+        isStartingRating:
+          type: boolean
+        ratingsUpdatedAt:
+          type: string
+          format: date-time
+    RatingTrend:
+      type: object
+      properties:
+        days:
+          type: integer
+        points:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              rating:
+                type: integer
+    Leaderboard:
+      type: object
+      properties:
+        me:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            isMe:
+              type: boolean
+            name:
+              type: string
+            rank:
+              type: integer
+            grade:
+              type: string
+            rating:
+              type: integer
+            suburb:
+              type: string
+            initials:
+              type: string
+            isBlocked:
+              type: boolean
+            blockRelation:
+              type: string
+              nullable: true
+              enum:
+              - blocked_by_me
+              - blocked_me
+              - 
+              description: >-
+                Set when one of you blocked the other: hide the picture and make the row unclickable (BL-027).
+                Null otherwise.
+            profileImageUrl:
+              type: string
+              format: uri
+              nullable: true
+              description: Public URL of the profile picture (avatars bucket); null when none.
+        scope:
+          type: string
+        state:
+          type: string
+        total:
+          type: integer
+        suburb:
+          type: string
+          nullable: true
+        entries:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              isMe:
+                type: boolean
+              name:
+                type: string
+              rank:
+                type: integer
+              grade:
+                type: string
+              rating:
+                type: integer
+              suburb:
+                type: string
+              initials:
+                type: string
+              isBlocked:
+                type: boolean
+              blockRelation:
+                type: string
+                nullable: true
+                enum:
+                - blocked_by_me
+                - blocked_me
+                - 
+                description: >-
+                  Set when one of you blocked the other: hide the picture and make the row unclickable
+                  (BL-027). Null otherwise.
+              profileImageUrl:
+                type: string
+                format: uri
+                nullable: true
+                description: Public URL of the profile picture (avatars bucket); null when none.
+        ratingsUpdatedAt:
+          type: string
+          format: date-time
     DeletionImpact:
       type: object
       properties:
@@ -8843,9 +10968,17 @@ components:
         has_happened:
           type: boolean
         rating_changes:
-          type: string
-          nullable: true
-          description: Null in every sample (not built yet).
+          type: array
+          items:
+            type: object
+            properties:
+              username:
+                type: string
+              player_id:
+                type: string
+                format: uuid
+              points_from_this_game:
+                type: integer
         confirmed_results:
           type: integer
     Error:
@@ -8873,3 +11006,8 @@ x-realtime-channels:
   status: built
   scope: Own rows only (RLS)
   usedFor: Live notification badge and list (BL-050).
+- channel: match:{matchId}:messages
+  status: built
+  private: true
+  scope: The match's players only (RLS on realtime.messages)
+  usedFor: Quick messages as they are sent (BL-085), event 'message'.

@@ -36,7 +36,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SPEC = ROOT / "docs" / "badminton-social-connect-api_v1.2.yaml"
 # The same, with only what has been built: no Planned endpoints.
 BUILT_SPEC = ROOT / "docs" / "badminton-social-connect-api_implemented-playerBE1.yaml"
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 
 # ---------------------------------------------------------------------------
 # Local stack
@@ -174,6 +174,9 @@ def errors_of(fn_name):
 SLOTS = [f"{d}_{p}" for d in ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
          for p in ("morning", "afternoon", "evening")]
 FIELD_SCHEMAS = {
+    "blockRelation": {"type": "string", "nullable": True, "enum": ["blocked_by_me", "blocked_me", None],
+                      "description": "Set when one of you blocked the other: hide the picture and make "
+                                     "the row unclickable (BL-027). Null otherwise."},
     "profileImageUrl": {"type": "string", "format": "uri", "nullable": True,
                         "description": "Public URL of the profile picture (avatars bucket); null when none."},
     "availability": {"type": "array", "items": {"type": "string", "enum": SLOTS},
@@ -216,6 +219,8 @@ TABLE_TAGS = {
     "game_participant_history": "Games", "cancellation_record": "Games",
     "match": "Results (tables)", "match_participant": "Results (tables)",
     "match_result": "Results (tables)", "dispute": "Results (tables)", "check_in": "Results (tables)",
+    "result_flag": "Results (tables)", "match_message": "Results (tables)",
+    "match_message_template": "Results (tables)", "rating_history": "Rankings and leagues (tables)",
     "ranking": "Rankings and leagues (tables)", "mini_league": "Rankings and leagues (tables)",
     "league_standing": "Rankings and leagues (tables)",
     "groups": "Groups", "group_member": "Groups",
@@ -414,7 +419,8 @@ RPCS = OrderedDict([
     ("search_players", ("Players", "PlayerCard", [("alice", {"p_limit": 50})])),
     ("get_player_profile", ("Players", "PlayerProfileView", [
         ("bob", {"p_player_id": G("a003")}), ("alice", {"p_player_id": G("a006")}),
-        ("bob", {"p_player_id": G("a001")})])),
+        ("bob", {"p_player_id": G("a001")}, "rated|An established player: rating and grade set"),
+        ("alice", {"p_player_id": G("a009")}, "unrated|A player with no rated match yet: rating and grade null")])),
     ("get_player_history", ("Players", "HistoryEntry", [("bob", {"p_player_id": G("a001"), "p_limit": 20}),
                                                         ("alice", {"p_player_id": G("a003"), "p_limit": 20})])),
     ("block_player", ("Trust and safety", None, [])),
@@ -428,7 +434,28 @@ RPCS = OrderedDict([
     ("mark_all_notifications_read", ("Notifications", None, [])),
     ("mark_no_show", ("Reliability", None, [])),
     ("clear_no_show", ("Reliability", None, [])),
+    ("get_match", ("Results", "MatchDetails", [
+        ("alice", {"p_match_id": G("d108")}, "pending|A pending result the caller can confirm or dispute"),
+        ("alice", {"p_match_id": G("d101")}, "singles|A confirmed singles result, rated"),
+        ("alice", {"p_match_id": G("d102")}, "doubles|A confirmed doubles result (never rated)"),
+        ("carol", {"p_match_id": G("d103")}, "disputed|A disputed result: the rating is held")])),
+    ("submit_result", ("Results", None, [])),
+    ("confirm_result", ("Results", "MatchDetails", [])),
+    ("raise_dispute", ("Results", "MatchDetails", [])),
+    ("get_my_pending_results", ("Results", "PendingResults", [
+        ("alice", {}, "toConfirm|A result the other side recorded, waiting on the caller"),
+        ("bob", {}, "waiting|A result the caller recorded, waiting on the other side")])),
+    ("get_match_messages", ("Results", "MatchMessageItem", [("alice", {"p_match_id": G("d101")})])),
+    ("get_rating_summary", ("Rankings", "RatingSummary", [
+        ("alice", {}, "established|An established player"),
+        ("ivy", {}, "starting|No rated match yet: the starting rating from the self-rating"),
+        ("bob", {"p_player_id": G("a001")})])),
+    ("get_rating_trend", ("Rankings", "RatingTrend", [("alice", {}), ("bob", {"p_days": 60})])),
+    ("get_leaderboard", ("Rankings", "Leaderboard", [
+        ("alice", {}, "state|Your state"),
+        ("alice", {"p_scope": "nearby"}, "nearby|Your suburb")])),
     ("admin_game_post_deletion_impact", ("Admin", "DeletionImpact", [("admin", {"p_post_id": G("c101")})])),
+    ("admin_rebuild_ratings", ("Admin", None, [])),
     ("admin_delete_game_post", ("Admin", None, [])),
     ("geocode_claim_batch", ("Internal", None, [])),
     ("geocode_complete", ("Internal", None, [])),
@@ -477,7 +504,12 @@ def rpc_paths(components):
 
         result = f["result"]
         responses = OrderedDict()
-        if result == "void":
+        if name in FIXED_RESPONSES:
+            schema_name, shape, example = FIXED_RESPONSES[name]
+            components[schema_name] = shape
+            responses["200"] = {"description": "OK.", "content": {"application/json": {
+                "schema": {"$ref": f"#/components/schemas/{schema_name}"}, "example": example}}}
+        elif result == "void":
             responses["204"] = {"description": "Done. No body."}
         else:
             # A sample is (account, params) or (account, params, "key|summary");
@@ -534,6 +566,32 @@ def rpc_paths(components):
     return paths
 
 
+# Functions that change data are never called, so a jsonb result has no sample
+# to infer its shape from. These give the shape and an example by hand:
+# function: (schema name, schema, example).
+FIXED_RESPONSES = {
+    "submit_result": ("RecordedResult", {
+        "type": "object",
+        "properties": OrderedDict([
+            ("matchId", {"type": "string", "format": "uuid"}),
+            ("resultId", {"type": "string", "format": "uuid"}),
+            ("status", {"type": "string", "enum": ["pending"]}),
+        ]),
+        "required": ["matchId", "resultId", "status"],
+    }, {"matchId": G("d108"), "resultId": "6f1c2b9e-4d3a-4f7e-9a51-2c8d0e7b3a14", "status": "pending"}),
+}
+
+
+# Lists that hold matches shaped as get_match returns them. Pointing them at
+# MatchDetails keeps one definition, built from samples that cover every
+# result status, instead of one guessed from whatever the list held.
+MATCH_LISTS = [("PendingResults", "toConfirm"), ("PendingResults", "waiting"),
+               ("GameDetails", "matches")]
+
+# Fields that can be null although no dev seed sample is.
+NULLABLE = [("PlayerCard", "location")]  # player_profile.suburb is optional
+
+
 # Where a function's COMMENT opens with a story number or code, not a sentence.
 SUMMARIES = {
     "get_my_home": "Home page data",
@@ -582,6 +640,11 @@ def main():
         if ops:
             paths[f"/{t['name']}"] = ops
     paths.update(rpc_paths(components))
+    for schema_name, key in MATCH_LISTS:
+        components[schema_name]["properties"][key] = {
+            "type": "array", "items": {"$ref": "#/components/schemas/MatchDetails"}}
+    for schema_name, key in NULLABLE:
+        components[schema_name]["properties"][key]["nullable"] = True
     apply_field_schemas(components)
     apply_field_schemas(paths)
 
@@ -681,10 +744,14 @@ def main():
                           "postgres_changes on public.notification; RLS sends each player only their own."),
         ("Reliability", "No-shows and the reliability score (BL-052, BL-054)."),
         ("Groups", "Groups, their admins and members (BL-080). Players join by asking; a group admin approves."),
-        ("Results (tables)", "Matches, results, disputes and check-ins. Result submission and confirmation "
-                             "screens are not built in the backend yet (Planned)."),
-        ("Rankings and leagues (tables)", "Read access to rankings and Mini Leagues. Their calculations and "
-                                          "league management are Planned."),
+        ("Results", "Recording a result, confirming or disputing it, and match quick messages (BL-021, "
+                    "BL-023, BL-056, BL-058, BL-085). Players never write the result tables directly."),
+        ("Rankings", "Rating summary, trend and leaderboards (BL-024, BL-025, BL-062). Ratings are "
+                     "worked out once a night, so each returns ratingsUpdatedAt."),
+        ("Results (tables)", "Matches, results, disputes, check-ins, result flags and quick messages. "
+                             "Read only: every write goes through the Results functions."),
+        ("Rankings and leagues (tables)", "Read access to rankings, rating history and Mini Leagues. "
+                                          "League management is Planned."),
         ("Announcements", "Admin posts shown on the home page."),
         ("Reference data", "States, suburbs and venues. Venues carry a Google Maps link (maps_url)."),
         ("Admin", "Platform admin actions (app_metadata.role = admin)."),
@@ -710,6 +777,9 @@ def main():
         ("x-realtime-channels", [
             {"channel": "postgres_changes on public.notification", "status": "built",
              "scope": "Own rows only (RLS)", "usedFor": "Live notification badge and list (BL-050)."},
+            {"channel": "match:{matchId}:messages", "status": "built", "private": True,
+             "scope": "The match's players only (RLS on realtime.messages)",
+             "usedFor": "Quick messages as they are sent (BL-085), event 'message'."},
             {"channel": "game_post:{postId}", "status": "planned", "scope": "Per open post",
              "usedFor": "Live status updates (join requests, full, cancelled)."},
             {"channel": "mini_league:{leagueId}:standings", "status": "planned", "scope": "Per league",
