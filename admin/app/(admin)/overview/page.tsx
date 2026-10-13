@@ -1,0 +1,181 @@
+"use client";
+
+import Link from "next/link";
+import { ArrowRight, Flag, Scale, Trophy } from "lucide-react";
+import type { ReactNode } from "react";
+import { Card, CardBody, CardHeader, StatTile } from "@/components/shared/Card";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { LiveIndicator } from "@/components/shared/LiveIndicator";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { ACTION_LABEL, formatDateTime, humanize, TARGET_TYPE_LABEL } from "@/lib/format";
+import { useQuery } from "@/lib/mock-api";
+
+interface QueueItem {
+  key: string;
+  href: string;
+  icon: ReactNode;
+  title: string;
+  detail: string;
+  at: string;
+  status: string;
+}
+
+const QUEUE_LIMIT = 8;
+
+/** Screen 01 */
+export default function OverviewPage() {
+  const data = useQuery((db) => {
+    const names = new Map(db.players.map((p) => [p.player_id, p.display_name]));
+    const pendingReports = db.reports.filter((r) => r.status === "pending").sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const openDisputes = db.disputes.filter((d) => d.status === "open").sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const suspendedLeagues = db.mini_leagues.filter((l) => l.status === "suspended");
+    const lastSuspended = (leagueId: string) =>
+      db.activity_log
+        .filter((a) => a.target_type === "mini_league" && a.target_id === leagueId && a.action === "suspend_league")
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))[0]?.created_at ?? null;
+
+    const matchLabel = (matchId: string) => {
+      const m = db.matches.find((x) => x.match_id === matchId);
+      if (!m) return matchId;
+      const side = (ids: string[]) => ids.map((id) => names.get(id) ?? id).join(" & ");
+      return `${side(m.side_a)} vs ${side(m.side_b)}`;
+    };
+
+    return {
+      counts: {
+        pendingReports: pendingReports.length,
+        openDisputes: openDisputes.length,
+        suspendedPlayers: db.players.filter((p) => p.status === "suspended").length,
+        hiddenPosts: db.game_posts.filter((p) => p.status === "hidden").length,
+        activeLeagues: db.mini_leagues.filter((l) => l.status === "active").length,
+        publishedCards: db.admin_posts.filter((p) => p.status === "published").length,
+        players: db.players.length,
+      },
+      reports: pendingReports.map<QueueItem>((r) => ({
+        key: r.report_id,
+        href: `/reports/${r.report_id}`,
+        icon: <Flag className="size-4" aria-hidden />,
+        title: r.reason,
+        detail: `${TARGET_TYPE_LABEL[r.target_type]} report from ${names.get(r.reported_by_player_id) ?? r.reported_by_player_id}`,
+        at: r.created_at,
+        status: r.status,
+      })),
+      disputes: openDisputes.map<QueueItem>((d) => ({
+        key: d.dispute_id,
+        href: `/disputes/${d.dispute_id}`,
+        icon: <Scale className="size-4" aria-hidden />,
+        title: `Disputed result: ${matchLabel(d.match_id)}`,
+        detail: d.reason,
+        at: d.created_at,
+        status: d.status,
+      })),
+      leagues: suspendedLeagues.map<QueueItem>((l) => ({
+        key: l.league_id,
+        href: `/mini-leagues/${l.league_id}`,
+        icon: <Trophy className="size-4" aria-hidden />,
+        title: l.name,
+        detail: l.suspended_by_account_suspension ? "Suspended with the organiser's account" : "Suspended Mini League",
+        at: lastSuspended(l.league_id) ?? l.created_at,
+        status: l.status,
+      })),
+      activity: [...db.activity_log].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 6),
+    };
+  });
+
+  const { counts } = data;
+  const sections = [
+    { title: "Pending reports", note: "Oldest first", items: data.reports, more: "/reports" },
+    { title: "Open disputes", note: "Oldest first", items: data.disputes, more: "/disputes" },
+    { title: "Suspended Mini Leagues", note: undefined, items: data.leagues, more: "/mini-leagues" },
+  ];
+  const queueSize = data.reports.length + data.disputes.length + data.leagues.length;
+
+  return (
+    <>
+      <PageHeader title="Overview" meta={<LiveIndicator />} description="What needs attention across the app right now." />
+
+      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-7">
+        <StatTile label="Pending reports" value={counts.pendingReports} tone={counts.pendingReports ? "warning" : undefined} />
+        <StatTile label="Open disputes" value={counts.openDisputes} tone={counts.openDisputes ? "danger" : undefined} />
+        <StatTile label="Suspended players" value={counts.suspendedPlayers} />
+        <StatTile label="Hidden posts" value={counts.hiddenPosts} />
+        <StatTile label="Active Mini Leagues" value={counts.activeLeagues} />
+        <StatTile label="Published cards" value={counts.publishedCards} hint="Home carousel" />
+        <StatTile label="Total players" value={counts.players} />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader title="Needs attention" description={queueSize ? `${queueSize} item${queueSize === 1 ? "" : "s"} waiting on an administrator.` : undefined} />
+          {queueSize === 0 ? (
+            <EmptyState title="All clear" description="No pending reports, open disputes or suspended leagues." />
+          ) : (
+            <div className="divide-y divide-line">
+              {sections
+                .filter((s) => s.items.length > 0)
+                .map((s) => (
+                  <section key={s.title}>
+                    <div className="flex items-center justify-between gap-2 bg-subtle px-5 py-2 text-xs font-medium tracking-wide text-ink-muted uppercase">
+                      <span>
+                        {s.title} ({s.items.length}){s.note && <span className="ml-2 font-normal normal-case tracking-normal text-ink-faint">{s.note}</span>}
+                      </span>
+                      <Link href={s.more} className="font-medium normal-case tracking-normal text-brand hover:underline">
+                        View all
+                      </Link>
+                    </div>
+                    <ul className="divide-y divide-line">
+                      {s.items.slice(0, QUEUE_LIMIT).map((item) => (
+                        <li key={item.key}>
+                          <Link href={item.href} className="flex items-start gap-3 px-5 py-3 hover:bg-subtle">
+                            <span className="mt-0.5 text-ink-faint">{item.icon}</span>
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-sm font-medium text-ink">{item.title}</div>
+                              <div className="line-clamp-1 text-xs text-ink-muted">{item.detail}</div>
+                            </div>
+                            <div className="flex shrink-0 flex-col items-end gap-1">
+                              <StatusBadge status={item.status} />
+                              <span className="text-xs whitespace-nowrap text-ink-faint">{formatDateTime(item.at)}</span>
+                            </div>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+            </div>
+          )}
+        </Card>
+
+        <Card className="self-start">
+          <CardHeader
+            title="Recent activity"
+            actions={
+              <Link href="/activity-log" className="inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline">
+                Activity log
+                <ArrowRight className="size-3.5" aria-hidden />
+              </Link>
+            }
+          />
+          {data.activity.length === 0 ? (
+            <CardBody>
+              <p className="text-sm text-ink-muted">No admin actions yet.</p>
+            </CardBody>
+          ) : (
+            <ul className="divide-y divide-line">
+              {data.activity.map((e) => (
+                <li key={e.log_id} className="px-5 py-3">
+                  <div className="text-sm font-medium text-ink">{ACTION_LABEL[e.action] ?? humanize(e.action)}</div>
+                  <div className="line-clamp-2 text-sm text-ink-muted">{e.details}</div>
+                  <div className="mt-0.5 text-xs text-ink-faint">
+                    {TARGET_TYPE_LABEL[e.target_type] ?? humanize(e.target_type)} · {formatDateTime(e.created_at)}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
+    </>
+  );
+}
