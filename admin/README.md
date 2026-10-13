@@ -49,7 +49,7 @@ What works in API mode today:
 | Overview, Users, Reports, Games & results, Rankings, Mini Leagues, Disputes | Read-only, real data, refreshed every 20s. Includes registration/deleted state, report categories and evidence snapshots, per-game scores, confirmations and result flags |
 | Ranking history | The shared rating engine's rating after each result |
 | Deleted records | Deleted game posts (kept for history); deleted Mini Leagues aren't stored yet |
-| Home carousel (`/content`) | Create, edit, publish/unpublish, reorder, remove. Images must be `https://` URLs (no upload endpoint yet) |
+| Home carousel (`/content`) | Create, edit, publish/unpublish, reorder, remove. Images must be absolute `http(s)://` URLs; image upload works only in mock mode (no upload endpoint yet). Saving a card that changed in another session since you opened it is refused as a conflict |
 | Analytics | New registrations and reports received only; other metrics show "Not tracked yet" |
 | Suspend/restore account, hide/restore post, suspend/resume/close/delete league, resolve/dismiss report | Disabled: the backend returns 501 until the database changes in its `docs/admin-database-handoff.md` (DB02–DB06) land |
 | Delete game post | Disabled: the backend blocks it (405) because its deletion would remove the game's results from rankings, which Final v6 doesn't allow |
@@ -78,7 +78,7 @@ Mock data and the mock session persist in `localStorage`, so a reload keeps your
 
 ```
 app/(auth)/            sign-in, session-expired, access-restricted
-app/(admin)/           every admin route; layout.tsx is the mock auth guard + shell
+app/(admin)/           every admin route; layout.tsx is the auth guard, data loader (API sync) and idle-timeout host around the shell
 components/layout/     shell, sidebar, mock controls, providers
 components/shared/     DataTable, ConfirmDialog, FeedbackToast, StatusBadge, EmptyState, PlayerProfileCard, charts…
 components/modals/     one confirmation component per flow
@@ -95,8 +95,13 @@ lib/auth/              session: mock, or Supabase Auth in API mode (the real sec
 
 Pages only import from `@/lib/mock-api`, so they don't know which backend is active.
 
-- `lib/api/sync.ts` loads the team-contract table routes (`/player`, `/report`, `/game_post`, …) into the same store the mock uses, mapping camelCase API fields to the console's snake_case types. It re-reads on sign-in, every 20 seconds and after each write (in place of Realtime channels).
+- `lib/api/sync.ts` loads the backend's camelCase table routes (`/player`, `/player_profile`, `/report`, `/dispute`, `/mini_league`, `/match`, `/match_result`, `/rating_history`, `/result_flag`, …, with fields like `username`, `organiserGroupId`, report category and evidence) plus the console routes `/games` (game posts, including deleted ones), `/users` (emails and registration state) and `/analytics`, into the same store the mock uses, mapping them to the console's snake_case types. It re-reads on sign-in, every 20 seconds and after each write (in place of Realtime channels).
 - `lib/api/actions.ts` holds the write side: the spec RPCs plus PostgREST-style `/admin_post` CRUD for the carousel.
 - `lib/api/capabilities.ts` lists the actions and screens the backend can't support yet; the UI disables or annotates them.
 
-Fields the database doesn't have are left empty or labelled, never invented. Every player shows as active because there's no suspension state yet. Game posts have no title column, so the console labels them from their format and suburb ("Doubles game in Parramatta"). Reports have no description.
+Fields the database doesn't have are left empty or labelled, never invented. Every player shows as active because the database has no suspension state yet. Players who haven't chosen a username show as "No username yet", and deleted accounts as "Deleted player".
+
+## Known limitations
+
+- API mode re-reads whole tables every 20 seconds, including one Auth lookup per player to get emails. That's fine at current data sizes, but should move to per-page, server-side queries (filtering, paging) before launch.
+- Dialogs move focus in and close on Escape, but don't trap focus yet.

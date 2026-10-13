@@ -77,7 +77,8 @@ export interface GamePost {
   /** extension */
   organiser_group_name: string | null;
   group_id: string | null;
-  format: "singles" | "doubles";
+  /** `mixed_doubles` is a database value the spec doesn't list; display it through humanize(). */
+  format: "singles" | "doubles" | "mixed_doubles";
   suburb: string;
   proposed_time: string;
   status: GamePostStatus;
@@ -220,6 +221,8 @@ export interface AdminPost {
   status: AdminPostStatus;
   created_by: string;
   published_at: string | null;
+  /** extension: version stamp from the last read, sent back so a stale edit is rejected as "record changed" */
+  updated_at: string | null;
 }
 
 export interface Ranking {

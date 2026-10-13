@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CalendarDays, MapPin, UsersRound } from "lucide-react";
 import type { ReactNode } from "react";
-import { formatDate, formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime, humanize } from "@/lib/format";
 import type { GamePost, MiniLeague, Player } from "@/lib/types";
 import { PlayerLink } from "./PlayerProfileCard";
 import { StatusBadge } from "./StatusBadge";
@@ -40,7 +40,7 @@ export function GamePostSummary({ post, organiser, actions }: { post: GamePost; 
           <UsersRound className="size-4" aria-hidden />
           {[
             post.spots_total === null ? null : post.spots_filled === null ? `${post.spots_total} players` : `${post.spots_filled}/${post.spots_total}`,
-            post.format,
+            humanize(post.format),
             post.skill_band,
           ]
             .filter(Boolean)

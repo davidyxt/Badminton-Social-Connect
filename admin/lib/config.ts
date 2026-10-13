@@ -2,7 +2,7 @@
  * Which backend the console talks to.
  *
  *   mock (default)  in-memory fixtures, every screen and action works offline
- *   api             the admin-api Supabase Edge Function (branch admin-api/database-handoff)
+ *   api             the admin-api Supabase Edge Function (branch admin-api/player-be2-integration)
  *
  * Set NEXT_PUBLIC_ADMIN_DATA_SOURCE=api plus the two Supabase values in .env.local.
  */

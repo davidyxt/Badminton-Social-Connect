@@ -14,7 +14,12 @@ import { useAdminAction } from "@/lib/hooks/useAdminAction";
 import { create_admin_post, delete_admin_post, update_admin_post, useQuery } from "@/lib/mock-api";
 import type { AdminPost } from "@/lib/types";
 
-type Dialog = { kind: "create" } | { kind: "edit"; post: AdminPost } | { kind: "remove"; post: AdminPost } | null;
+/**
+ * `post` and `position` are snapshots from when the dialog opened: the edit is
+ * saved against that version (`updated_at`), so a change made in another
+ * session in the meantime is reported as a conflict rather than overwritten.
+ */
+type Dialog = { kind: "create" } | { kind: "edit"; post: AdminPost; position: number } | { kind: "remove"; post: AdminPost } | null;
 
 /** What's missing before a card can be published, or null if it's ready. */
 function publishBlocker(p: Pick<AdminPost, "image_url" | "body">): string | null {
@@ -31,34 +36,43 @@ export default function ContentPage() {
   const posts = useQuery((db) => [...db.admin_posts].sort((a, b) => a.display_order - b.display_order));
   const published = posts.filter((p) => p.status === "published");
 
-  const move = (post: AdminPost, delta: -1 | 1) =>
-    run(() => update_admin_post({ adminPostId: post.admin_post_id, display_order: post.display_order + delta }), {
+  // Positions are list positions (1-based), not raw display_order values: the
+  // API can leave gaps in display_order after a delete.
+  const move = (index: number, delta: -1 | 1) => {
+    const post = posts[index];
+    const position = index + delta + 1;
+    return run(() => update_admin_post({ adminPostId: post.admin_post_id, display_order: position }), {
       saving: "Moving card…",
-      success: `Moved to position ${post.display_order + delta}`,
+      success: `Moved to position ${position}`,
     });
+  };
 
   const togglePublish = (post: AdminPost) => {
     const publishing = post.status === "draft";
-    return run(() => update_admin_post({ adminPostId: post.admin_post_id, status: publishing ? "published" : "draft" }), {
-      saving: publishing ? "Publishing…" : "Unpublishing…",
-      success: publishing ? "Card published" : "Card moved to draft",
-      successDetail: publishing ? "It now shows on the player home page." : "It no longer shows on the player home page.",
-    });
+    return run(
+      () => update_admin_post({ adminPostId: post.admin_post_id, status: publishing ? "published" : "draft", expectedUpdatedAt: post.updated_at }),
+      {
+        saving: publishing ? "Publishing…" : "Unpublishing…",
+        success: publishing ? "Card published" : "Card moved to draft",
+        successDetail: publishing ? "It now shows on the player home page." : "It no longer shows on the player home page.",
+      },
+    );
   };
 
   const submitForm = (values: AdminPostFormValues) => {
     if (dialog?.kind === "edit") {
       const { post } = dialog;
+      const original: AdminPostFormValues = { ...post, display_order: dialog.position };
       // Only send changed fields so the activity log records the right action.
       const patch: Partial<AdminPostFormValues> = {};
       (Object.keys(values) as (keyof AdminPostFormValues)[]).forEach((k) => {
-        if (values[k] !== post[k]) (patch as Record<string, unknown>)[k] = values[k];
+        if (values[k] !== original[k]) (patch as Record<string, unknown>)[k] = values[k];
       });
       if (Object.keys(patch).length === 0) {
         close();
         return Promise.resolve("success" as const);
       }
-      return run(() => update_admin_post({ adminPostId: post.admin_post_id, ...patch }), {
+      return run(() => update_admin_post({ adminPostId: post.admin_post_id, ...patch, expectedUpdatedAt: post.updated_at }), {
         success: "Card saved",
         onSuccess: close,
         onConflict: close,
@@ -77,7 +91,7 @@ export default function ContentPage() {
           title: dialog.post.title,
           body: dialog.post.body,
           image_url: dialog.post.image_url,
-          display_order: dialog.post.display_order,
+          display_order: dialog.position,
           status: dialog.post.status,
         }
       : { title: "", body: "", image_url: "", display_order: posts.length + 1, status: "draft" };
@@ -137,16 +151,22 @@ export default function ContentPage() {
         ) : (
           <ul className="divide-y divide-line">
             {posts.map((post, i) => {
-              const blocker = post.status === "draft" ? publishBlocker(post) : null;
+              // Older published cards can lack an image; the API refuses any change to them, even reordering, until one is added.
+              const blocker =
+                post.status === "draft"
+                  ? publishBlocker(post)
+                  : post.status === "published" && !post.image_url.trim()
+                    ? "Published without an image. Add one before editing or moving this card; it can't be saved without it."
+                    : null;
               return (
                 <li key={post.admin_post_id} className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-start">
                   <div className="flex items-center gap-1 sm:flex-col sm:pt-1">
-                    <span className="w-8 text-center text-sm font-semibold text-ink tabular-nums" aria-label={`Position ${post.display_order}`}>
-                      {post.display_order}
+                    <span className="w-8 text-center text-sm font-semibold text-ink tabular-nums" aria-label={`Position ${i + 1}`}>
+                      {i + 1}
                     </span>
                     <button
                       type="button"
-                      onClick={() => void move(post, -1)}
+                      onClick={() => void move(i, -1)}
                       disabled={pending || i === 0}
                       className="rounded-md p-1 text-ink-muted hover:bg-neutral-soft hover:text-ink disabled:opacity-30"
                       aria-label={`Move "${post.title}" up`}
@@ -155,7 +175,7 @@ export default function ContentPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => void move(post, 1)}
+                      onClick={() => void move(i, 1)}
                       disabled={pending || i === posts.length - 1}
                       className="rounded-md p-1 text-ink-muted hover:bg-neutral-soft hover:text-ink disabled:opacity-30"
                       aria-label={`Move "${post.title}" down`}
@@ -188,7 +208,7 @@ export default function ContentPage() {
                     >
                       {post.status === "published" ? "Unpublish" : "Publish"}
                     </Button>
-                    <Button size="sm" icon={<Pencil className="size-4" aria-hidden />} onClick={() => setDialog({ kind: "edit", post })}>
+                    <Button size="sm" icon={<Pencil className="size-4" aria-hidden />} onClick={() => setDialog({ kind: "edit", post, position: i + 1 })}>
                       Edit
                     </Button>
                     <Button

@@ -16,6 +16,7 @@ import { useSyncExternalStore } from "react";
 import { CATEGORY_LABEL, humanize } from "@/lib/format";
 import { commit } from "@/lib/mock-api/store";
 import { isApiError } from "@/lib/mock-api/errors";
+import { createEmptyDb } from "@/lib/mock-data";
 import type {
   AdminPost,
   DeletedRecord,
@@ -102,7 +103,7 @@ type ApiResult = Versioned & {
 };
 type ApiStanding = { leagueId: string; playerId: string; wins: number; losses: number; points: number; position: number | null };
 type ApiRanking = { playerId: string; format: string; rankingPoints: number; band: string; verifiedGamesCount: number };
-type ApiAdminPost = Versioned & {
+export type ApiAdminPost = Versioned & {
   adminPostId: string;
   title: string;
   body: string | null;
@@ -156,9 +157,25 @@ const reportStatus = (s: string): Report["status"] => (s === "resolved" || s ===
 const side = (s: "a" | "b" | null): "A" | "B" | null => (s ? (s.toUpperCase() as "A" | "B") : null);
 const isEmpty = (o: Record<string, unknown> | null | undefined) => !o || Object.keys(o).length === 0;
 
+export const mapAdminPost = (a: ApiAdminPost): AdminPost => ({
+  admin_post_id: a.adminPostId,
+  title: a.title,
+  body: a.body ?? "",
+  image_url: a.imageUrl ?? "",
+  display_order: a.displayOrder,
+  status: a.status as AdminPost["status"],
+  created_by: a.createdBy,
+  published_at: a.publishedAt,
+  updated_at: a.updatedAt ?? null,
+});
+
+/** Game posts are singles, doubles or mixed doubles; anything unexpected reads as doubles. */
+const postFormat = (f: string): GamePost["format"] => (f === "singles" || f === "mixed_doubles" ? f : "doubles");
+
 interface RawData {
   players: ApiPlayer[];
-  users: ConsoleUser[];
+  /** Null when the Auth lookup failed, so emails and registration state are unknown. */
+  users: ConsoleUser[] | null;
   profiles: ApiProfile[];
   reports: ApiReport[];
   disputes: ApiDispute[];
@@ -179,7 +196,7 @@ interface RawData {
 
 function mapDatabase(raw: RawData): MockDatabase {
   const venues = new Map(raw.venues.map((v) => [v.venueId, v.name]));
-  const users = new Map(raw.users.map((u) => [u.player_id, u]));
+  const users = new Map((raw.users ?? []).map((u) => [u.player_id, u]));
 
   const players: Player[] = raw.players.map((p) => {
     const user = users.get(p.playerId);
@@ -193,7 +210,12 @@ function mapDatabase(raw: RawData): MockDatabase {
       // No suspension state exists in the database yet (handoff DB02).
       status: "active",
       email: user?.account?.email ?? "",
-      registration_state: p.deletedAt ? "deleted" : user?.registration?.registered_at ? "registered" : "registration_pending",
+      // Without the Auth lookup, assume registered (most players are) rather than claim "pending" with no evidence.
+      registration_state: p.deletedAt
+        ? "deleted"
+        : !raw.users || user?.registration?.registered_at
+          ? "registered"
+          : "registration_pending",
       deleted_at: p.deletedAt,
     };
   });
@@ -235,7 +257,7 @@ function mapDatabase(raw: RawData): MockDatabase {
     organiser_group_id: g.organiser_group_id,
     organiser_group_name: g.club?.name ?? null,
     group_id: null,
-    format: g.format === "singles" ? "singles" : "doubles",
+    format: postFormat(g.format),
     suburb: g.suburb ?? "",
     proposed_time: g.proposed_time,
     status: g.status as GamePost["status"],
@@ -371,16 +393,7 @@ function mapDatabase(raw: RawData): MockDatabase {
 
   const groups: Group[] = raw.groups.map((g) => ({ group_id: g.groupId, name: g.name }));
 
-  const admin_posts: AdminPost[] = raw.adminPosts.map((a) => ({
-    admin_post_id: a.adminPostId,
-    title: a.title,
-    body: a.body ?? "",
-    image_url: a.imageUrl ?? "",
-    display_order: a.displayOrder,
-    status: a.status as AdminPost["status"],
-    created_by: a.createdBy,
-    published_at: a.publishedAt,
-  }));
+  const admin_posts: AdminPost[] = raw.adminPosts.map(mapAdminPost);
 
   return {
     players,
@@ -408,15 +421,17 @@ function mapDatabase(raw: RawData): MockDatabase {
 // Loading
 // ---------------------------------------------------------------------------
 
-/** Read every page of a console list route (max 100 rows per page). */
-async function readConsoleList<T>(path: string, query: Record<string, string | number> = {}): Promise<T[]> {
+const MAX_CONSOLE_PAGES = 200;
+
+/** Read every page of a console list route (max 100 rows per page), up to MAX_CONSOLE_PAGES pages. */
+async function readConsoleList<T>(path: string, query: Record<string, string | number> = {}): Promise<{ rows: T[]; truncated: boolean }> {
   const rows: T[] = [];
-  for (let page = 1; page <= 200; page++) {
+  for (let page = 1; page <= MAX_CONSOLE_PAGES; page++) {
     const res = await consoleGet<T[]>(path, { ...query, limit: 100, page });
     rows.push(...res.data);
-    if (!res.pagination || page * res.pagination.limit >= res.pagination.total) break;
+    if (!res.pagination || page * res.pagination.limit >= res.pagination.total) return { rows, truncated: false };
   }
-  return rows;
+  return { rows, truncated: true };
 }
 
 /** The API serves at most 90 days per request plus the preceding 90, so one call covers 180 days. */
@@ -444,13 +459,17 @@ async function optional<T>(load: () => Promise<T>, fallback: T): Promise<T> {
   try {
     return await load();
   } catch (err) {
-    if (isApiError(err) && err.code === "unauthorized") throw err;
+    if (isApiError(err) && (err.code === "unauthorized" || err.code === "forbidden")) throw err;
     return fallback;
   }
 }
 
-export async function loadFromApi(): Promise<MockDatabase> {
-  const [players, profiles, reports, disputes, games, leagues, matches, participants, results, standings, rankings, adminPosts, venues] =
+/**
+ * Read everything. `warnings` lists data that's missing or incomplete even
+ * though the load as a whole succeeded.
+ */
+export async function loadFromApi(): Promise<{ db: MockDatabase; warnings: string[] }> {
+  const [players, profiles, reports, disputes, gameList, leagues, matches, participants, results, standings, rankings, adminPosts, venues] =
     await Promise.all([
       readTable<ApiPlayer>("player"),
       readTable<ApiProfile>("player_profile"),
@@ -466,15 +485,21 @@ export async function loadFromApi(): Promise<MockDatabase> {
       readTable<ApiAdminPost>("admin_post"),
       readTable<ApiVenue>("venue"),
     ]);
-  const [users, groups, ratingHistory, flags, analytics] = await Promise.all([
+  const [userList, groups, ratingHistory, flags, analytics] = await Promise.all([
     // Emails and registration state: one Auth lookup per player, so this is the slowest read.
-    optional(() => readConsoleList<ConsoleUser>("/users", { include: "account" }), []),
+    optional<{ rows: ConsoleUser[]; truncated: boolean } | null>(() => readConsoleList<ConsoleUser>("/users", { include: "account" }), null),
     optional(() => readTable<ApiGroup>("groups"), []),
     optional(() => readTable<ApiRatingHistory>("rating_history"), []),
     optional(() => readTable<ApiFlag>("result_flag"), []),
     optional(loadAnalytics, {}),
   ]);
-  return mapDatabase({
+  const warnings: string[] = [];
+  if (gameList.truncated) warnings.push(`The game post list was cut off at ${gameList.rows.length.toLocaleString("en-AU")} posts, so some aren't shown.`);
+  if (!userList) warnings.push("Emails and registration status couldn't be loaded, so players show as registered.");
+  else if (userList.truncated) warnings.push("Emails and registration status couldn't be loaded for every player.");
+  const games = gameList.rows;
+  const users = userList?.rows ?? null;
+  const db = mapDatabase({
     players,
     users,
     profiles,
@@ -494,6 +519,7 @@ export async function loadFromApi(): Promise<MockDatabase> {
     flags,
     analytics,
   });
+  return { db, warnings };
 }
 
 // ---------------------------------------------------------------------------
@@ -502,35 +528,81 @@ export async function loadFromApi(): Promise<MockDatabase> {
 
 export interface SyncStatus {
   state: "idle" | "loading" | "ready" | "error";
-  error: string | null;
+  /**
+   * What went wrong with the latest sync: why it failed, or which data it
+   * couldn't load. Null when the latest sync loaded everything.
+   */
+  lastError: string | null;
+  /** True when the latest sync failed outright, so the data shown is from `lastSyncedAt`. */
+  lastSyncFailed: boolean;
   lastSyncedAt: number | null;
 }
 
-let status: SyncStatus = { state: "idle", error: null, lastSyncedAt: null };
+const IDLE: SyncStatus = { state: "idle", lastError: null, lastSyncedAt: null, lastSyncFailed: false };
+let status: SyncStatus = IDLE;
 const listeners = new Set<() => void>();
 const setStatus = (next: Partial<SyncStatus>) => {
   status = { ...status, ...next };
   for (const l of listeners) l();
 };
 
+/** Bumped on reset, so a sync that was running at sign-out can't refill the store. */
+let epoch = 0;
 let inFlight: Promise<void> | null = null;
+/** One follow-up sync shared by every caller that arrived while another was running. */
+let queued: Promise<void> | null = null;
 
-/** Re-read everything. Called on sign-in, on a timer, and after each successful write. */
+async function runSync(): Promise<void> {
+  const started = epoch;
+  if (status.state !== "ready") setStatus({ state: "loading", lastError: null, lastSyncFailed: false });
+  try {
+    const { db, warnings } = await loadFromApi();
+    if (started !== epoch) return;
+    commit(() => db);
+    setStatus({ state: "ready", lastError: warnings.length ? warnings.join(" ") : null, lastSyncFailed: false, lastSyncedAt: Date.now() });
+  } catch (err) {
+    if (started !== epoch) return;
+    const message = err instanceof Error ? err.message : "Couldn't load data.";
+    // Keep showing the last good data if a background refresh fails, but say so.
+    if (status.state === "ready") setStatus({ lastError: message, lastSyncFailed: true });
+    else setStatus({ state: "error", lastError: message, lastSyncFailed: true });
+  }
+}
+
+/**
+ * Re-read everything. Called on sign-in, on a timer, and after each write.
+ * The returned promise settles after a sync that started after this call, so
+ * a write is always reflected once it resolves: if one is already running
+ * (its reads may predate the write), a fresh one follows it.
+ */
 export function syncNow(): Promise<void> {
-  inFlight ??= (async () => {
-    if (status.state !== "ready") setStatus({ state: "loading", error: null });
-    try {
-      const next = await loadFromApi();
-      commit(() => next);
-      setStatus({ state: "ready", error: null, lastSyncedAt: Date.now() });
-    } catch (err) {
-      // Keep showing the last good data if a background refresh fails.
-      if (status.state !== "ready") setStatus({ state: "error", error: err instanceof Error ? err.message : "Couldn't load data." });
-    } finally {
-      inFlight = null;
-    }
-  })();
-  return inFlight;
+  if (!inFlight) {
+    const run: Promise<void> = runSync().finally(() => {
+      if (inFlight === run) inFlight = null;
+    });
+    inFlight = run;
+    return run;
+  }
+  if (!queued) {
+    const started = epoch;
+    const next: Promise<void> = inFlight.then(() => {
+      if (queued === next) queued = null;
+      // Signed out meanwhile: nothing to refresh.
+      return started === epoch ? syncNow() : undefined;
+    });
+    queued = next;
+  }
+  return queued;
+}
+
+/** Forget everything loaded from the API (sign-out, expiry, lost access). */
+export function resetSyncState(): void {
+  epoch++;
+  inFlight = null;
+  queued = null;
+  commit(() => createEmptyDb());
+  status = IDLE;
+  for (const l of listeners) l();
 }
 
 export function useSyncStatus(): SyncStatus {

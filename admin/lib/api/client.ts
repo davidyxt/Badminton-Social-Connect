@@ -29,15 +29,36 @@ const CODE_BY_STATUS: Record<number, ApiErrorCode> = {
   405: "unavailable",
   409: "conflict",
   413: "validation",
+  415: "validation",
   422: "validation",
   501: "unavailable",
+  // Database or function briefly unavailable: worth retrying, like a network failure.
+  503: "network_error",
 };
 
-/** Listeners told when the API says the session is no longer valid. */
-const authFailureListeners = new Set<() => void>();
-export function onAuthFailure(listener: () => void): () => void {
+/**
+ * Why the API refused the signed-in admin: `unauthorized` when the session is
+ * no longer valid, `forbidden` when the account no longer has admin access.
+ */
+export type AuthFailure = "unauthorized" | "forbidden";
+
+/** Listeners told when the API refuses the session. */
+const authFailureListeners = new Set<(kind: AuthFailure) => void>();
+export function onAuthFailure(listener: (kind: AuthFailure) => void): () => void {
   authFailureListeners.add(listener);
   return () => authFailureListeners.delete(listener);
+}
+function reportAuthFailure(kind: AuthFailure) {
+  for (const l of authFailureListeners) l(kind);
+}
+
+function errorMessage(status: number, code: ApiErrorCode, missingRpc: boolean, detail: string | undefined): string {
+  if (missingRpc) return "The backend has no endpoint for this action yet.";
+  if (status === 503) return "The admin service is unavailable right now. Try again in a moment.";
+  if (status === 405) return "Administrators can't do this under the Final v6 admin design.";
+  if (code === "unavailable") return "Not available yet: the database doesn't support this action. See docs/admin-database-handoff.md.";
+  if (code === "conflict") return detail ?? "This record was changed in another session. Review the latest version before trying again.";
+  return detail ?? "The admin API request failed.";
 }
 
 interface RequestOptions {
@@ -51,7 +72,7 @@ export async function adminRequest<T>(path: string, { method = "GET", query, bod
     data: { session },
   } = await getSupabase().auth.getSession();
   if (!session) {
-    for (const l of authFailureListeners) l();
+    reportAuthFailure("unauthorized");
     throw new ApiError("unauthorized", "Your session has ended. Sign in again.");
   }
 
@@ -83,17 +104,13 @@ export async function adminRequest<T>(path: string, { method = "GET", query, bod
   if (!response.ok) {
     // Team routes return { code, message }; console routes return { error: { code, message } }.
     const detail = ((payload as { error?: unknown })?.error ?? payload) as { code?: string; message?: string } | null;
-    const code = CODE_BY_STATUS[response.status] ?? "network_error";
-    if (code === "unauthorized") for (const l of authFailureListeners) l();
-    const message =
-      code === "unavailable"
-        ? response.status === 405
-          ? "Administrators can't do this under the Final v6 admin design."
-          : "Not available yet: the database doesn't support this action. See docs/admin-database-handoff.md."
-        : code === "conflict"
-          ? (detail?.message ?? "This record was changed in another session. Review the latest version before trying again.")
-          : (detail?.message ?? "The admin API request failed.");
-    throw new ApiError(code, message);
+    // An RPC the backend doesn't have yet is a 404 on its route, not a missing record.
+    const missingRpc = response.status === 404 && path.startsWith("/rpc/");
+    const code: ApiErrorCode = missingRpc ? "unavailable" : (CODE_BY_STATUS[response.status] ?? "network_error");
+    if (code === "unauthorized") reportAuthFailure("unauthorized");
+    // Only a lost admin role or a permission refusal; a denied origin is a deployment problem, not the account.
+    if (code === "forbidden" && (detail?.code === "admin_required" || detail?.code === "forbidden")) reportAuthFailure("forbidden");
+    throw new ApiError(code, errorMessage(response.status, code, missingRpc, detail?.message));
   }
   return payload as T;
 }

@@ -100,7 +100,11 @@ function findOrThrow<T>(rows: T[], match: (row: T) => boolean, label: string): T
 // Accounts
 // ---------------------------------------------------------------------------
 
-/** [Edge Function] Suspends a player and hides their active content. */
+/**
+ * [Edge Function] Suspends a player and hides their active content: open/full
+ * game posts and running (active or registration-closed) Mini Leagues they
+ * organise. Finished, cancelled and draft leagues are left alone.
+ */
 export async function admin_suspend_account(args: { playerId: string; reason: string }): Promise<{ success: boolean }> {
   if (IS_API) return api.admin_suspend_account(args);
   const reason = requireReason(args.reason);
@@ -122,7 +126,7 @@ export async function admin_suspend_account(args: { playerId: string; reason: st
       return { ...post, status: "hidden" as const, status_before_hidden: post.status, hidden_by_account_suspension: true };
     });
     const mini_leagues = db.mini_leagues.map((league) => {
-      if (league.organiser_id !== args.playerId || league.status === "suspended") return league;
+      if (league.organiser_id !== args.playerId || (league.status !== "active" && league.status !== "registration_closed")) return league;
       suspendedLeagues++;
       return { ...league, status: "suspended" as const, status_before_suspended: league.status, suspended_by_account_suspension: true };
     });
@@ -454,7 +458,7 @@ function validateAdminPost(input: AdminPostInput): void {
   }
 }
 
-/** Place `id` at `position` (1-based) and renumber everything else in order. */
+/** Place `id` at `position` (1-based) and renumber everything else in order. Renumbered rows get a new `updated_at`. */
 function reorder(posts: AdminPost[], id: string, position: number): AdminPost[] {
   const sorted = [...posts].sort((a, b) => a.display_order - b.display_order);
   const moving = sorted.find((p) => p.admin_post_id === id);
@@ -462,7 +466,12 @@ function reorder(posts: AdminPost[], id: string, position: number): AdminPost[] 
   const rest = sorted.filter((p) => p.admin_post_id !== id);
   const index = Math.min(Math.max(position - 1, 0), rest.length);
   rest.splice(index, 0, moving);
-  return rest.map((p, i) => (p.display_order === i + 1 ? p : { ...p, display_order: i + 1 }));
+  return renumber(rest);
+}
+
+function renumber(sorted: AdminPost[]): AdminPost[] {
+  const at = now();
+  return sorted.map((p, i) => (p.display_order === i + 1 ? p : { ...p, display_order: i + 1, updated_at: at }));
 }
 
 export async function create_admin_post(input: AdminPostInput): Promise<AdminPost> {
@@ -478,6 +487,7 @@ export async function create_admin_post(input: AdminPostInput): Promise<AdminPos
     body: input.body.trim(),
     created_by: MOCK_ADMIN.admin_id,
     published_at: input.status === "published" ? now() : null,
+    updated_at: now(),
   };
   commit((db) =>
     withLog(
@@ -493,18 +503,28 @@ export async function create_admin_post(input: AdminPostInput): Promise<AdminPos
   return findOrThrow(getDb().admin_posts, (p) => p.admin_post_id === post.admin_post_id, "This card");
 }
 
-export async function update_admin_post(args: { adminPostId: string } & Partial<AdminPostInput>): Promise<AdminPost> {
+/**
+ * `expectedUpdatedAt` is the card's `updated_at` when the admin opened the form
+ * or clicked the button. If the card has changed since, the save is refused
+ * with a conflict instead of overwriting the other session's edit.
+ */
+export async function update_admin_post(
+  args: { adminPostId: string; expectedUpdatedAt?: string | null } & Partial<AdminPostInput>,
+): Promise<AdminPost> {
   if (IS_API) return api.update_admin_post(args);
-  const { adminPostId, ...patch } = args;
+  const { adminPostId, expectedUpdatedAt, ...patch } = args;
   const existing = findOrThrow(getDb().admin_posts, (p) => p.admin_post_id === adminPostId, "This card");
   const next: AdminPostInput = { ...existing, ...patch };
   validateAdminPost(next);
   await simulateNetwork();
   consumeForcedConflict((db) => ({
     ...db,
-    admin_posts: replaceWhere(db.admin_posts, (p) => p.admin_post_id === adminPostId, (p) => ({ ...p, title: `${p.title} (edited)` })),
+    admin_posts: replaceWhere(db.admin_posts, (p) => p.admin_post_id === adminPostId, (p) => ({ ...p, title: `${p.title} (edited)`, updated_at: now() })),
   }));
-  findOrThrow(getDb().admin_posts, (p) => p.admin_post_id === adminPostId, "This card");
+  const current = findOrThrow(getDb().admin_posts, (p) => p.admin_post_id === adminPostId, "This card");
+  if (expectedUpdatedAt && current.updated_at !== expectedUpdatedAt) {
+    throw new ApiError("conflict", "This card was changed in another session. Review the latest version before saving again.");
+  }
 
   const statusChange: AdminPostStatus | null = patch.status && patch.status !== existing.status ? patch.status : null;
   const action =
@@ -525,6 +545,7 @@ export async function update_admin_post(args: { adminPostId: string } & Partial<
       title: next.title.trim(),
       body: next.body.trim(),
       published_at: statusChange === "published" ? now() : statusChange === "draft" ? null : p.published_at,
+      updated_at: now(),
     }));
     return withLog(
       { ...db, admin_posts: patch.display_order !== undefined ? reorder(updated, adminPostId, patch.display_order) : updated },
@@ -543,10 +564,7 @@ export async function delete_admin_post(args: { adminPostId: string }): Promise<
     withLog(
       {
         ...db,
-        admin_posts: db.admin_posts
-          .filter((p) => p.admin_post_id !== args.adminPostId)
-          .sort((a, b) => a.display_order - b.display_order)
-          .map((p, i) => ({ ...p, display_order: i + 1 })),
+        admin_posts: renumber(db.admin_posts.filter((p) => p.admin_post_id !== args.adminPostId).sort((a, b) => a.display_order - b.display_order)),
       },
       logEntry("delete_admin_post", "admin_post", args.adminPostId, `Removed carousel card "${existing.title}"`),
     ),

@@ -20,12 +20,18 @@ export type AdminAction =
 
 const NEEDS_DB = "Not available yet: needs a database change on the backend";
 
+/**
+ * admin_delete_post, admin_close_league_registration and admin_delete_league
+ * aren't in the backend's RPC list at all (contract.mjs rpcArguments), so
+ * calling them would 404; the client reports that as "no endpoint yet".
+ */
 const UNAVAILABLE_IN_API: Record<AdminAction, string> = {
   admin_suspend_account: `${NEEDS_DB} (account suspension, DB02).`,
   admin_restore_account: `${NEEDS_DB} (account suspension, DB02).`,
   admin_hide_post: `${NEEDS_DB} (game post visibility, DB03).`,
   admin_restore_post: `${NEEDS_DB} (game post visibility, DB03).`,
-  // The backend's existing deletion removes the game's results from rankings, which Final v6 forbids, so the API blocks it (405).
+  // The backend has no admin_delete_post. Its own admin_delete_game_post returns 405, because that deletion would remove
+  // the game's results from rankings, which Final v6 forbids.
   admin_delete_post:
     "Blocked for now: the backend's deletion would remove this game's results from rankings, which the Final v6 design doesn't allow. Waiting on a product decision (DB06).",
   admin_suspend_league: `${NEEDS_DB} (league restrictions, DB04).`,

@@ -1,8 +1,9 @@
 "use client";
 
-import { LogOut, Menu, X } from "lucide-react";
+import { LogOut, Menu, RefreshCw, TriangleAlert, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { syncNow, useSyncStatus } from "@/lib/api/sync";
 import { IS_API } from "@/lib/config";
 import type { Admin } from "@/lib/types";
 import { Avatar } from "@/components/shared/PlayerProfileCard";
@@ -19,6 +20,62 @@ function Brand() {
         <div className="text-xs text-sidebar-text">Admin console</div>
       </div>
     </div>
+  );
+}
+
+const timeFmt = new Intl.DateTimeFormat("en-AU", { hour: "numeric", minute: "2-digit" });
+
+function updatedAgo(at: number, now: number): string {
+  const minutes = Math.floor(Math.max(0, now - at) / 60_000);
+  if (minutes < 1) return "Updated just now";
+  if (minutes < 60) return `Updated ${minutes} min ago`;
+  return `Updated at ${timeFmt.format(at)}`;
+}
+
+/**
+ * API mode: when the data was last refreshed, and a warning with Retry when
+ * the latest refresh failed or couldn't load everything. The data on screen
+ * stays put either way.
+ */
+function SyncIndicator() {
+  const sync = useSyncStatus();
+  const [now, setNow] = useState(() => Date.now());
+  const [retrying, setRetrying] = useState(false);
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  if (!sync.lastSyncedAt) return null;
+
+  const retry = () => {
+    setRetrying(true);
+    void syncNow().finally(() => setRetrying(false));
+  };
+
+  if (!sync.lastError) {
+    return (
+      <span className="hidden text-xs text-ink-faint md:inline" role="status">
+        {updatedAgo(sync.lastSyncedAt, Math.max(now, sync.lastSyncedAt))}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1.5 text-xs text-warning" role="status" title={sync.lastError}>
+      <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
+      <span className="hidden truncate sm:inline">
+        {sync.lastSyncFailed ? `Couldn't refresh, showing data from ${timeFmt.format(sync.lastSyncedAt)}` : "Some data couldn't be loaded"}
+      </span>
+      <span className="sr-only">{sync.lastError}</span>
+      <button
+        type="button"
+        onClick={retry}
+        disabled={retrying}
+        className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-medium hover:bg-warning-soft disabled:opacity-60"
+      >
+        <RefreshCw className={`size-3.5 ${retrying ? "animate-spin" : ""}`} aria-hidden />
+        Retry
+      </button>
+    </span>
   );
 }
 
@@ -77,6 +134,7 @@ export function AdminShell({
             <Menu className="size-5" />
           </button>
           <div className="flex-1" />
+          {IS_API && <SyncIndicator />}
           <span
             className={`hidden rounded-full px-2.5 py-0.5 text-xs font-medium sm:inline ${IS_API ? "bg-success-soft text-success" : "bg-warning-soft text-warning"}`}
             title={IS_API ? "Reading and writing the admin-api Edge Function" : "In-memory sample data; nothing is saved to a server"}

@@ -29,7 +29,7 @@ export interface ConfirmDialogProps {
    * Resolve with "failed" to keep the dialog open with the user's input intact
    * (screen 33). The caller closes the dialog itself on success/conflict.
    */
-  onConfirm: (values: ConfirmValues) => Promise<"success" | "failed" | "conflict"> | void;
+  onConfirm: (values: ConfirmValues) => Promise<"success" | "failed" | "conflict" | "busy"> | void;
   onClose: () => void;
 }
 

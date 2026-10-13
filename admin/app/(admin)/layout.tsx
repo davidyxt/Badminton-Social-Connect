@@ -50,7 +50,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <>
             <TriangleAlert className="size-7 text-danger" aria-hidden />
             <div className="font-semibold text-ink">Couldn&apos;t load the admin console</div>
-            <p className="max-w-md text-sm text-ink-muted">{sync.error}</p>
+            <p className="max-w-md text-sm text-ink-muted">{sync.lastError}</p>
             <div className="mt-2 flex gap-2">
               <Button onClick={() => void syncNow()}>Try again</Button>
               <Button variant="ghost" onClick={session.signOut}>

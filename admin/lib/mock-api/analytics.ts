@@ -10,9 +10,22 @@ import type { MockDatabase } from "@/lib/types";
 
 export type { AnalyticsMetric, DailyPoint };
 
-const window = IS_API ? analyticsWindow() : null;
-export const ANALYTICS_START_DATE = window ? window.firstDay : MOCK_START;
-export const ANALYTICS_END_DATE = window ? window.end : MOCK_END;
+/**
+ * First and last selectable day. In API mode the window ends yesterday
+ * (Melbourne time), so it's worked out on each call rather than at load.
+ */
+export function analyticsBounds(): { start: string; end: string } {
+  if (!IS_API) return { start: MOCK_START, end: MOCK_END };
+  const range = analyticsWindow();
+  return { start: range.firstDay, end: range.end };
+}
+
+/**
+ * Snapshot of analyticsBounds() taken when the module loads. Kept for existing
+ * imports; in API mode it goes stale after midnight until the page reloads, so
+ * prefer analyticsBounds().
+ */
+export const { start: ANALYTICS_START_DATE, end: ANALYTICS_END_DATE } = analyticsBounds();
 
 /** Daily values for `metric` between `from` and `to` (YYYY-MM-DD, inclusive), or null if not tracked. */
 export function get_usage_analytics(db: MockDatabase, metric: AnalyticsMetric, from: string, to: string): DailyPoint[] | null {

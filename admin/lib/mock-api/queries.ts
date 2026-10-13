@@ -3,7 +3,7 @@
  * (e.g. `from('report').select().eq('status','pending')`), expressed as a pure
  * function over the store so pages can use them through `useQuery`.
  */
-import type { MockDatabase, Player, Report, ReportTargetType } from "@/lib/types";
+import type { Dispute, MockDatabase, Player, Report, ReportTargetType } from "@/lib/types";
 
 export const selectPlayer = (db: MockDatabase, playerId: string | null) =>
   playerId ? (db.players.find((p) => p.player_id === playerId) ?? null) : null;
@@ -36,7 +36,10 @@ export const selectReportsForTarget = (db: MockDatabase, targetType: ReportTarge
 
 export const selectPendingReportCount = (db: MockDatabase) => db.reports.filter((r) => r.status === "pending").length;
 
-export const selectOpenDisputeCount = (db: MockDatabase) => db.disputes.filter((d) => d.status === "open").length;
+/** Open and under-review disputes both still need an admin's attention. */
+export const isDisputeUnresolved = (d: Pick<Dispute, "status">) => d.status === "open" || d.status === "under_review";
+
+export const selectOpenDisputeCount = (db: MockDatabase) => db.disputes.filter(isDisputeUnresolved).length;
 
 export const selectGamePost = (db: MockDatabase, postId: string) => db.game_posts.find((p) => p.post_id === postId) ?? null;
 

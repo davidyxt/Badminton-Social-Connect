@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useFeedback } from "@/components/shared/FeedbackToast";
 import { isApiError } from "@/lib/mock-api";
 
-export type ActionOutcome = "success" | "failed" | "conflict";
+/** "busy": another action from this hook was still running, so nothing was sent. Callers treat it as a no-op. */
+export type ActionOutcome = "success" | "failed" | "conflict" | "busy";
 
 export interface RunOptions<T> {
   /** Shown in the saving toast. */
@@ -30,7 +31,7 @@ export function useAdminAction() {
 
   const run = useCallback(
     async <T>(action: () => Promise<T>, opts: RunOptions<T>, toastId?: number): Promise<ActionOutcome> => {
-      if (inFlight.current) return "failed";
+      if (inFlight.current) return "busy";
       inFlight.current = true;
       setPending(true);
       const saving = { kind: "saving" as const, title: opts.saving ?? "Saving changes…" };

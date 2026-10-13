@@ -81,7 +81,7 @@ function GamePostModeration() {
       ),
     },
     { id: "status", header: "Status", sortValue: (r) => r.post.status, cell: (r) => <StatusBadge status={r.post.status} /> },
-    { id: "format", header: "Format", sortValue: (r) => r.post.format, cell: (r) => <span className="capitalize">{r.post.format}</span> },
+    { id: "format", header: "Format", sortValue: (r) => r.post.format, cell: (r) => humanize(r.post.format) },
     { id: "suburb", header: "Suburb", sortValue: (r) => r.post.suburb, cell: (r) => r.post.suburb },
     {
       id: "time",
@@ -130,6 +130,7 @@ function GamePostModeration() {
             options: [
               { value: "singles", label: "Singles" },
               { value: "doubles", label: "Doubles" },
+              { value: "mixed_doubles", label: "Mixed doubles" },
             ],
             getValue: (r) => r.post.format,
           },

@@ -3,6 +3,8 @@
 import { ImageOff, TriangleAlert, Upload, X } from "lucide-react";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/shared/Button";
+import { IS_API } from "@/lib/config";
+import type { ActionOutcome } from "@/lib/hooks/useAdminAction";
 import type { AdminPostStatus } from "@/lib/types";
 
 export interface AdminPostFormValues {
@@ -13,7 +15,6 @@ export interface AdminPostFormValues {
   status: AdminPostStatus;
 }
 
-type Outcome = "success" | "failed" | "conflict";
 
 export interface AdminPostFormProps {
   open: boolean;
@@ -21,7 +22,7 @@ export interface AdminPostFormProps {
   initial: AdminPostFormValues;
   /** Highest position the card can take (number of cards, +1 when creating). */
   maxOrder: number;
-  onSubmit: (values: AdminPostFormValues) => Promise<Outcome>;
+  onSubmit: (values: AdminPostFormValues) => Promise<ActionOutcome>;
   onClose: () => void;
 }
 
@@ -35,7 +36,7 @@ export function CardImage({ src, alt, className = "" }: { src: string; alt: stri
       </div>
     );
   }
-  // Plain <img>: the source may be a data URL from the upload field.
+  // Plain <img>: the source may be a data URL from the upload field (mock mode).
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={src} alt={alt} className={`bg-neutral-soft object-cover ${className}`} />;
 }
@@ -49,6 +50,17 @@ export function AdminPostForm(props: AdminPostFormProps) {
 
 type Errors = Partial<Record<"title" | "body" | "image_url" | "display_order", string>>;
 
+/** The admin API only stores absolute http(s) URLs up to 2048 characters (no uploads, no relative paths). */
+function isApiImageUrl(value: string): boolean {
+  if (value.length > 2048) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
 function validate(v: AdminPostFormValues, maxOrder: number): Errors {
   const e: Errors = {};
   if (!v.title.trim()) e.title = "Title is required.";
@@ -58,6 +70,8 @@ function validate(v: AdminPostFormValues, maxOrder: number): Errors {
     if (!v.body.trim()) e.body = "Body text is required to publish.";
     if (!v.image_url.trim()) e.image_url = "An image is required to publish.";
   }
+  if (IS_API && v.image_url.trim() && !isApiImageUrl(v.image_url.trim()))
+    e.image_url = "Enter a full image address starting with https://, up to 2048 characters.";
   return e;
 }
 
@@ -184,7 +198,7 @@ function AdminPostFormInner({ mode, initial, maxOrder, onSubmit, onClose }: Admi
                   id={ids.image}
                   label="Image URL"
                   required={publishing}
-                  hint={publishing ? "Paste a URL or upload a file." : "Required to publish. Paste a URL or upload a file."}
+                  hint={`${publishing ? "" : "Required to publish. "}${IS_API ? "Paste the image's full https:// address." : "Paste a URL or upload a file."}`}
                   error={errors.image_url}
                 >
                   <input
@@ -192,38 +206,47 @@ function AdminPostFormInner({ mode, initial, maxOrder, onSubmit, onClose }: Admi
                     value={isDataUrl ? "" : values.image_url}
                     disabled={submitting}
                     onChange={(e) => set("image_url", e.target.value)}
-                    placeholder={isDataUrl ? "Using uploaded image" : "https://… or /carousel/…"}
+                    placeholder={isDataUrl ? "Using uploaded image" : IS_API ? "https://example.com/carousel/spring-league.jpg" : "https://… or /carousel/…"}
                     aria-invalid={errors.image_url ? true : undefined}
                     aria-describedby={errors.image_url ? `${ids.image}-error` : `${ids.image}-hint`}
                     className={inputClass(Boolean(errors.image_url))}
                   />
                 </Field>
                 <div className="flex flex-wrap items-center gap-2">
-                  <label
-                    htmlFor={ids.file}
-                    className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-line-strong bg-surface px-3 text-sm font-medium text-ink hover:bg-subtle"
-                  >
-                    <Upload className="size-4" aria-hidden />
-                    Upload image
-                  </label>
-                  <input
-                    id={ids.file}
-                    type="file"
-                    accept="image/*"
-                    disabled={submitting}
-                    className="sr-only"
-                    onChange={(e) => {
-                      onFile(e.target.files?.[0]);
-                      e.target.value = "";
-                    }}
-                  />
+                  {/* No upload endpoint in the admin API yet, so upload is mock-only. */}
+                  {!IS_API && (
+                    <>
+                      <label
+                        htmlFor={ids.file}
+                        className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-line-strong bg-surface px-3 text-sm font-medium text-ink hover:bg-subtle"
+                      >
+                        <Upload className="size-4" aria-hidden />
+                        Upload image
+                      </label>
+                      <input
+                        id={ids.file}
+                        type="file"
+                        accept="image/*"
+                        disabled={submitting}
+                        className="sr-only"
+                        onChange={(e) => {
+                          onFile(e.target.files?.[0]);
+                          e.target.value = "";
+                        }}
+                      />
+                    </>
+                  )}
                   {values.image_url && (
                     <Button size="sm" variant="ghost" disabled={submitting} onClick={() => set("image_url", "")}>
                       Remove image
                     </Button>
                   )}
                 </div>
-                <p className="text-xs text-ink-faint">Preview only in this prototype; the file isn&apos;t uploaded anywhere.</p>
+                <p className="text-xs text-ink-faint">
+                  {IS_API
+                    ? "Image upload isn't available yet. Host the image somewhere public and paste its address."
+                    : "Uploaded images are only stored in this browser's demo data."}
+                </p>
                 {fileError && (
                   <p role="alert" className="flex items-center gap-1 text-sm text-danger">
                     <TriangleAlert className="size-4" aria-hidden />

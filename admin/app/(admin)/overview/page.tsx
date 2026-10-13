@@ -9,7 +9,7 @@ import { LiveIndicator } from "@/components/shared/LiveIndicator";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ACTION_LABEL, formatDateTime, humanize, TARGET_TYPE_LABEL } from "@/lib/format";
-import { useQuery } from "@/lib/mock-api";
+import { isDisputeUnresolved, useQuery } from "@/lib/mock-api";
 
 interface QueueItem {
   key: string;
@@ -28,7 +28,7 @@ export default function OverviewPage() {
   const data = useQuery((db) => {
     const names = new Map(db.players.map((p) => [p.player_id, p.display_name]));
     const pendingReports = db.reports.filter((r) => r.status === "pending").sort((a, b) => a.created_at.localeCompare(b.created_at));
-    const openDisputes = db.disputes.filter((d) => d.status === "open").sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const openDisputes = db.disputes.filter(isDisputeUnresolved).sort((a, b) => a.created_at.localeCompare(b.created_at));
     const suspendedLeagues = db.mini_leagues.filter((l) => l.status === "suspended");
     const lastSuspended = (leagueId: string) =>
       db.activity_log

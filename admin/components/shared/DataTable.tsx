@@ -34,6 +34,8 @@ export interface DataTableProps<T> {
   initialSort?: { columnId: string; direction: "asc" | "desc" };
   pageSize?: number;
   rowHref?: (row: T) => string;
+  /** Accessible name for a linked row, e.g. "Open report from Sam Lee". Without it the row is named from its cells. */
+  rowLabel?: (row: T) => string;
   /** Shown when there are no rows after filtering. */
   empty: ReactNode;
   /** Extra controls in the toolbar; receives the filtered (pre-pagination) rows, e.g. for CSV export. */
@@ -53,6 +55,7 @@ export function DataTable<T>({
   initialSort,
   pageSize = 10,
   rowHref,
+  rowLabel,
   empty,
   toolbarExtra,
   caption,
@@ -189,16 +192,34 @@ export function DataTable<T>({
                 return (
                   <tr
                     key={getRowId(row)}
+                    tabIndex={href ? 0 : undefined}
+                    aria-label={href ? rowLabel?.(row) : undefined}
                     onClick={
                       href
                         ? (e) => {
                             // Let real links/buttons inside the row handle their own clicks.
                             if ((e.target as HTMLElement).closest("a,button,input,select")) return;
+                            // Don't navigate when the admin was selecting text to copy.
+                            if (window.getSelection()?.toString()) return;
                             router.push(href);
                           }
                         : undefined
                     }
-                    className={href ? "cursor-pointer hover:bg-subtle" : ""}
+                    onKeyDown={
+                      href
+                        ? (e) => {
+                            // Only when the row itself has focus, not a link or button inside it.
+                            if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
+                            e.preventDefault();
+                            router.push(href);
+                          }
+                        : undefined
+                    }
+                    className={
+                      href
+                        ? "cursor-pointer hover:bg-subtle focus-visible:bg-subtle focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand"
+                        : ""
+                    }
                   >
                     {columns.map((col) => (
                       <td key={col.id} className={`px-4 py-3 align-middle ${col.align === "right" ? "text-right tabular-nums" : ""} ${col.className ?? ""}`}>
