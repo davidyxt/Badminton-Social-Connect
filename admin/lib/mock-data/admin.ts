@@ -1,3 +1,4 @@
+import { resultStatusOf } from "@/lib/format";
 import type { ActivityLog, Admin, AdminPost } from "@/lib/types";
 
 /** The single designated administrator (multi-admin roles are a non-goal). */
@@ -46,6 +47,7 @@ export const activityLog: ActivityLog[] = logSeeds.map(([created_at, action, tar
   target_id,
   details,
   created_at,
+  new_status: resultStatusOf(action, details),
 }));
 
 export const adminPosts: AdminPost[] = [

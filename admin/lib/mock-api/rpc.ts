@@ -17,6 +17,7 @@
 
 import { api } from "@/lib/api/actions";
 import { IS_API } from "@/lib/config";
+import { ACTION_RESULT_STATUS } from "@/lib/format";
 import { MOCK_ADMIN, liveReportTemplates } from "@/lib/mock-data";
 import type {
   ActivityLog,
@@ -74,7 +75,13 @@ function requireReason(reason: string | undefined, what = "A reason"): string {
   return trimmed;
 }
 
-function logEntry(action: string, target_type: string, target_id: string, details: string): ActivityLog {
+function logEntry(
+  action: string,
+  target_type: string,
+  target_id: string,
+  details: string,
+  new_status: string | null = ACTION_RESULT_STATUS[action] ?? null,
+): ActivityLog {
   return {
     log_id: newId("log"),
     admin_id: MOCK_ADMIN.admin_id,
@@ -83,6 +90,7 @@ function logEntry(action: string, target_type: string, target_id: string, detail
     target_id,
     details,
     created_at: now(),
+    new_status,
   };
 }
 
@@ -240,7 +248,7 @@ export async function admin_restore_post(args: { postId: string; note?: string }
           hidden_by_account_suspension: false,
         })),
       },
-      logEntry("restore_post", "game_post", args.postId, args.note?.trim() ? `Note: ${args.note.trim()}` : "Post restored"),
+      logEntry("restore_post", "game_post", args.postId, args.note?.trim() ? `Note: ${args.note.trim()}` : "Post restored", post.status_before_hidden ?? "open"),
     ),
   );
   return findOrThrow(getDb().game_posts, (p) => p.post_id === args.postId, "This game post");
@@ -331,7 +339,7 @@ export async function admin_resume_league(args: { leagueId: string; note?: strin
           suspended_by_account_suspension: false,
         })),
       },
-      logEntry("resume_league", "mini_league", args.leagueId, args.note?.trim() ? `Note: ${args.note.trim()}` : "League resumed"),
+      logEntry("resume_league", "mini_league", args.leagueId, args.note?.trim() ? `Note: ${args.note.trim()}` : "League resumed", league.status_before_suspended ?? "active"),
     ),
   );
   return findOrThrow(getDb().mini_leagues, (l) => l.league_id === args.leagueId, "This Mini League");
@@ -438,7 +446,7 @@ export async function admin_review_report(args: {
           reviewed_at: now(),
         })),
       },
-      logEntry("review_report", "report", args.reportId, `Outcome: ${args.outcome}. ${note}`),
+      logEntry("review_report", "report", args.reportId, `Outcome: ${args.outcome}. ${note}`, args.outcome),
     ),
   );
   return findOrThrow(getDb().reports, (r) => r.report_id === args.reportId, "This report");
@@ -555,8 +563,10 @@ export async function update_admin_post(
   return findOrThrow(getDb().admin_posts, (p) => p.admin_post_id === adminPostId, "This card");
 }
 
-export async function delete_admin_post(args: { adminPostId: string }): Promise<{ success: boolean }> {
+/** Irreversible. `reason` is not in the API spec (the real DELETE takes none); it is required here and recorded in the log. */
+export async function delete_admin_post(args: { adminPostId: string; reason: string }): Promise<{ success: boolean }> {
   if (IS_API) return api.delete_admin_post(args);
+  const reason = requireReason(args.reason);
   await simulateNetwork();
   consumeForcedConflict();
   const existing = findOrThrow(getDb().admin_posts, (p) => p.admin_post_id === args.adminPostId, "This card");
@@ -566,7 +576,7 @@ export async function delete_admin_post(args: { adminPostId: string }): Promise<
         ...db,
         admin_posts: renumber(db.admin_posts.filter((p) => p.admin_post_id !== args.adminPostId).sort((a, b) => a.display_order - b.display_order)),
       },
-      logEntry("delete_admin_post", "admin_post", args.adminPostId, `Removed carousel card "${existing.title}"`),
+      logEntry("delete_admin_post", "admin_post", args.adminPostId, `Removed carousel card "${existing.title}". Reason: ${reason}`),
     ),
   );
   return { success: true };

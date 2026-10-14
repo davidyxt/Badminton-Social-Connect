@@ -51,7 +51,7 @@ What works in API mode today:
 | Overview, Users, Reports, Games & results, Rankings, Mini Leagues, Disputes | Read-only, real data, refreshed every 20s. Includes registration/deleted state, report categories and evidence snapshots, per-game scores, confirmations and result flags |
 | Ranking history | The shared rating engine's rating after each result |
 | Deleted records | Deleted game posts (kept for history); deleted Mini Leagues aren't stored yet |
-| Home carousel (`/content`) | Create, edit, publish/unpublish, reorder, remove. Images must be absolute `http(s)://` URLs; image upload works only in mock mode (no upload endpoint yet). Saving a card that changed in another session since you opened it is refused as a conflict |
+| Home carousel (`/content`) | Create, edit, publish/unpublish, reorder, remove. Images must be absolute `http(s)://` URLs; image upload works only in mock mode (no upload endpoint yet). Saving a card that changed in another session since you opened it is refused as a conflict. Removing asks for a reason and a typed DELETE; `DELETE /admin_post` has no reason field, so the reason isn't sent yet (it belongs in the DB01 log) |
 | Analytics | New registrations and reports received only; other metrics show "Not tracked yet" |
 | Suspend/restore account, hide/restore post, suspend/resume/close/delete league, resolve/dismiss report | Disabled: the backend returns 501 until the database changes in its `docs/admin-database-handoff.md` (DB02–DB06) land |
 | Delete game post | Disabled: the backend blocks it (405) because its deletion would remove the game's results from rankings, which Final v6 doesn't allow |

@@ -208,6 +208,8 @@ export interface ActivityLog {
   target_id: string;
   details: string;
   created_at: string;
+  /** extension (handoff DB01 "new state"): the target's status after the action; null when the action doesn't change status. */
+  new_status?: string | null;
 }
 
 export type AdminPostStatus = "draft" | "published" | "archived";

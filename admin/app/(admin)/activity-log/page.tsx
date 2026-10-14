@@ -10,8 +10,9 @@ import { DataTable, type Column } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { LiveIndicator } from "@/components/shared/LiveIndicator";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useSession } from "@/lib/auth/session";
-import { ACTION_FEATURE, ACTION_LABEL, TARGET_TYPE_LABEL, downloadFile, formatDateTime, humanize, toCsv } from "@/lib/format";
+import { ACTION_FEATURE, ACTION_LABEL, TARGET_TYPE_LABEL, downloadFile, formatDateTime, humanize, resultStatusOf, toCsv } from "@/lib/format";
 import { useQuery } from "@/lib/mock-api";
 import type { ActivityLog, MockDatabase } from "@/lib/types";
 
@@ -20,6 +21,8 @@ interface Row {
   actionLabel: string;
   feature: string;
   typeLabel: string;
+  /** The target's status after the action (DB01 "new state"), or null when the action didn't change status. */
+  status: string | null;
   /** Human label for the target, when it still exists. */
   targetLabel: string | null;
   /** Link to the record, when it still exists. */
@@ -83,6 +86,7 @@ export default function ActivityLogPage() {
           actionLabel: ACTION_LABEL[entry.action] ?? humanize(entry.action),
           feature: ACTION_FEATURE[entry.action] ?? "Other",
           typeLabel: TARGET_TYPE_LABEL[entry.target_type] ?? humanize(entry.target_type),
+          status: entry.new_status !== undefined ? entry.new_status : resultStatusOf(entry.action, entry.details),
           targetLabel: target.label,
           targetHref: target.href,
           admin: admin && admin.admin_id === entry.admin_id ? admin.display_name : entry.admin_id,
@@ -100,6 +104,11 @@ export default function ActivityLogPage() {
   const actionOptions = unique(rows.map((r) => r.entry.action))
     .map((a) => ({ value: a, label: ACTION_LABEL[a] ?? humanize(a) }))
     .sort((a, b) => a.label.localeCompare(b.label));
+  const NO_CHANGE = "none";
+  const statusOptions = [
+    ...unique(rows.flatMap((r) => (r.status ? [r.status] : []))).map((st) => ({ value: st, label: humanize(st) })),
+    ...(rows.some((r) => !r.status) ? [{ value: NO_CHANGE, label: "No status change" }] : []),
+  ];
 
   const columns: Column<Row>[] = [
     {
@@ -141,6 +150,13 @@ export default function ActivityLogPage() {
       ),
     },
     {
+      id: "status",
+      header: "Status",
+      sortValue: (r) => r.status ?? "",
+      cell: (r) => (r.status ? <StatusBadge status={r.status} /> : <span className="text-ink-faint">—</span>),
+      className: "whitespace-nowrap",
+    },
+    {
       id: "details",
       header: "Details",
       cell: (r) => <div className="line-clamp-2 max-w-md text-ink-muted">{r.entry.details}</div>,
@@ -155,6 +171,7 @@ export default function ActivityLogPage() {
         action: r.actionLabel,
         action_code: r.entry.action,
         feature: r.feature,
+        status: r.status ? humanize(r.status) : "",
         target_type: r.typeLabel,
         target_id: r.entry.target_id,
         target: r.targetLabel ?? "(deleted)",
@@ -217,6 +234,7 @@ export default function ActivityLogPage() {
           { id: "type", label: "Type", options: typeOptions, getValue: (r) => r.entry.target_type },
           { id: "feature", label: "Feature", options: featureOptions, getValue: (r) => r.feature },
           { id: "action", label: "Action", options: actionOptions, getValue: (r) => r.entry.action },
+          { id: "status", label: "Status", options: statusOptions, getValue: (r) => r.status ?? NO_CHANGE },
         ]}
         initialSort={{ columnId: "when", direction: "desc" }}
         toolbarExtra={(filtered) => (

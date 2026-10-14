@@ -391,12 +391,14 @@ export default function ContentPage() {
             : undefined
         }
         confirmLabel="Remove card"
+        confirmPhrase="DELETE"
+        reason={{ label: "Reason for removing", required: true, placeholder: "e.g. Promotion has ended", hint: "Recorded in the activity log." }}
         onClose={close}
-        onConfirm={() =>
+        onConfirm={({ reason }) =>
           dialog?.kind === "remove"
             ? run(
                 () =>
-                  delete_admin_post({ adminPostId: dialog.post.admin_post_id }),
+                  delete_admin_post({ adminPostId: dialog.post.admin_post_id, reason }),
                 {
                   saving: "Removing card…",
                   success: "Card removed",
