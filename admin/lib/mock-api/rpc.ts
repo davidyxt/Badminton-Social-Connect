@@ -18,6 +18,7 @@
 import { api } from "@/lib/api/actions";
 import { IS_API } from "@/lib/config";
 import { ACTION_RESULT_STATUS } from "@/lib/format";
+import { isVisibleTargetType } from "@/lib/features";
 import { MOCK_ADMIN, liveReportTemplates } from "@/lib/mock-data";
 import type {
   ActivityLog,
@@ -590,7 +591,9 @@ let liveIndex = 0;
 
 /** Inserts a new pending report as if a player had just submitted it. Not an admin action, so no log entry. */
 export function simulate_incoming_report(): void {
-  const template = liveReportTemplates[liveIndex++ % liveReportTemplates.length];
+  // Only simulate reports the console shows (none about Mini Leagues while they're out of scope).
+  const templates = liveReportTemplates.filter((t) => isVisibleTargetType(t.target_type));
+  const template = templates[liveIndex++ % templates.length];
   commit((db) => ({
     ...db,
     reports: [

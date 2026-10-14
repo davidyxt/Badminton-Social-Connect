@@ -28,6 +28,7 @@ import {
   useQuery,
 } from "@/lib/mock-api";
 import type { Player } from "@/lib/types";
+import { MINI_LEAGUES_ENABLED } from "@/lib/features";
 
 /** One row of the scoreboard: the side's players, its per-game points and a winner mark. */
 function SideRow({
@@ -342,26 +343,28 @@ export default function MatchDetailPage() {
               )}
             </section>
 
-            <section>
-              <SectionHeading title="Mini League" />
-              {league ? (
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Link
-                    href={`/mini-leagues/${league.league_id}`}
-                    className="text-sm font-medium text-ink hover:text-brand hover:underline"
-                  >
-                    {league.name}
-                  </Link>
-                  <StatusBadge status={league.status} />
-                </div>
-              ) : match.league_id ? (
-                <p className="text-sm text-ink-muted">
-                  League {match.league_id} has been deleted.
-                </p>
-              ) : (
-                <p className="text-sm text-ink-muted">Not a league match.</p>
-              )}
-            </section>
+            {MINI_LEAGUES_ENABLED && (
+              <section>
+                <SectionHeading title="Mini League" />
+                {league ? (
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Link
+                      href={`/mini-leagues/${league.league_id}`}
+                      className="text-sm font-medium text-ink hover:text-brand hover:underline"
+                    >
+                      {league.name}
+                    </Link>
+                    <StatusBadge status={league.status} />
+                  </div>
+                ) : match.league_id ? (
+                  <p className="text-sm text-ink-muted">
+                    League {match.league_id} has been deleted.
+                  </p>
+                ) : (
+                  <p className="text-sm text-ink-muted">Not a league match.</p>
+                )}
+              </section>
+            )}
           </aside>
         </div>
       </div>

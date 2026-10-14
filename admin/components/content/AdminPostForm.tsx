@@ -176,7 +176,7 @@ function AdminPostFormInner({ mode, initial, maxOrder, onSubmit, onClose }: Admi
                 maxLength={80}
                 disabled={submitting}
                 onChange={(e) => set("title", e.target.value)}
-                placeholder="e.g. Spring Singles League now open"
+                placeholder="e.g. Spring singles season now open"
                 aria-invalid={errors.title ? true : undefined}
                 aria-describedby={errors.title ? `${ids.title}-error` : undefined}
                 className={inputClass(Boolean(errors.title))}
@@ -212,7 +212,7 @@ function AdminPostFormInner({ mode, initial, maxOrder, onSubmit, onClose }: Admi
                     value={isDataUrl ? "" : values.image_url}
                     disabled={submitting}
                     onChange={(e) => set("image_url", e.target.value)}
-                    placeholder={isDataUrl ? "Using uploaded image" : IS_API ? "https://example.com/carousel/spring-league.jpg" : "https://… or /carousel/…"}
+                    placeholder={isDataUrl ? "Using uploaded image" : IS_API ? "https://example.com/carousel/spring-singles.jpg" : "https://… or /carousel/…"}
                     aria-invalid={errors.image_url ? true : undefined}
                     aria-describedby={errors.image_url ? `${ids.image}-error` : `${ids.image}-hint`}
                     className={inputClass(Boolean(errors.image_url))}

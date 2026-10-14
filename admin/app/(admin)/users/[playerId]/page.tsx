@@ -18,6 +18,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Tabs } from "@/components/shared/Tabs";
 import { formatDate, formatDateTime, formatShortDate, TARGET_TYPE_LABEL } from "@/lib/format";
 import { useAdminAction } from "@/lib/hooks/useAdminAction";
+import { MINI_LEAGUES_ENABLED } from "@/lib/features";
 import {
   admin_restore_account,
   admin_suspend_account,
@@ -53,10 +54,10 @@ export default function PlayerProfilePage() {
         reports: selectReportsAboutPlayer(db, playerId),
         activity: selectActivityFor(db, "player", playerId),
         posts: db.game_posts.filter((p) => p.organiser_id === playerId),
-        leagues: db.mini_leagues.filter((l) => l.organiser_id === playerId),
+        leagues: MINI_LEAGUES_ENABLED ? db.mini_leagues.filter((l) => l.organiser_id === playerId) : [],
         activeContent:
           db.game_posts.filter((p) => p.organiser_id === playerId && (p.status === "open" || p.status === "full")).length +
-          db.mini_leagues.filter((l) => l.organiser_id === playerId && l.status !== "suspended").length,
+          (MINI_LEAGUES_ENABLED ? db.mini_leagues.filter((l) => l.organiser_id === playerId && l.status !== "suspended").length : 0),
       };
     });
 
@@ -176,7 +177,7 @@ export default function PlayerProfilePage() {
             <section>
               <SectionHeading title={<Counted label="Organised content" count={contentCount} />} />
               {contentCount === 0 ? (
-                <p className="text-[13px] text-ink-muted">This player hasn&apos;t organised any games or leagues.</p>
+                <p className="text-[13px] text-ink-muted">This player hasn&apos;t organised any {MINI_LEAGUES_ENABLED ? "games or leagues" : "games"}.</p>
               ) : (
                 <ul className="divide-y divide-line border-y border-line">
                   {data.posts.map((p) => (

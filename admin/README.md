@@ -21,6 +21,10 @@ Other scripts: `npm run build`, `npm run lint`.
 
 Visual conventions (tokens, spacing, components to reuse) are in [DESIGN.md](DESIGN.md).
 
+## Scope: Mini Leagues are hidden
+
+Mini Leagues are out of scope, so the console hides them: the Mini Leagues screens, the moderation and rankings tabs, league analytics, reports about leagues, and league entries in the activity log and deleted records. The old league URLs redirect to the nearest screen (see `next.config.ts`). Only the UI is hidden: the types, mock data, data layer and database schema are unchanged. Set `NEXT_PUBLIC_ENABLE_MINI_LEAGUES=true` and restart the dev server to bring everything back. The switch lives in `lib/features.ts`.
+
 ## Running against the real admin API
 
 1. From a checkout of the `admin-api/player-be2-integration` branch (the function and its migrations aren't on `main` yet), start Supabase locally and serve the function, allowing the console's origin (the function only allows `http://localhost:5173` by default):
@@ -48,7 +52,7 @@ What works in API mode today:
 | Area | API mode |
 | --- | --- |
 | Sign in / access restricted / session expired | Real Supabase Auth; `app_metadata.role = admin` required. Admins are signed out after 30 idle minutes |
-| Overview, Users, Reports, Games & results, Rankings, Mini Leagues, Disputes | Read-only, real data, refreshed every 20s. Includes registration/deleted state, report categories and evidence snapshots, per-game scores, confirmations and result flags |
+| Overview, Users, Reports, Games & results, Rankings, Disputes (plus Mini Leagues when enabled) | Read-only, real data, refreshed every 20s. Includes registration/deleted state, report categories and evidence snapshots, per-game scores, confirmations and result flags |
 | Ranking history | The shared rating engine's rating after each result |
 | Deleted records | Deleted game posts (kept for history); deleted Mini Leagues aren't stored yet |
 | Home carousel (`/content`) | Create, edit, publish/unpublish, reorder, remove. Images must be absolute `http(s)://` URLs; image upload works only in mock mode (no upload endpoint yet). Saving a card that changed in another session since you opened it is refused as a conflict. Removing asks for a reason and a typed DELETE; `DELETE /admin_post` has no reason field, so the reason isn't sent yet (it belongs in the DB01 log) |

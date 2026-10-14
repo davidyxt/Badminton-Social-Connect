@@ -2,6 +2,7 @@
 
 import { ConfirmDialog, type ConfirmDialogProps } from "@/components/shared/ConfirmDialog";
 import { Notice } from "@/components/shared/Card";
+import { MINI_LEAGUES_ENABLED } from "@/lib/features";
 
 type FlowProps = Pick<ConfirmDialogProps, "open" | "onClose" | "onConfirm">;
 
@@ -27,7 +28,7 @@ export function ReviewReportModal({ outcome, ...props }: FlowProps & { outcome: 
     >
       {resolving && (
         <Notice>
-          This only records the outcome. Suspend the account, hide the post or suspend the league separately.
+          This only records the outcome. Suspend the account{MINI_LEAGUES_ENABLED ? ", hide the post or suspend the league" : " or hide the post"} separately.
         </Notice>
       )}
     </ConfirmDialog>

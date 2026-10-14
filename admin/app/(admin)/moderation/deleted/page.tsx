@@ -5,6 +5,7 @@ import { DataTable, type Column } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PlayerLink } from "@/components/shared/PlayerProfileCard";
 import { formatDateTime, TARGET_TYPE_LABEL } from "@/lib/format";
+import { MINI_LEAGUES_ENABLED, isVisibleTargetType } from "@/lib/features";
 import { useQuery } from "@/lib/mock-api";
 import type { DeletedRecord, Player } from "@/lib/types";
 
@@ -17,7 +18,7 @@ interface Row {
 export default function DeletedRecordsPage() {
   const rows = useQuery<Row[]>((db) => {
     const players = new Map(db.players.map((p) => [p.player_id, p]));
-    return db.deleted_records.map((record) => ({
+    return db.deleted_records.filter((record) => isVisibleTargetType(record.target_type)).map((record) => ({
       record,
       owner: players.get(record.owner_id) ?? null,
     }));
@@ -55,7 +56,7 @@ export default function DeletedRecordsPage() {
 
   return (
     <>
-      <p className="mb-3 text-[13px] text-ink-muted">Read-only record of removed game posts and Mini Leagues. Deleted content can&apos;t be restored.</p>
+      <p className="mb-3 text-[13px] text-ink-muted">Read-only record of removed {MINI_LEAGUES_ENABLED ? "game posts and Mini Leagues" : "game posts"}. Deleted content can&apos;t be restored.</p>
       <DataTable
         caption="Deleted records"
         rows={rows}
@@ -69,7 +70,7 @@ export default function DeletedRecordsPage() {
             label: "Type",
             options: [
               { value: "game_post", label: "Game post" },
-              { value: "mini_league", label: "Mini League" },
+              ...(MINI_LEAGUES_ENABLED ? [{ value: "mini_league", label: "Mini League" }] : []),
             ],
             getValue: (r) => r.record.target_type,
           },

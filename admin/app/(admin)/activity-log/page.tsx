@@ -13,7 +13,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useSession } from "@/lib/auth/session";
 import { ACTION_FEATURE, ACTION_LABEL, TARGET_TYPE_LABEL, downloadFile, formatDateTime, humanize, resultStatusOf, toCsv } from "@/lib/format";
-import { useQuery } from "@/lib/mock-api";
+import { selectVisibleActivity, useQuery } from "@/lib/mock-api";
 import type { ActivityLog, MockDatabase } from "@/lib/types";
 
 interface Row {
@@ -77,7 +77,7 @@ export default function ActivityLogPage() {
   const [to, setTo] = useState("");
 
   const rows = useQuery<Row[]>((db) =>
-    [...db.activity_log]
+    selectVisibleActivity(db)
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
       .map((entry) => {
         const target = resolveTarget(db, entry.target_type, entry.target_id);

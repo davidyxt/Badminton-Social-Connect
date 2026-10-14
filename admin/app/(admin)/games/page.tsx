@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { formatDateTime, humanize } from "@/lib/format";
 import { selectResultForMatch, useQuery } from "@/lib/mock-api";
 import type { Match, MatchResult } from "@/lib/types";
+import { MINI_LEAGUES_ENABLED } from "@/lib/features";
 
 interface Row {
   match: Match;
@@ -34,7 +35,7 @@ export default function GamesPage() {
         sideA: side(match.side_a),
         sideB: side(match.side_b),
         result: selectResultForMatch(db, match.match_id),
-        league: match.league_id
+        league: MINI_LEAGUES_ENABLED && match.league_id
           ? (db.mini_leagues.find((l) => l.league_id === match.league_id)
               ?.name ?? `${match.league_id} (deleted)`)
           : null,
@@ -109,22 +110,26 @@ export default function GamesPage() {
           <span className="text-ink-faint">—</span>
         ),
     },
-    {
-      id: "league",
-      header: "League",
-      sortValue: (r) => r.league ?? "",
-      cell: (r) =>
-        r.league ? (
-          <div
-            className="max-w-[170px] truncate text-ink-muted"
-            title={r.league}
-          >
-            {r.league}
-          </div>
-        ) : (
-          <span className="text-ink-faint">—</span>
-        ),
-    },
+    ...(MINI_LEAGUES_ENABLED
+      ? [
+          {
+            id: "league",
+            header: "League",
+            sortValue: (r: Row) => r.league ?? "",
+            cell: (r: Row) =>
+              r.league ? (
+                <div
+                  className="max-w-[170px] truncate text-ink-muted"
+                  title={r.league}
+                >
+                  {r.league}
+                </div>
+              ) : (
+                <span className="text-ink-faint">—</span>
+              ),
+          },
+        ]
+      : []),
   ];
 
   const disputed = rows.filter((r) => r.openDisputes > 0).length;
@@ -175,7 +180,7 @@ export default function GamesPage() {
             getSearchText={(r) =>
               `${r.sideA} ${r.sideB} ${r.match.venue} ${r.match.suburb} ${r.league ?? ""} ${r.match.match_id}`
             }
-            searchPlaceholder="Search player, venue or league"
+            searchPlaceholder={MINI_LEAGUES_ENABLED ? "Search player, venue or league" : "Search player or venue"}
             filters={[
               {
                 id: "status",

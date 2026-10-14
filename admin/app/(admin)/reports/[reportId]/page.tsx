@@ -21,6 +21,7 @@ import { PlayerLink, PlayerProfileCard } from "@/components/shared/PlayerProfile
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { CATEGORY_LABEL, formatDateTime, humanize, TARGET_TYPE_LABEL } from "@/lib/format";
 import { useAdminAction } from "@/lib/hooks/useAdminAction";
+import { MINI_LEAGUES_ENABLED, isVisibleTargetType } from "@/lib/features";
 import {
   admin_hide_post,
   admin_restore_account,
@@ -54,7 +55,8 @@ export default function ReportDetailPage() {
   const data = useQuery(
     (db) => {
       const report = db.reports.find((r) => r.report_id === reportId);
-      if (!report) return null;
+      // Reports about out-of-scope features (Mini Leagues) are hidden, so they read as not found.
+      if (!report || !isVisibleTargetType(report.target_type)) return null;
       const targetPlayer = report.target_type === "player" ? selectPlayer(db, report.target_id) : null;
       const post = report.target_type === "game_post" ? selectGamePost(db, report.target_id) : null;
       const league = report.target_type === "mini_league" ? selectMiniLeague(db, report.target_id) : null;
@@ -70,7 +72,7 @@ export default function ReportDetailPage() {
         targetRanking: targetPlayer ? selectRanking(db, targetPlayer.player_id, "singles") : null,
         targetContentCount: targetPlayer
           ? db.game_posts.filter((p) => p.organiser_id === targetPlayer.player_id && (p.status === "open" || p.status === "full")).length +
-            db.mini_leagues.filter((l) => l.organiser_id === targetPlayer.player_id && l.status !== "suspended").length
+            (MINI_LEAGUES_ENABLED ? db.mini_leagues.filter((l) => l.organiser_id === targetPlayer.player_id && l.status !== "suspended").length : 0)
           : 0,
         post,
         league,
@@ -117,7 +119,7 @@ export default function ReportDetailPage() {
       <BackendGapNotice
         message={
           pending && unavailableReason("admin_review_report")
-            ? "Resolving and dismissing aren't available yet: the database can't store the required private review note (DB05). Account, post and league actions are disabled until DB02–DB04."
+            ? `Resolving and dismissing aren't available yet: the database can't store the required private review note (DB05). Account and post actions are disabled until ${MINI_LEAGUES_ENABLED ? "DB02–DB04" : "DB02 and DB03"}.`
             : null
         }
       />

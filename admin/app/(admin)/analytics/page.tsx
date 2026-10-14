@@ -8,6 +8,7 @@ import { Card, CardBody, SectionHeading, StatGroup } from "@/components/shared/C
 import { ColumnChart } from "@/components/shared/Charts";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { useMetric, useRangeControl } from "./useMetric";
+import { MINI_LEAGUES_ENABLED } from "@/lib/features";
 
 function BreakdownLink({ href }: { href: string }) {
   return (
@@ -51,8 +52,12 @@ export default function AnalyticsPage() {
         <StatGroup>
           <KpiTile label="New users" value={newUsers.total} previous={newUsers.previous} days={days} unavailable={newUsers.unavailable} />
           <KpiTile label="Reports received" value={reports.total} previous={reports.previous} days={days} unavailable={reports.unavailable} />
-          <KpiTile label="League joins" value={leagueJoins.total} previous={leagueJoins.previous} days={days} unavailable={leagueJoins.unavailable} />
-          <KpiTile label="League matches" value={leagueMatches.total} previous={leagueMatches.previous} days={days} unavailable={leagueMatches.unavailable} />
+          {MINI_LEAGUES_ENABLED && (
+            <>
+              <KpiTile label="League joins" value={leagueJoins.total} previous={leagueJoins.previous} days={days} unavailable={leagueJoins.unavailable} />
+              <KpiTile label="League matches" value={leagueMatches.total} previous={leagueMatches.previous} days={days} unavailable={leagueMatches.unavailable} />
+            </>
+          )}
           <KpiTile label="Games published" value={published.total} previous={published.previous} days={days} unavailable={published.unavailable} />
           <KpiTile label="Games filled" value={filled.total} previous={filled.previous} days={days} unavailable={filled.unavailable} />
         </StatGroup>
@@ -64,13 +69,15 @@ export default function AnalyticsPage() {
           <ChartSection title="Reports received" href="/analytics/reports-received">
             <ColumnChart title={`${unit} reports`} points={reports.points} valueLabel="Reports" />
           </ChartSection>
-          <ChartSection title="Mini League activity" href="/analytics/mini-league-activity">
-            {leagueJoins.unavailable ? (
-              <NotTracked label="Mini League activity" />
-            ) : (
-              <ColumnChart title={`${unit} league joins`} summary={`${leagueMatches.total.toLocaleString("en-AU")} league matches`} points={leagueJoins.points} valueLabel="Joins" />
-            )}
-          </ChartSection>
+          {MINI_LEAGUES_ENABLED && (
+            <ChartSection title="Mini League activity" href="/analytics/mini-league-activity">
+              {leagueJoins.unavailable ? (
+                <NotTracked label="Mini League activity" />
+              ) : (
+                <ColumnChart title={`${unit} league joins`} summary={`${leagueMatches.total.toLocaleString("en-AU")} league matches`} points={leagueJoins.points} valueLabel="Joins" />
+              )}
+            </ChartSection>
+          )}
           <ChartSection title="Games published" href="/analytics/games-published">
             {published.unavailable ? (
               <NotTracked label="Games published" />

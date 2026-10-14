@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { PlayerLink } from "@/components/shared/PlayerProfileCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { formatDateTime, humanize } from "@/lib/format";
+import { MINI_LEAGUES_ENABLED } from "@/lib/features";
 import {
   selectActivityFor,
   selectDisputesForMatch,
@@ -108,18 +109,22 @@ export default function DisputeDetailPage() {
                     { label: "Venue", value: [match.venue, match.suburb].filter(Boolean).join(", ") },
                     { label: "Time", value: formatDateTime(match.proposed_time) },
                     { label: "Format", value: humanize(match.format) },
-                    {
-                      label: "Mini League",
-                      value: league ? (
-                        <Link href={`/mini-leagues/${league.league_id}`} className="font-medium text-ink hover:text-brand hover:underline">
-                          {league.name}
-                        </Link>
-                      ) : match.league_id ? (
-                        <span className="text-ink-faint">{match.league_id} (deleted)</span>
-                      ) : (
-                        "Not a league match"
-                      ),
-                    },
+                    ...(MINI_LEAGUES_ENABLED
+                      ? [
+                          {
+                            label: "Mini League",
+                            value: league ? (
+                              <Link href={`/mini-leagues/${league.league_id}`} className="font-medium text-ink hover:text-brand hover:underline">
+                                {league.name}
+                              </Link>
+                            ) : match.league_id ? (
+                              <span className="text-ink-faint">{match.league_id} (deleted)</span>
+                            ) : (
+                              "Not a league match"
+                            ),
+                          },
+                        ]
+                      : []),
                     { label: "Match status", value: <StatusBadge status={match.status} /> },
                   ]}
                 />

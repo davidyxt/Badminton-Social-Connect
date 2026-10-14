@@ -7,7 +7,8 @@ import { LiveIndicator } from "@/components/shared/LiveIndicator";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ACTION_LABEL, formatDateTime, humanize, TARGET_TYPE_LABEL } from "@/lib/format";
-import { isDisputeUnresolved, useQuery } from "@/lib/mock-api";
+import { MINI_LEAGUES_ENABLED } from "@/lib/features";
+import { isDisputeUnresolved, selectVisibleActivity, selectVisibleReports, useQuery } from "@/lib/mock-api";
 
 interface QueueItem {
   key: string;
@@ -24,9 +25,9 @@ const QUEUE_LIMIT = 8;
 export default function OverviewPage() {
   const data = useQuery((db) => {
     const names = new Map(db.players.map((p) => [p.player_id, p.display_name]));
-    const pendingReports = db.reports.filter((r) => r.status === "pending").sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const pendingReports = selectVisibleReports(db).filter((r) => r.status === "pending").sort((a, b) => a.created_at.localeCompare(b.created_at));
     const openDisputes = db.disputes.filter(isDisputeUnresolved).sort((a, b) => a.created_at.localeCompare(b.created_at));
-    const suspendedLeagues = db.mini_leagues.filter((l) => l.status === "suspended");
+    const suspendedLeagues = MINI_LEAGUES_ENABLED ? db.mini_leagues.filter((l) => l.status === "suspended") : [];
     const lastSuspended = (leagueId: string) =>
       db.activity_log
         .filter((a) => a.target_type === "mini_league" && a.target_id === leagueId && a.action === "suspend_league")
@@ -73,7 +74,7 @@ export default function OverviewPage() {
         at: lastSuspended(l.league_id) ?? l.created_at,
         status: l.status,
       })),
-      activity: [...db.activity_log].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 6),
+      activity: selectVisibleActivity(db).sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 6),
     };
   });
 
@@ -81,7 +82,7 @@ export default function OverviewPage() {
   const sections = [
     { title: "Pending reports", note: "Oldest first", items: data.reports, more: "/reports" },
     { title: "Open disputes", note: "Oldest first", items: data.disputes, more: "/disputes" },
-    { title: "Suspended Mini Leagues", note: undefined, items: data.leagues, more: "/mini-leagues" },
+    ...(MINI_LEAGUES_ENABLED ? [{ title: "Suspended Mini Leagues", note: undefined, items: data.leagues, more: "/mini-leagues" }] : []),
   ];
   const queueSize = data.reports.length + data.disputes.length + data.leagues.length;
 
@@ -95,7 +96,7 @@ export default function OverviewPage() {
           <StatTile label="Open disputes" value={counts.openDisputes} tone={counts.openDisputes ? "danger" : undefined} />
           <StatTile label="Suspended players" value={counts.suspendedPlayers} />
           <StatTile label="Hidden posts" value={counts.hiddenPosts} />
-          <StatTile label="Active leagues" value={counts.activeLeagues} />
+          {MINI_LEAGUES_ENABLED && <StatTile label="Active leagues" value={counts.activeLeagues} />}
           <StatTile label="Published cards" value={counts.publishedCards} hint="Home carousel" />
           <StatTile label="Total players" value={counts.players} />
         </StatGroup>
@@ -108,7 +109,7 @@ export default function OverviewPage() {
             />
             {queueSize === 0 ? (
               <div className="rounded-lg border border-line bg-surface">
-                <EmptyState title="All clear" description="No pending reports, open disputes or suspended leagues." />
+                <EmptyState title="All clear" description={MINI_LEAGUES_ENABLED ? "No pending reports, open disputes or suspended leagues." : "No pending reports or open disputes."} />
               </div>
             ) : (
               <div className="space-y-6">

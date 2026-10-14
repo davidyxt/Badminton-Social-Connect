@@ -9,7 +9,8 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Tabs } from "@/components/shared/Tabs";
 import { CATEGORY_LABEL, formatDateTime, TARGET_TYPE_LABEL } from "@/lib/format";
-import { useQuery } from "@/lib/mock-api";
+import { MINI_LEAGUES_ENABLED } from "@/lib/features";
+import { selectVisibleReports, useQuery } from "@/lib/mock-api";
 import type { Report, ReportStatus } from "@/lib/types";
 
 interface Row {
@@ -36,13 +37,14 @@ export default function ReportsPage() {
       if (r.target_type === "group") return db.groups.find((g) => g.group_id === r.target_id)?.name ?? r.target_id;
       return r.target_id;
     };
-    const rows: Row[] = db.reports.map((report) => ({
+    const reports = selectVisibleReports(db);
+    const rows: Row[] = reports.map((report) => ({
       report,
       reporter: names.get(report.reported_by_player_id) ?? report.reported_by_player_id,
       target: targetLabel(report),
     }));
     const counts = { pending: 0, resolved: 0, dismissed: 0 };
-    for (const r of db.reports) counts[r.status]++;
+    for (const r of reports) counts[r.status]++;
     return { rows, counts };
   });
 
@@ -115,7 +117,7 @@ export default function ReportsPage() {
             options: [
               { value: "player", label: "Player" },
               { value: "game_post", label: "Game post" },
-              { value: "mini_league", label: "Mini League" },
+              ...(MINI_LEAGUES_ENABLED ? [{ value: "mini_league", label: "Mini League" }] : []),
               { value: "match", label: "Match" },
               { value: "admin_post", label: "Carousel card" },
               { value: "group", label: "Group" },

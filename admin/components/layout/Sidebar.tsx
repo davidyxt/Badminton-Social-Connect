@@ -16,6 +16,7 @@ import {
   Medal,
 } from "lucide-react";
 import type { ComponentType } from "react";
+import { MINI_LEAGUES_ENABLED } from "@/lib/features";
 
 interface NavChild {
   label: string;
@@ -48,7 +49,7 @@ export const NAV_SECTIONS: NavSection[] = [
           { label: "Usage overview", href: "/analytics" },
           { label: "New users", href: "/analytics/new-users" },
           { label: "Reports received", href: "/analytics/reports-received" },
-          { label: "Mini League activity", href: "/analytics/mini-league-activity" },
+          ...(MINI_LEAGUES_ENABLED ? [{ label: "Mini League activity", href: "/analytics/mini-league-activity" }] : []),
           { label: "Games published", href: "/analytics/games-published" },
         ],
       },
@@ -58,16 +59,18 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Community",
     items: [
       { label: "Users", href: "/users", icon: UsersRound },
-      {
-        label: "Rankings",
-        href: "/rankings/singles",
-        icon: Medal,
-        children: [
-          { label: "Singles", href: "/rankings/singles" },
-          { label: "Mini League", href: "/rankings/mini-league" },
-        ],
-      },
-      { label: "Mini Leagues", href: "/mini-leagues", icon: Trophy },
+      MINI_LEAGUES_ENABLED
+        ? {
+            label: "Rankings",
+            href: "/rankings/singles",
+            icon: Medal,
+            children: [
+              { label: "Singles", href: "/rankings/singles" },
+              { label: "Mini League", href: "/rankings/mini-league" },
+            ],
+          }
+        : { label: "Rankings", href: "/rankings/singles", icon: Medal },
+      ...(MINI_LEAGUES_ENABLED ? [{ label: "Mini Leagues", href: "/mini-leagues", icon: Trophy }] : []),
       { label: "Games & results", href: "/games", icon: Gamepad2 },
     ],
   },
@@ -81,7 +84,7 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: ShieldAlert,
         children: [
           { label: "Game posts", href: "/moderation/game-posts" },
-          { label: "Mini Leagues", href: "/moderation/mini-leagues" },
+          ...(MINI_LEAGUES_ENABLED ? [{ label: "Mini Leagues", href: "/moderation/mini-leagues" }] : []),
           { label: "Deleted records", href: "/moderation/deleted" },
         ],
       },

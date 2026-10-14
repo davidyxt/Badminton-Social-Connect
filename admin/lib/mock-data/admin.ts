@@ -14,7 +14,7 @@ export const MOCK_NOW = "2026-10-10T00:00:00Z";
 type LogSeed = [created_at: string, action: string, target_type: string, target_id: string, details: string];
 
 const logSeeds: LogSeed[] = [
-  ["2026-10-09T21:02:00Z", "publish_admin_post", "admin_post", "ap-8003", "Published carousel card \"Spring Singles League now open\""],
+  ["2026-10-09T21:02:00Z", "publish_admin_post", "admin_post", "ap-8003", "Published carousel card \"Spring singles season now open\""],
   ["2026-10-09T05:44:00Z", "update_admin_post", "admin_post", "ap-8003", "Edited carousel card body copy"],
   ["2026-10-08T23:15:00Z", "restore_account", "player", "plr-1012", "Restored account access after identity check"],
   ["2026-10-08T03:30:00Z", "suspend_account", "player", "plr-1012", "Reason: Suspected duplicate account, pending ID check"],
@@ -53,6 +53,6 @@ export const activityLog: ActivityLog[] = logSeeds.map(([created_at, action, tar
 export const adminPosts: AdminPost[] = [
   { admin_post_id: "ap-8001", title: "Welcome to Badminton Social Connect", body: "Find games near you, build your ranking and meet new players. Tap Find Games to get started.", image_url: "/carousel/welcome.svg", display_order: 1, status: "published", created_by: MOCK_ADMIN.admin_id, published_at: "2026-09-21T02:15:00Z", updated_at: "2026-10-09T21:02:00Z" },
   { admin_post_id: "ap-8002", title: "Be a reliable player", body: "Turning up when you've joined a game keeps your reliability score high and helps organisers plan.", image_url: "/carousel/reliable.svg", display_order: 2, status: "published", created_by: MOCK_ADMIN.admin_id, published_at: "2026-09-15T03:40:00Z", updated_at: "2026-10-09T21:02:00Z" },
-  { admin_post_id: "ap-8003", title: "Spring Singles League now open", body: "Six weeks of singles across the inner east. Registrations close 20 October.", image_url: "/carousel/league.svg", display_order: 3, status: "published", created_by: MOCK_ADMIN.admin_id, published_at: "2026-10-09T21:02:00Z", updated_at: "2026-10-09T21:02:00Z" },
+  { admin_post_id: "ap-8003", title: "Spring singles season now open", body: "Six weeks of singles across the inner east. Registrations close 20 October.", image_url: "/carousel/league.svg", display_order: 3, status: "published", created_by: MOCK_ADMIN.admin_id, published_at: "2026-10-09T21:02:00Z", updated_at: "2026-10-09T21:02:00Z" },
   { admin_post_id: "ap-8004", title: "Summer court booking tips", body: "Courts fill up fast over summer. Post your game early and confirm your venue booking first.", image_url: "", display_order: 4, status: "draft", created_by: MOCK_ADMIN.admin_id, published_at: null, updated_at: "2026-10-09T21:02:00Z" },
 ];

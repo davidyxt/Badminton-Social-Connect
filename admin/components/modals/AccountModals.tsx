@@ -2,6 +2,7 @@
 
 import { ConfirmDialog, type ConfirmDialogProps } from "@/components/shared/ConfirmDialog";
 import { Notice } from "@/components/shared/Card";
+import { MINI_LEAGUES_ENABLED } from "@/lib/features";
 
 type FlowProps = Pick<ConfirmDialogProps, "open" | "onClose" | "onConfirm">;
 
@@ -12,7 +13,7 @@ export function SuspendAccountModal({ playerName, contentCount, ...props }: Flow
       {...props}
       tone="danger"
       title={`Suspend ${playerName}?`}
-      description="They'll be signed out and can't post or join games, or play in Mini Leagues, until access is restored."
+      description={`They'll be signed out and can't post or join games${MINI_LEAGUES_ENABLED ? ", or play in Mini Leagues," : ""} until access is restored.`}
       confirmLabel="Suspend account"
       reason={{
         label: "Reason for suspension",
@@ -23,7 +24,8 @@ export function SuspendAccountModal({ playerName, contentCount, ...props }: Flow
     >
       {contentCount > 0 && (
         <Notice tone="warning">
-          {contentCount} active game post{contentCount === 1 ? "" : "s"} or Mini League{contentCount === 1 ? "" : "s"} they organise will be hidden
+          {contentCount} active game post{contentCount === 1 ? "" : "s"}
+          {MINI_LEAGUES_ENABLED && <> or Mini League{contentCount === 1 ? "" : "s"}</>} they organise will be hidden
           while suspended.
         </Notice>
       )}
