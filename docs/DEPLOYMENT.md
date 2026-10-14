@@ -7,6 +7,8 @@ Everything needed to get the backend running on the hosted Supabase project
 Most of this is a one-off. Once the CI deploy job exists (BL-002), steps 3, 4
 and 6 run automatically on every merge to `main`.
 
+This branch publishes the connected Admin console and Admin API with Player BE-2 0.4 (50 migrations). A Git push does not run a deployment by itself; the existence and configuration of a CI job must be checked separately. Hosted deployment has not been verified by this local integration.
+
 ## Contents
 
 - [0. Before you start](#0-before-you-start)
@@ -35,8 +37,7 @@ Do everything from the repo root, on `main`, after step 1.
 
 ## 1. Merge the backend branches into main
 
-Merge in this order. Each branch already contains the ones before it, so the
-later pull requests shrink as you go.
+The historical backend merge order was as follows. This integration already contains those migrations plus Player BE-2 0.4; do not reapply or duplicate them merely because they are listed here. Review the final diff against the team's current `main` before merging.
 
 1. `M6-groups`, `foundation`, `M4-registration-and-sign-in`
 2. `M1-find-games`
@@ -51,13 +52,9 @@ Known small conflicts, all resolved by keeping both sides:
 | `supabase/config.toml` | M5 adds `[functions.send-email-notification]`, M1 adds `[functions.geocode-venues]`, both at the end |
 | `supabase/functions/.env.example` | M5 creates it with the email settings, M1 with the geocoding setting |
 
-After merging, run the full test suite locally (`npx supabase db reset`, then
-`./supabase/tests/rls_test.sh`) before pushing anything to the hosted project.
+Validate in a disposable local stack before deploying. The historical BE-1 scripts still perform direct result/dispute inserts removed in 0.4 and are not current acceptance evidence. Use the Admin unit/live tests in [admin-api.md](admin-api.md), both frontend builds and the shared Player BE-2 checks in [M2](features/M2-results-and-rankings.md). `db reset` removes local data, so it is only appropriate for a disposable stack.
 
-**Migration order:** Supabase applies migrations by timestamp. If a migration
-older than one already pushed to the hosted project arrives later, `db push`
-refuses it. Rename it to a fresh timestamp (`npx supabase migration new`, move
-the SQL across) before merging.
+**Migration order:** compare `npx supabase migration list --linked` and `npx supabase db push --dry-run` before deploying. Keep already-shared migration identities intact. If older pending files are missing from hosted history, a maintainer must review their order/dependencies and schema drift; `db push --include-all --dry-run` previews that case. Do not rename/replay an applied migration or repair history without confirming what SQL is actually present. See the [CLI migration reference](https://supabase.com/docs/reference/cli/supabase-db-push).
 
 ## 2. Connect the CLI to the hosted project
 
@@ -114,12 +111,13 @@ CAPTCHA stays **off** until the team decides to turn it on (same M4 section,
 
 ## 6. Deploy the Edge Functions
 
-Two functions, both called by the database rather than by players:
+The integration has three functions. The two workers are called by the database; the Admin API is called by the signed-in Admin console:
 
 | Function | Branch | What it does |
 |---|---|---|
 | `send-email-notification` | M5 (BL-087) | Emails every notification through Resend |
 | `geocode-venues` | M1 | Finds pins for venues saved without coordinates (OpenStreetMap Nominatim, one request per second) |
+| `admin-api` | Admin integration | Authenticated console reads and supported announcement/notice/status-only writes; requires the 0.4 schema |
 
 **Secrets.** Make two long random secrets (`openssl rand -hex 32`, twice), and
 put the real values in `supabase/functions/.env` (gitignored; template in
@@ -131,16 +129,17 @@ GEOCODE_WEBHOOK_SECRET=<secret 2>
 RESEND_API_KEY=<from Resend; leave empty for a dry run>
 EMAIL_FROM="Badminton Social Connect <noreply@your-verified-domain>"
 APP_URL=https://<production-domain>
+ADMIN_ALLOWED_ORIGINS=https://<admin-domain>,https://<player-domain>
 ```
 
 ```bash
 npx supabase secrets set --env-file supabase/functions/.env
 npx supabase functions deploy send-email-notification
 npx supabase functions deploy geocode-venues
+npx supabase functions deploy admin-api
 ```
 
-`config.toml` sets `verify_jwt = false` for both, so the database can call
-them; each checks its own secret instead.
+`config.toml` sets `verify_jwt = false` for the two workers, which each check their own secret. `admin-api` retains `verify_jwt = true` and validates the current Auth user and protected admin role in the handler. Its CORS allowlist must contain complete Admin frontend origins. The console uses only a public API key and its current user JWT; server secrets must never enter its frontend settings. See [Admin API authentication](admin-api.md#authentication-and-transport).
 
 **Resend** (for real email): create an account, verify the sending domain,
 create an API key. Without `RESEND_API_KEY` the email function does a dry run
@@ -165,7 +164,7 @@ breaks; it just stays off.
 
 ## 8. Check the scheduled jobs
 
-The migrations schedule two `pg_cron` jobs:
+The migrations schedule four `pg_cron` jobs. Inspect `cron.timezone` as well as each schedule:
 
 ```sql
 select jobname, schedule, active from cron.job;
@@ -175,6 +174,10 @@ select jobname, schedule, active from cron.job;
 |---|---|---|
 | `refresh-reliability` | `5 * * * *` (hourly) | Refreshes reliability copies on profiles (BL-052) |
 | `geocode-venues` | `* * * * *` (every minute) | Calls the geocoding function if venues are waiting |
+| `rate-confirmed-results` | `0 15 * * *` (daily, GMT in the tested stack) | Rates confirmed singles results; 2 am Melbourne in daylight saving, 1 am in standard time |
+| `expire-pending-results` | `10 * * * *` (hourly) | Expires unconfirmed results after seven days |
+
+The inherited rating schedule is not an exact year-round 2 am Melbourne schedule. A maintainer must review timezone/DST behavior if that is a production requirement. This integration does not change the SQL schedule.
 
 Recent runs: `select * from cron.job_run_details order by start_time desc limit 10;`
 Replies from the functions: `select * from net._http_response order by id desc limit 10;`
@@ -238,6 +241,18 @@ Variables), never as a committed file:
 Then add the production domain (and preview domains) to the auth redirect URLs
 from step 5.
 
+### Admin console hosting
+
+Deploy the Next.js app with root directory `admin`, install with `npm ci`, build with `npm run build`, and start with `npm run start` when using a Node host. Set these before building:
+
+| Variable | Value |
+|---|---|
+| `NEXT_PUBLIC_ADMIN_DATA_SOURCE` | `api` |
+| `NEXT_PUBLIC_SUPABASE_URL` | The same hosted project as the deployed Admin function |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | That project's public anon/publishable key |
+
+Add the exact Admin origin to `ADMIN_ALLOWED_ORIGINS` on the Edge Function. Provision administrators through a trusted Auth admin process using `app_metadata.role = admin`; the console has no public admin signup flow. Do not copy local demo credentials, dev seeds or `.local/` into the hosted project. Public settings are bundled by Next.js: changing projects requires rebuilding the console. Mock mode must not be mistaken for a successful hosted API connection.
+
 ## 11. Smoke test
 
 - [ ] Sign up with a real email: the confirmation email arrives; an under-18 date of birth is refused.
@@ -248,6 +263,9 @@ from step 5.
 - [ ] Block and report from a profile.
 - [ ] Upload a profile picture: it shows on your profile and on a game you host; replace it, then remove it; the old files disappear from Storage → avatars.
 - [ ] Set your availability: another account sees it on your profile.
+- [ ] Sign into the Admin console: it shows Live API and real overview/directory data; a non-admin is refused.
+- [ ] Compare a stored report's original evidence with its current target; inspect match confirmation and rating history without changing them.
+- [ ] Create/edit/publish an approved test announcement and verify the stored record. Unsupported moderation is disabled and result/ranking writes remain refused.
 
 ## Before real users
 

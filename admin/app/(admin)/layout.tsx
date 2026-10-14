@@ -75,6 +75,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         router.replace("/sign-in");
       }}
     >
+      {IS_API && sync.error && (
+        <div className="mb-4 rounded-lg border border-warning/30 bg-warning-soft p-3 text-sm" role="alert">
+          Refresh failed. Showing data from {sync.lastSyncedAt ? new Date(sync.lastSyncedAt).toLocaleTimeString() : "the last successful load"}. {sync.error}
+          <Button size="sm" variant="ghost" onClick={() => void syncNow()}>Retry</Button>
+        </div>
+      )}
       {children}
     </AdminShell>
   );

@@ -12,6 +12,7 @@
 import { useSyncExternalStore } from "react";
 import { humanize } from "@/lib/format";
 import { commit } from "@/lib/mock-api/store";
+import { createEmptyDb } from "@/lib/mock-data";
 import { isApiError } from "@/lib/mock-api/errors";
 import type {
   AdminPost,
@@ -61,6 +62,10 @@ type ApiGamePost = Versioned & {
   proposedTime: string;
   status: string;
   playerLimit: number | null;
+  title?: string | null;
+  deletedAt?: string | null;
+  deletedBy?: string | null;
+  deletionReason?: string | null;
 };
 type ApiLeague = Versioned & { leagueId: string; organiserId: string; name: string; startDate: string; endDate: string; status: string };
 type ApiMatch = Versioned & {
@@ -88,7 +93,8 @@ type ApiAdminPost = Versioned & {
   publishedAt: string | null;
 };
 type ApiVenue = { venueId: string; name: string; address: string | null };
-type ConsoleUser = { player_id: string; account?: { email: string | null } | null };
+type ApiGroup = { groupId: string; name: string };
+type ConsoleUser = { player_id: string; deleted_at: string | null; registration: { registered_at: string | null } | null; account?: { email: string | null } | null };
 type DayCount = { date: string; count: number };
 type ConsoleAnalytics = { metrics: Record<string, { by_day: DayCount[]; previous_by_day: DayCount[] }> };
 
@@ -116,10 +122,13 @@ function mapDatabase(raw: {
   rankings: ApiRanking[];
   adminPosts: ApiAdminPost[];
   venues: ApiVenue[];
-  emails: Map<string, string>;
+  groups: ApiGroup[];
+  accounts: Map<string, ConsoleUser>;
+  overview: MockDatabase["overview"];
   analytics: Record<string, { date: string; value: number }[]>;
 }): MockDatabase {
   const venues = new Map(raw.venues.map((v) => [v.venueId, v.name]));
+  const groups = new Map(raw.groups.map((g) => [g.groupId, g.name]));
 
   const players: Player[] = raw.players.map((p) => ({
     player_id: p.playerId,
@@ -129,7 +138,10 @@ function mapDatabase(raw: {
     joined_at: p.joinedAt,
     // No suspension state exists in the database yet (handoff DB02).
     status: "active",
-    email: raw.emails.get(p.playerId) ?? "",
+    email: raw.accounts.get(p.playerId)?.account?.email ?? "",
+    account_state: raw.accounts.get(p.playerId)?.deleted_at ? "deleted" : raw.accounts.get(p.playerId)?.registration?.registered_at ? "registered" : "registration_pending",
+    registered_at: raw.accounts.get(p.playerId)?.registration?.registered_at ?? null,
+    deleted_at: raw.accounts.get(p.playerId)?.deleted_at ?? null,
   }));
 
   const player_profiles: PlayerProfile[] = raw.profiles.map((p) => ({
@@ -161,12 +173,13 @@ function mapDatabase(raw: {
     post_id: p.postId,
     organiser_id: p.organiserId ?? "",
     organiser_club_id: p.organiserClubId,
+    organiser_group_name: p.organiserClubId ? groups.get(p.organiserClubId) ?? null : null,
     group_id: null,
     format: p.format === "singles" ? "singles" : "doubles",
     suburb: p.suburb ?? "",
     proposed_time: p.proposedTime,
     status: gameStatus(p.status),
-    title: `${humanize(p.format)} game${p.suburb ? ` in ${p.suburb}` : ""}`,
+    title: p.title || `${humanize(p.format)} game${p.suburb ? ` in ${p.suburb}` : ""}`,
     notes: "",
     venue: "",
     skill_band: "",
@@ -175,6 +188,7 @@ function mapDatabase(raw: {
     created_at: p.createdAt ?? "",
     status_before_hidden: null,
     hidden_by_account_suspension: false,
+    deleted_at: p.deletedAt ?? null,
   }));
 
   const league_standings: LeagueStanding[] = raw.standings.map((s) => ({
@@ -261,17 +275,23 @@ function mapDatabase(raw: {
   }));
 
   return {
+    overview: raw.overview,
     players,
     player_profiles,
     reports,
-    game_posts,
+    game_posts: game_posts.filter((p) => !p.deleted_at),
     mini_leagues,
     matches,
     match_results,
     disputes,
     // Unavailable until the database has these (handoff DB01, DB05, DB07).
     activity_log: [],
-    deleted_records: [],
+    deleted_records: raw.posts.filter((p) => p.deletedAt).map((p) => ({
+      deleted_id: p.postId, target_type: "game_post", target_id: p.postId,
+      label: p.title || `${humanize(p.format)} game${p.suburb ? ` in ${p.suburb}` : ""}`,
+      owner_id: p.organiserId ?? "", reason: p.deletionReason ?? "Not recorded",
+      deleted_by: p.deletedBy ?? "", deleted_at: p.deletedAt!,
+    })),
     ranking_history: [],
     admin_posts,
     rankings,
@@ -284,14 +304,14 @@ function mapDatabase(raw: {
 // Loading
 // ---------------------------------------------------------------------------
 
-async function loadEmails(): Promise<Map<string, string>> {
-  const emails = new Map<string, string>();
-  for (let page = 1; page <= 50; page++) {
+async function loadAccounts(): Promise<Map<string, ConsoleUser>> {
+  const accounts = new Map<string, ConsoleUser>();
+  for (let page = 1; ; page++) {
     const res = await consoleGet<ConsoleUser[]>("/users", { include: "account", limit: 100, page });
-    for (const u of res.data) if (u.account?.email) emails.set(u.player_id, u.account.email);
+    for (const u of res.data) accounts.set(u.player_id, u);
     if (!res.pagination || page * res.pagination.limit >= res.pagination.total) break;
   }
-  return emails;
+  return accounts;
 }
 
 /** The API serves at most 90 days per request plus the preceding 90, so one call covers 180 days. */
@@ -325,7 +345,7 @@ async function optional<T>(load: () => Promise<T>, fallback: T): Promise<T> {
 }
 
 export async function loadFromApi(): Promise<MockDatabase> {
-  const [players, profiles, reports, disputes, posts, leagues, matches, participants, results, standings, rankings, adminPosts, venues] =
+  const [players, profiles, reports, disputes, posts, leagues, matches, participants, results, standings, rankings, adminPosts, venues, groups] =
     await Promise.all([
       readTable<ApiPlayer>("player"),
       readTable<ApiProfile>("player_profile"),
@@ -340,9 +360,10 @@ export async function loadFromApi(): Promise<MockDatabase> {
       readTable<ApiRanking>("ranking"),
       readTable<ApiAdminPost>("admin_post"),
       readTable<ApiVenue>("venue"),
+      readTable<ApiGroup>("groups"),
     ]);
-  const [emails, analytics] = await Promise.all([optional(loadEmails, new Map<string, string>()), optional(loadAnalytics, {})]);
-  return mapDatabase({ players, profiles, reports, disputes, posts, leagues, matches, participants, results, standings, rankings, adminPosts, venues, emails, analytics });
+  const [accounts, analytics, overview] = await Promise.all([loadAccounts(), optional(loadAnalytics, {}), consoleGet<NonNullable<MockDatabase["overview"]>>("/overview")]);
+  return mapDatabase({ players, profiles, reports, disputes, posts, leagues, matches, participants, results, standings, rankings, adminPosts, venues, groups, accounts, analytics, overview: overview.data });
 }
 
 // ---------------------------------------------------------------------------
@@ -363,20 +384,39 @@ const setStatus = (next: Partial<SyncStatus>) => {
 };
 
 let inFlight: Promise<void> | null = null;
+let generation = 0;
+let cacheOwner: string | null = null;
+
+export function setApiCacheOwner(owner: string | null): void {
+  if (cacheOwner !== owner || owner === null) resetApiCache();
+  cacheOwner = owner;
+}
+
+/** Clear sensitive cached data on sign-out, access loss or account switch. */
+export function resetApiCache(): void {
+  cacheOwner = null;
+  generation++;
+  inFlight = null;
+  commit(() => createEmptyDb());
+  setStatus({ state: "idle", error: null, lastSyncedAt: null });
+}
 
 /** Re-read everything. Called on sign-in, on a timer, and after each successful write. */
 export function syncNow(): Promise<void> {
+  const currentGeneration = generation;
   inFlight ??= (async () => {
     if (status.state !== "ready") setStatus({ state: "loading", error: null });
     try {
       const next = await loadFromApi();
+      if (currentGeneration !== generation) return;
       commit(() => next);
       setStatus({ state: "ready", error: null, lastSyncedAt: Date.now() });
     } catch (err) {
       // Keep showing the last good data if a background refresh fails.
-      if (status.state !== "ready") setStatus({ state: "error", error: err instanceof Error ? err.message : "Couldn't load data." });
+      if (currentGeneration !== generation) return;
+      setStatus({ state: status.state === "ready" ? "ready" : "error", error: err instanceof Error ? err.message : "Couldn't load data." });
     } finally {
-      inFlight = null;
+      if (currentGeneration === generation) inFlight = null;
     }
   })();
   return inFlight;

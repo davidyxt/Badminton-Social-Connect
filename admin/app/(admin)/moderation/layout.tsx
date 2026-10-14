@@ -30,7 +30,7 @@ export default function ModerationLayout({ children }: { children: ReactNode }) 
         ]}
       />
       <BackendGapNotice
-        message={IS_API ? "Hiding, restoring, suspending and deleting aren't available yet: the database has no visibility, restriction or retained-deletion state (DB03–DB05). You can review content, but the actions are disabled." : null}
+        message={IS_API ? "You can review active content and retained game-post deletions. Hiding, restoring, suspending and administrator deletion are not available yet." : null}
       />
       {pathname === "/moderation/deleted" && <BackendGapNotice message={featureGap("deletedRecords")} />}
       {children}

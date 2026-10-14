@@ -12,6 +12,8 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { formatDateTime, humanize } from "@/lib/format";
 import { selectDisputesForMatch, selectGamePost, selectMatch, selectMiniLeague, selectPlayer, selectPlayerMap, selectResultForMatch, useQuery } from "@/lib/mock-api";
 import type { Player } from "@/lib/types";
+import { IS_API } from "@/lib/config";
+import { MatchMonitoring } from "@/components/monitoring/MatchMonitoring";
 
 function Side({ label, ids, players, winner }: { label: string; ids: string[]; players: Map<string, Player>; winner: boolean }) {
   return (
@@ -109,7 +111,7 @@ export default function MatchDetailPage() {
                   items={[
                     { label: "Score", value: <span className="font-medium tabular-nums">{result.score}</span> },
                     { label: "Result status", value: <StatusBadge status={result.status} /> },
-                    { label: "Winning side", value: `Side ${result.winning_side} (${name(result.winning_side === "A" ? match.side_a : match.side_b)})` },
+                    { label: "Winning side", value: result.winning_side ? `Side ${result.winning_side} (${name(result.winning_side === "A" ? match.side_a : match.side_b)})` : "Not recorded" },
                     { label: "Submitted by", value: <PlayerLink player={data.submittedBy} fallbackId={result.submitted_by} /> },
                     { label: "Submitted", value: formatDateTime(result.submitted_at) },
                   ]}
@@ -120,6 +122,7 @@ export default function MatchDetailPage() {
             </CardBody>
           </Card>
 
+          {IS_API && <MatchMonitoring key={matchId} matchId={matchId} />}
           {post && (
             <div>
               <h2 className="mb-2 text-sm font-semibold text-ink">Originating game post</h2>

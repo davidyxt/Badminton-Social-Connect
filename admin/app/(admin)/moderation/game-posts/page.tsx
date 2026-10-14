@@ -76,7 +76,7 @@ function GamePostModeration() {
       cell: (r) => (
         <div className="min-w-0">
           <div className={`font-medium ${r.post.post_id === selectedId ? "text-brand" : "text-ink"}`}>{r.post.title}</div>
-          <div className="text-xs text-ink-muted">by {r.organiser?.display_name ?? r.post.organiser_id}</div>
+          <div className="text-xs text-ink-muted">by {r.organiser?.display_name || r.post.organiser_group_name || r.post.organiser_id || r.post.organiser_club_id || "Unavailable organiser"}</div>
         </div>
       ),
     },
@@ -121,7 +121,7 @@ function GamePostModeration() {
         columns={columns}
         getRowId={(r) => r.post.post_id}
         rowHref={(r) => `${BASE}?post=${r.post.post_id}`}
-        getSearchText={(r) => `${r.post.title} ${r.organiser?.display_name ?? ""} ${r.post.suburb} ${r.post.venue} ${r.post.post_id}`}
+        getSearchText={(r) => `${r.post.title} ${r.organiser?.display_name ?? r.post.organiser_group_name ?? ""} ${r.post.suburb} ${r.post.venue} ${r.post.post_id}`}
         searchPlaceholder="Search title, organiser or suburb"
         filters={[
           {

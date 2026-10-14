@@ -38,13 +38,13 @@ A block works differently for each side. Say **Pat blocks Quinn**:
 | See the other on a game's "Players going" list | Yes, with `isBlocked: true` | No |
 | See games the other organises | Yes (`organiser.isBlocked: true`), but can't join | No, and can't join |
 | See games the other has joined | Yes | No, unless Quinn is already in that game |
-| Open the other's profile | No (`get_player_profile` returns null) | No |
+| Open the other's profile | Yes, with `isBlocked: true` | No |
 | See the other in the rankings | Yes, Blocked badge, no picture, not clickable | Yes, no picture, not clickable |
 
 What this means for the screens:
 
 - Show a **Blocked** badge wherever `isBlocked` is true: player search results, the Game Details host and players list, and the organiser on Find Games cards.
-- Don't link a badged player to their profile: it won't load.
+- The blocker can open a badged profile with an Unblock action; the blocked player cannot open the blocker's profile. Leaderboard rows stay unclickable when either block relation exists.
 - Because Pat sees Quinn on a roster before joining, and Quinn loses sight of any game Pat joins, the two can only end up in the same game if Pat chooses it knowingly.
 - At the moment of blocking, requests and places between them in **upcoming** games either of them organises are closed.
 - Quinn is not told about the block. To Quinn, Pat simply can't be found.
@@ -66,7 +66,7 @@ the labels in one place in the frontend):
 | `underage` | Appears to be under 18 |
 | `other` | Something else (details required) |
 
-`p_reason` is optional free text up to 1,000 characters, required for `other`.
+`p_reason` is required free text for every report, up to 1,000 characters (2026-10-08 team decision).
 
 The server stores a snapshot of what was reported (username and bio, or the
 post's title, notes and venue, and so on). Moderators see it even if the
@@ -81,7 +81,7 @@ player per item.
 | Code | When |
 |---|---|
 | `23505` | Already reported this item, and the report is still open |
-| `23514` | Rate limit reached; `other` without details; unknown category; reporting yourself or your own game; blocking yourself |
+| `23514` | Rate limit reached; missing report details; unknown category; reporting yourself or your own game; blocking yourself |
 | `42501` | The item doesn't exist; not registered; asking to join a game that isn't available (includes blocks, without saying so) |
 
 Every error carries a `message` that is safe to show.

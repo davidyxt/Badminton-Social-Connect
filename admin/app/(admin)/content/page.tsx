@@ -38,7 +38,7 @@ export default function ContentPage() {
     });
 
   const togglePublish = (post: AdminPost) => {
-    const publishing = post.status === "draft";
+    const publishing = post.status !== "published";
     return run(() => update_admin_post({ adminPostId: post.admin_post_id, status: publishing ? "published" : "draft" }), {
       saving: publishing ? "Publishing…" : "Unpublishing…",
       success: publishing ? "Card published" : "Card moved to draft",
@@ -137,7 +137,7 @@ export default function ContentPage() {
         ) : (
           <ul className="divide-y divide-line">
             {posts.map((post, i) => {
-              const blocker = post.status === "draft" ? publishBlocker(post) : null;
+              const blocker = post.status !== "published" ? publishBlocker(post) : null;
               return (
                 <li key={post.admin_post_id} className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-start">
                   <div className="flex items-center gap-1 sm:flex-col sm:pt-1">

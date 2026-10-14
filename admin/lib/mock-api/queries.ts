@@ -46,7 +46,7 @@ export const selectMiniLeague = (db: MockDatabase, leagueId: string) =>
 export const selectMatch = (db: MockDatabase, matchId: string) => db.matches.find((m) => m.match_id === matchId) ?? null;
 
 export const selectResultForMatch = (db: MockDatabase, matchId: string) =>
-  db.match_results.find((r) => r.match_id === matchId) ?? null;
+  [...db.match_results].filter((r) => r.match_id === matchId).sort((a, b) => b.submitted_at.localeCompare(a.submitted_at) || b.result_id.localeCompare(a.result_id))[0] ?? null;
 
 export const selectDisputesForMatch = (db: MockDatabase, matchId: string) => db.disputes.filter((d) => d.match_id === matchId);
 

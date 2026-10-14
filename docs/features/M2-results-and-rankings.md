@@ -1,7 +1,7 @@
 # M2: Results and rankings
 
 Recording a result, confirming or disputing it, ratings, leaderboards and match
-quick messages. Backend stories: BL-003 (schema gaps), BL-021, BL-023, BL-024,
+quick messages. This is shared Player BE-2 behavior. The Admin Edge API only monitors these records and blocks score, confirmation, ranking rebuild and disputed-result resolution writes under Final v6; see [admin-api.md](../admin-api.md). Backend stories: BL-003 (schema gaps), BL-021, BL-023, BL-024,
 BL-025, BL-056, BL-058, BL-062, BL-085.
 
 ## Contents
@@ -137,9 +137,9 @@ The rating is the Bayesian score rating in the Ranking Algorithm reports
 
 - **Singles only.** Doubles and mixed doubles results are recorded and
   confirmed but never rated.
-- **Overnight.** A pg_cron job (`rate-confirmed-results`, 2 am Melbourne) rates
+- **Overnight.** A pg_cron job (`rate-confirmed-results`, `0 15 * * *` in GMT) rates
   every confirmed singles result not rated yet, in the order they were
-  confirmed. Nothing changes at the moment of confirming. Every rating screen
+  confirmed. That is 2 am Melbourne during daylight saving and 1 am during standard time; an exact year-round 2 am schedule needs a maintainer change. Nothing changes at the moment of confirming. Every rating screen
   returns `ratingsUpdatedAt`, the time of the last run, for "Updated 12 Oct".
 - **The score matters**, not just the win: 21-5 21-6 moves ratings more than
   22-20 21-19. Players linked through past matches shift a little too.
@@ -269,10 +269,10 @@ The thresholds are placeholders for the product owner to confirm.
 
 ## Not done yet
 
-- Resolving disputes, and an admin screen for flags: the admin lane.
+- Resolving disputes remains unavailable through the Final v6 Admin Edge API. The integrated Admin console reads anomaly flags alongside match results; a flag-review workflow is still absent.
 - A League leaderboard tab: waits for Mini Leagues.
 - Pre-game quick messages ("Running late"): a match only exists once its result
   is recorded. Sending them before the game needs matches set up earlier, which
   the 2026-10-08 decision removed.
 - Disputes after a result is confirmed: only pending results can be disputed.
-- The rating tests (BL-046).
+- Full automated rating acceptance coverage (BL-046). Reference comparison, RD simulation and a transaction-rolled-back result-flow script exist in `docs/player-be2-handoff/`; they are exploratory checks, not a complete automated test suite. `ref_check.py` requires NumPy and its hardcoded local Docker container; `e2e.sql` intentionally produces expected errors and rolls back, and uses Unix `/dev/null`. Use a disposable seeded local stack, not a hosted project. These scripts are separate from the Admin tests.

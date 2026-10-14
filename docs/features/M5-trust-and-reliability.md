@@ -75,7 +75,7 @@ A no-show creates a `no_show` notification for the player (see below).
 
 ### Not done yet
 
-- Match reminders and result notifications (BL-021 / BL-022, Player BE-2) should call `private.dispatch_notification` so they reach email too.
+- Match reminders remain unavailable. Player BE-2 result submission, confirmation, dispute and expiry notifications are implemented through the existing notification flow; see [M2](M2-results-and-rankings.md).
 - League notifications come with Mini Leagues (Should Have).
 
 ## Withdrawals and no-shows (BL-054)
@@ -128,8 +128,7 @@ returns verified matches, newest first:
 ```
 
 Null when the profile is private to the caller. Someone who has blocked the
-viewer appears as `"Player"` with no id. Rating trend over time comes with
-BL-024 (Player BE-2).
+viewer appears as `"Player"` with no id. Singles rating history/trend is implemented by BL-024 in Player BE-2; see [M2](M2-results-and-rankings.md).
 
 ## Email (BL-087)
 

@@ -43,7 +43,7 @@ export function GamePostSummary({ post, organiser, actions }: { post: GamePost; 
         <span className="inline-flex items-center gap-1.5">
           Organiser:{" "}
           {post.organiser_club_id ? (
-            <span className="text-ink">Club {post.organiser_club_id.slice(0, 8)}</span>
+            <span className="text-ink">{post.organiser_group_name || `Group ${post.organiser_club_id.slice(0, 8)}`}</span>
           ) : (
             <PlayerLink player={organiser} fallbackId={post.organiser_id} />
           )}

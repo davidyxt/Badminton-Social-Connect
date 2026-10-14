@@ -18,6 +18,9 @@ export interface Player {
   status: PlayerStatus;
   /** extension: shown in the directory and profile header */
   email: string;
+  account_state?: "registered" | "registration_pending" | "deleted";
+  registered_at?: string | null;
+  deleted_at?: string | null;
 }
 
 export interface PlayerProfile {
@@ -32,7 +35,7 @@ export interface PlayerProfile {
 }
 
 /** mini_league is in the PRD but not yet allowed by the database; match, admin_post and club are. */
-export type ReportTargetType = "player" | "game_post" | "mini_league" | "match" | "admin_post" | "club";
+export type ReportTargetType = "player" | "game_post" | "mini_league" | "match" | "admin_post" | "club" | "group";
 export type ReportStatus = "pending" | "resolved" | "dismissed";
 
 export interface Report {
@@ -60,6 +63,7 @@ export interface GamePost {
   organiser_id: string;
   /** extension: set instead of organiser_id for club-organised posts */
   organiser_club_id: string | null;
+  organiser_group_name?: string | null;
   group_id: string | null;
   format: "singles" | "doubles";
   suburb: string;
@@ -83,6 +87,7 @@ export interface GamePost {
   status_before_hidden: Exclude<GamePostStatus, "hidden"> | null;
   /** extension: hidden as a side effect of admin_suspend_account, so restore_account reverses it */
   hidden_by_account_suspension: boolean;
+  deleted_at?: string | null;
 }
 
 /** draft / completed / cancelled come from the database; suspended and registration_closed have no database support yet. */
@@ -134,7 +139,7 @@ export interface Match {
   venue: string;
 }
 
-export type MatchResultStatus = "pending" | "confirmed" | "disputed" | "rejected";
+export type MatchResultStatus = "pending" | "confirmed" | "disputed" | "rejected" | "expired";
 
 export interface MatchResult {
   result_id: string;
@@ -236,6 +241,7 @@ export interface Admin {
 
 /** Everything the mock store holds. */
 export interface MockDatabase {
+  overview?: { registered_users: number; unresolved_reports: number; pending_results: number; upcoming_game_posts: number; active_leagues: number; registration_pending_users: number; deleted_users: number };
   players: Player[];
   player_profiles: PlayerProfile[];
   reports: Report[];

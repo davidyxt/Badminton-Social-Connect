@@ -6,6 +6,8 @@ import { PlayerLink } from "@/components/shared/PlayerProfileCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useQuery } from "@/lib/mock-api";
 import type { Player, Ranking } from "@/lib/types";
+import { IS_API } from "@/lib/config";
+import { SharedLeaderboard } from "@/components/monitoring/SharedLeaderboard";
 
 interface Row {
   rank: number;
@@ -35,7 +37,7 @@ export default function SinglesRankingsPage() {
   return (
     <>
       <p className="mb-4 text-sm text-ink-muted">
-        {rows.length} ranked players. Points come from verified match results; band A is 1600+, B is 1300–1599, C is below 1300.
+        {rows.length} stored singles ratings, including provisional players. Read-only; ratings update through the shared rating engine.
       </p>
       <DataTable
         caption="Singles rankings"
@@ -49,7 +51,7 @@ export default function SinglesRankingsPage() {
           {
             id: "band",
             label: "Band",
-            options: ["A", "B", "C"].map((b) => ({ value: b, label: `Band ${b}` })),
+            options: [...new Set(rows.map((r) => r.ranking.band))].sort().map((b) => ({ value: b, label: b })),
             getValue: (r) => r.ranking.band,
           },
         ]}
@@ -57,6 +59,7 @@ export default function SinglesRankingsPage() {
         pageSize={15}
         empty={<EmptyState title="No players match" description="Try a different search or clear the band filter." />}
       />
+      {IS_API && <SharedLeaderboard />}
     </>
   );
 }

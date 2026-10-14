@@ -22,6 +22,9 @@ const TONE_BY_STATUS: Record<string, Tone> = {
   confirmed: "success",
   upheld: "success",
   deleted: "neutral",
+  registered: "success",
+  registration_pending: "warning",
+  expired: "neutral",
   verified: "success",
   unverified: "neutral",
 };

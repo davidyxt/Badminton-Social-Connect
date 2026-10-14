@@ -1,9 +1,10 @@
 import { ACTION_LABEL, formatDateTime, humanize } from "@/lib/format";
 import type { ActivityLog } from "@/lib/types";
+import { IS_API } from "@/lib/config";
 
 /** Compact list of admin actions on one record, newest first. */
 export function ActivityTimeline({ entries, empty = "No admin actions recorded yet." }: { entries: ActivityLog[]; empty?: string }) {
-  if (entries.length === 0) return <p className="text-sm text-ink-muted">{empty}</p>;
+  if (entries.length === 0) return <p className="text-sm text-ink-muted">{IS_API ? "Administrator activity history is not available yet." : empty}</p>;
   return (
     <ol className="space-y-4">
       {entries.map((e) => (

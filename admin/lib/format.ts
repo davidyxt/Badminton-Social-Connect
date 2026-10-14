@@ -25,6 +25,7 @@ export const TARGET_TYPE_LABEL: Record<string, string> = {
   report: "Report",
   match: "Match",
   club: "Club",
+  group: "Group",
   dispute: "Dispute",
   admin_post: "Carousel card",
 };

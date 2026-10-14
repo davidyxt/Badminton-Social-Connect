@@ -19,6 +19,8 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Tabs } from "@/components/shared/Tabs";
 import { formatDate, formatDateTime, formatShortDate, TARGET_TYPE_LABEL } from "@/lib/format";
 import { useAdminAction } from "@/lib/hooks/useAdminAction";
+import { IS_API } from "@/lib/config";
+import { PlayerRating } from "@/components/monitoring/PlayerRating";
 import {
   admin_restore_account,
   admin_suspend_account,
@@ -77,7 +79,7 @@ export default function PlayerProfilePage() {
       <PageHeader
         breadcrumbs={[{ label: "Users", href: "/users" }, { label: player.display_name }]}
         title={player.display_name}
-        meta={<StatusBadge status={player.status} />}
+        meta={<StatusBadge status={player.account_state === "deleted" ? "deleted" : player.status} />}
         description={`Player ID ${player.player_id}`}
       />
 
@@ -144,6 +146,7 @@ export default function PlayerProfilePage() {
       {tab === "overview" && (
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
+            {IS_API && <PlayerRating key={playerId} playerId={playerId} />}
             <Card>
               <CardHeader title={`Reports (${reports.length})`} description="Reports about this player or content they organise." />
               {reports.length === 0 ? (
@@ -233,7 +236,8 @@ export default function PlayerProfilePage() {
       )}
 
       {/* Screen 11 */}
-      {tab === "ranking" && (
+      {tab === "ranking" && IS_API && <PlayerRating key={playerId} playerId={playerId} history />}
+      {tab === "ranking" && !IS_API && (
         <Card>
           {featureGap("rankingHistory") && (
             <CardBody>

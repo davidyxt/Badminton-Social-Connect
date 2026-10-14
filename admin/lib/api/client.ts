@@ -34,8 +34,8 @@ const CODE_BY_STATUS: Record<number, ApiErrorCode> = {
 };
 
 /** Listeners told when the API says the session is no longer valid. */
-const authFailureListeners = new Set<() => void>();
-export function onAuthFailure(listener: () => void): () => void {
+const authFailureListeners = new Set<(reason: "unauthorized" | "restricted") => void>();
+export function onAuthFailure(listener: (reason: "unauthorized" | "restricted") => void): () => void {
   authFailureListeners.add(listener);
   return () => authFailureListeners.delete(listener);
 }
@@ -44,14 +44,15 @@ interface RequestOptions {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   query?: Record<string, string | number | boolean | undefined>;
   body?: unknown;
+  signal?: AbortSignal;
 }
 
-export async function adminRequest<T>(path: string, { method = "GET", query, body }: RequestOptions = {}): Promise<T> {
+export async function adminRequest<T>(path: string, { method = "GET", query, body, signal }: RequestOptions = {}): Promise<T> {
   const {
     data: { session },
   } = await getSupabase().auth.getSession();
   if (!session) {
-    for (const l of authFailureListeners) l();
+    for (const l of authFailureListeners) l("unauthorized");
     throw new ApiError("unauthorized", "Your session has ended. Sign in again.");
   }
 
@@ -67,8 +68,9 @@ export async function adminRequest<T>(path: string, { method = "GET", query, bod
 
   let response: Response;
   try {
-    response = await fetch(url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
-  } catch {
+    response = await fetch(url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal });
+  } catch (error) {
+    if (signal?.aborted) throw error;
     throw new ApiError("network_error", "Couldn't reach the admin API. Check your connection and try again.");
   }
 
@@ -84,7 +86,8 @@ export async function adminRequest<T>(path: string, { method = "GET", query, bod
     // Team routes return { code, message }; console routes return { error: { code, message } }.
     const detail = ((payload as { error?: unknown })?.error ?? payload) as { code?: string; message?: string } | null;
     const code = CODE_BY_STATUS[response.status] ?? "network_error";
-    if (code === "unauthorized") for (const l of authFailureListeners) l();
+    if (code === "unauthorized") for (const l of authFailureListeners) l("unauthorized");
+    if (response.status === 403 && detail?.code === "admin_required") for (const l of authFailureListeners) l("restricted");
     const message =
       code === "unavailable"
         ? response.status === 405

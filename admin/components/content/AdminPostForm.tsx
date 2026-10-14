@@ -4,6 +4,7 @@ import { ImageOff, TriangleAlert, Upload, X } from "lucide-react";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/shared/Button";
 import type { AdminPostStatus } from "@/lib/types";
+import { IS_API } from "@/lib/config";
 
 export interface AdminPostFormValues {
   title: string;
@@ -52,6 +53,13 @@ type Errors = Partial<Record<"title" | "body" | "image_url" | "display_order", s
 function validate(v: AdminPostFormValues, maxOrder: number): Errors {
   const e: Errors = {};
   if (!v.title.trim()) e.title = "Title is required.";
+  if (IS_API && v.image_url.trim()) {
+    try {
+      if (!["http:", "https:"].includes(new URL(v.image_url.trim()).protocol)) throw new Error("Unsupported image URL");
+    } catch {
+      e.image_url = "Use an absolute HTTP or HTTPS image URL. Image uploads are not available yet.";
+    }
+  }
   if (!Number.isInteger(v.display_order) || v.display_order < 1 || v.display_order > maxOrder)
     e.display_order = `Enter a position from 1 to ${maxOrder}.`;
   if (v.status === "published") {
@@ -184,7 +192,7 @@ function AdminPostFormInner({ mode, initial, maxOrder, onSubmit, onClose }: Admi
                   id={ids.image}
                   label="Image URL"
                   required={publishing}
-                  hint={publishing ? "Paste a URL or upload a file." : "Required to publish. Paste a URL or upload a file."}
+                  hint={IS_API ? "Use an absolute HTTP or HTTPS image URL. Required to publish." : publishing ? "Paste a URL or upload a file." : "Required to publish. Paste a URL or upload a file."}
                   error={errors.image_url}
                 >
                   <input
@@ -192,13 +200,14 @@ function AdminPostFormInner({ mode, initial, maxOrder, onSubmit, onClose }: Admi
                     value={isDataUrl ? "" : values.image_url}
                     disabled={submitting}
                     onChange={(e) => set("image_url", e.target.value)}
-                    placeholder={isDataUrl ? "Using uploaded image" : "https://… or /carousel/…"}
+                    placeholder={IS_API ? "https://…" : isDataUrl ? "Using uploaded image" : "https://… or /carousel/…"}
                     aria-invalid={errors.image_url ? true : undefined}
                     aria-describedby={errors.image_url ? `${ids.image}-error` : `${ids.image}-hint`}
                     className={inputClass(Boolean(errors.image_url))}
                   />
                 </Field>
                 <div className="flex flex-wrap items-center gap-2">
+                  {!IS_API && <>
                   <label
                     htmlFor={ids.file}
                     className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-line-strong bg-surface px-3 text-sm font-medium text-ink hover:bg-subtle"
@@ -217,13 +226,14 @@ function AdminPostFormInner({ mode, initial, maxOrder, onSubmit, onClose }: Admi
                       e.target.value = "";
                     }}
                   />
+                  </>}
                   {values.image_url && (
                     <Button size="sm" variant="ghost" disabled={submitting} onClick={() => set("image_url", "")}>
                       Remove image
                     </Button>
                   )}
                 </div>
-                <p className="text-xs text-ink-faint">Preview only in this prototype; the file isn&apos;t uploaded anywhere.</p>
+                <p className="text-xs text-ink-faint">{IS_API ? "Image uploading is not available yet. Use a hosted image URL." : "Preview only in this prototype; the file isn't uploaded anywhere."}</p>
                 {fileError && (
                   <p role="alert" className="flex items-center gap-1 text-sm text-danger">
                     <TriangleAlert className="size-4" aria-hidden />

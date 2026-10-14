@@ -1,6 +1,6 @@
 # API changes in 0.4.0 (Player BE-2: results and rankings)
 
-What changed in the two API specs between 0.3.0 and 0.4.0:
+What changed in the two generated Player/PostgREST API specs between 0.3.0 and 0.4.0. These describe `/rest/v1`, not the Admin Edge adapter. Upstream admin deletion/rebuild permissions are intentionally blocked by the Final v6 adapter; see [admin-api.md](admin-api.md).
 
 - [badminton-social-connect-api_implemented-playerBE1.yaml](badminton-social-connect-api_implemented-playerBE1.yaml): only what is built. 123 operations before, 136 now.
 - [badminton-social-connect-api_v1.2.yaml](badminton-social-connect-api_v1.2.yaml): everything, including the design's Planned endpoints. 140 operations before (17 Planned), 148 now (12 Planned).

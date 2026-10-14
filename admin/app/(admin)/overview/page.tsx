@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ACTION_LABEL, formatDateTime, humanize, TARGET_TYPE_LABEL } from "@/lib/format";
 import { useQuery } from "@/lib/mock-api";
+import { IS_API } from "@/lib/config";
 
 interface QueueItem {
   key: string;
@@ -43,12 +44,13 @@ export default function OverviewPage() {
     };
 
     return {
+      overview: db.overview,
       counts: {
-        pendingReports: pendingReports.length,
+        pendingReports: db.overview?.unresolved_reports ?? pendingReports.length,
         openDisputes: openDisputes.length,
         suspendedPlayers: db.players.filter((p) => p.status === "suspended").length,
         hiddenPosts: db.game_posts.filter((p) => p.status === "hidden").length,
-        activeLeagues: db.mini_leagues.filter((l) => l.status === "active").length,
+        activeLeagues: db.overview?.active_leagues ?? db.mini_leagues.filter((l) => l.status === "active").length,
         publishedCards: db.admin_posts.filter((p) => p.status === "published").length,
         players: db.players.length,
       },
@@ -105,6 +107,16 @@ export default function OverviewPage() {
         <StatTile label="Total players" value={counts.players} />
       </div>
 
+      {data.overview && (
+        <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-5">
+          <StatTile label="Registered users" value={data.overview.registered_users} hint="Completed registration" />
+          <StatTile label="Registration pending" value={data.overview.registration_pending_users} />
+          <StatTile label="Deleted accounts" value={data.overview.deleted_users} />
+          <StatTile label="Pending results" value={data.overview.pending_results} hint="Awaiting player confirmation" />
+          <StatTile label="Upcoming games" value={data.overview.upcoming_game_posts} hint="Excludes deleted posts" />
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader title="Needs attention" description={queueSize ? `${queueSize} item${queueSize === 1 ? "" : "s"} waiting on an administrator.` : undefined} />
@@ -159,7 +171,7 @@ export default function OverviewPage() {
           />
           {data.activity.length === 0 ? (
             <CardBody>
-              <p className="text-sm text-ink-muted">No admin actions yet.</p>
+              <p className="text-sm text-ink-muted">{IS_API ? "Activity history is unavailable until the database records administrator events." : "No admin actions yet."}</p>
             </CardBody>
           ) : (
             <ul className="divide-y divide-line">

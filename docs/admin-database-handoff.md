@@ -1,6 +1,6 @@
 # Admin backend database handoff
 
-Updated 13 October 2026. Audience: the database/Supabase maintainer, Admin BE, Player BE and Admin FE.
+Updated 14 October 2026. Audience: the database/Supabase maintainer, Admin BE, Player BE and Admin FE. The connected console and test instructions are in [admin-local-integration.md](admin-local-integration.md); the remaining database requirements below are still outstanding.
 
 The Admin API now targets **Player BE-2 0.4.0**, imported at `e69ea7a`, with all **50 existing migration files**. This supersedes the earlier four-migration handoff. Query compatibility, evidence reads, rating history/trend, result confirmations and anomaly queries are implemented. Remaining moderation actions still need database state, trusted transactions and audit events. This integration imports the team's SQL without editing it or adding migrations.
 
@@ -104,7 +104,7 @@ Final v6 recipients: hide post tells the host and exposes post-unavailable histo
 
 ### DB09 Admin provisioning and home content
 
-Current Auth metadata/RLS helper are retained. BL-030 still requires an invitation-only admin provisioning flow, a role-hook agreement and hosted session validation. Keep authority in protected app_metadata or a protected role source, never user_metadata. Ordinary player signup may stay enabled. The local configuration has session settings; the new frontend also supplies an idle-timeout workaround. Confirm the actual hosted admin policy rather than treating local settings as proof.
+Current Auth metadata/RLS helper are retained. BL-030 still requires an invitation-only admin provisioning flow, a role-hook agreement and hosted session validation. Keep authority in protected app_metadata or a protected role source, never user_metadata. Ordinary player signup may stay enabled. The local configuration has session settings, but this integrated frontend baseline has no additional 30-minute browser idle enforcement. Confirm the actual hosted admin policy rather than treating local settings as proof.
 
 The carousel already uses `admin_post`; a new HomeContent table is not inherently necessary. Agree whether admins see all drafts or only their own. Keep creator/publication metadata server-owned, and add a database-level published-image rule if alternate write paths must enforce it too. Image upload/storage permissions are separate from accepting an image URL. Announcement editing currently guards concurrent changes during processing; add a caller-read version for edits already stale before the request begins.
 
@@ -139,5 +139,7 @@ Acceptance for the next database iteration:
 On 13 October 2026, 156 Admin HTTP/SDK tests, 7 inherited session-timeout tests, 124 real local integration checks, Deno check/lint and frontend production build passed. The integration is tested against an isolated local Supabase stack containing all 50 migrations and the upstream development/reference seed data. The real suite checks Auth/RLS, both response contracts, new rating/evidence/flag reads, preserved evidence, deleted-account handling, exact counts and Final v6 refusals. Fixture deletion is scoped to temporary local accounts/records and also removes their retained anonymized test players.
 
 Run the four Node HTTP/SDK suites, Deno check/lint and frontend build as described in [admin-api.md](admin-api.md); run `admin-api-live.test.mjs` only against a local stack. Hosted deployment, external email/geocoding and Google OAuth are not established by these tests.
+
+The connected console was revalidated on 14 October 2026: 171 Admin/client/inherited-session tests and 124 real local API checks passed, with both frontend builds and Deno check/lint. See [current validation](admin-api.md#validation-and-deployment). The DB01–DB11 requirements are not completed by connecting the frontend, and the published integration does not claim complete caller-version conflict protection or a 30-minute Admin browser idle policy.
 
 A Supabase maintainer must apply the branch's migration history to the team's actual project before deploying this Admin API version. Confirm hosted drift and follow [DEPLOYMENT.md](DEPLOYMENT.md); keep development seed data local. GitHub publication alone is not proof of a deployed database or function. The new function expects the 0.4 schema and is not compatible with the old four-migration main database.

@@ -68,7 +68,7 @@ export function PlayerProfileCard({
                 <span className="text-lg font-semibold text-ink">{player.display_name}</span>
               )}
               {player.is_verified && <BadgeCheck className="size-4 text-brand" aria-label="Verified" />}
-              <StatusBadge status={player.status} />
+              <StatusBadge status={player.account_state === "deleted" ? "deleted" : player.status} />
             </div>
             <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-sm text-ink-muted">
               <span>{player.email}</span>

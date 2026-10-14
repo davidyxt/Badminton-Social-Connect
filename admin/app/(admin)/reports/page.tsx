@@ -18,7 +18,7 @@ interface Row {
   target: string;
 }
 
-const TARGET_ICON = { player: UserRound, game_post: Gamepad2, mini_league: Trophy, match: Swords, admin_post: Images, club: Building2 };
+const TARGET_ICON = { player: UserRound, game_post: Gamepad2, mini_league: Trophy, match: Swords, admin_post: Images, club: Building2, group: Building2 };
 
 /** Screens 17 (queue) and 18 (no matching reports). */
 export default function ReportsPage() {
@@ -127,6 +127,7 @@ export default function ReportsPage() {
               { value: "match", label: "Match" },
               { value: "admin_post", label: "Carousel card" },
               { value: "club", label: "Club" },
+              { value: "group", label: "Group" },
             ],
             getValue: (r) => r.report.target_type,
           },

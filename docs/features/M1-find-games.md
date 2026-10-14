@@ -127,13 +127,17 @@ cannot be cancelled within 4 hours of the start time…". Useful `code` values:
 | `23505` | Already done: already asked to join, already cancelled |
 | `42501` | Not allowed: not the organiser, not registered, game not found |
 
+## Current integration status
+
+Blocking, notifications, reliability windows and the singles rating engine are included in this 0.4 baseline. See [M3](M3-reporting-and-blocking.md), [M5](M5-trust-and-reliability.md) and [M2](M2-results-and-rankings.md). The dated sections below retain their original decision context.
+
 ## Not done yet
 
 - **Exact venue before acceptance (PHY-02):** the venue is shown to everyone, as the current screens do. BL-017 and the risk register want it hidden until a player is accepted. Waiting on a team decision.
-- **Blocked players** are not yet left out of search (BL-027).
-- **Rating and grade** (e.g. "B1") are null until the rating calculation exists (BL-024, Player BE-2).
-- **Notifications** for new requests and acceptances come with BL-050. Cancelling and deleting already notify.
-- **Withdrawal time windows** and their effect on reliability come with BL-054.
+- **Blocking (BL-027):** implemented with one-sided visibility and badges; see M3.
+- **Rating and grade (BL-024):** implemented for singles; grade remains null during placement, and doubles are not rated.
+- **Notifications (BL-050):** request/acceptance, invitation, cancellation and deletion notices are implemented.
+- **Withdrawal windows and reliability (BL-054):** implemented; see M5.
 - **Distance** ("2.4 km" on Play Request) is not calculated.
 
 ## Team decisions applied (2026-10-08)

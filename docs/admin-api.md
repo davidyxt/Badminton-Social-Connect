@@ -101,7 +101,7 @@ Seven moderation actions remain 501: account suspend/restore, post hide/restore,
 
 ## Frontend client
 
-`frontend/src/services/adminService.js` exports the authenticated client. Existing screens are outside this integration's scope. New helpers are `userRegistration`, `userRating`, `userRatingTrend`, `userRatingHistory`, `resultFlags` and `leaderboard`, alongside existing overview/context/list/announcement helpers.
+`frontend/src/services/adminService.js` exports the player app's authenticated Admin client helpers: `userRegistration`, `userRating`, `userRatingTrend`, `userRatingHistory`, `resultFlags` and `leaderboard`, alongside existing overview/context/list/announcement helpers. The separate Next.js console in `admin/` connects to the same Edge Function using its TypeScript transport and these read endpoints. See [admin/README.md](../admin/README.md) and [local integration notes](admin-local-integration.md) for the current local setup, connected screens and unsupported actions.
 
 ```js
 const { data: response } = await adminApi.userRating(playerId);
@@ -124,6 +124,8 @@ node --test supabase/tests/admin-api.test.mjs supabase/tests/admin-api-contract.
 
 From `supabase/functions/admin-api`, run `deno check --frozen index.ts` and `deno lint index.ts context.mjs contract.mjs handler.mjs console.mjs reads.mjs`. Use `npm run build` in `frontend` for the frontend/client build.
 
+For the connected Next.js console, run `npm test`, `npm run lint` and `npm run build` in `admin/`. The eight console tests use controlled API responses to verify transport, pagination, registration/deletion mapping and cache isolation; the real-stack suite below verifies the actual database and function. See [admin-local-integration.md](admin-local-integration.md) for the supported screens, setup and known UI acceptance gaps.
+
 For real integration, start Docker and local Supabase with all 50 migrations, serve `admin-api`, then run `node supabase/tests/admin-api-live.test.mjs`. It refuses remote URLs, creates registered fixture accounts, exercises Auth/RLS/Edge transport, verifies evidence preservation and new reads, and removes only its own records. Auth deletion retains anonymized players in 0.4, so fixture cleanup explicitly removes those fixture rows after deleting their local Auth identities. Google OAuth and external email/geocoding are not part of this test.
 
 On Windows, `SUPABASE_WORKDIR` can point at an isolated CLI configuration with available ports. This integration used ports 56321–56324 and project `badminton-admin04`, leaving the repository configuration unchanged. Credentials stay local and are never committed.
@@ -131,3 +133,5 @@ On Windows, `SUPABASE_WORKDIR` can point at an isolated CLI configuration with a
 Deploy the team's migrations before this version of the function. It targets the new schema and should not be deployed against the four-migration main database. Hosted deployment requires a teammate with Supabase access; local verification does not establish cloud deployment. See [SETUP.md](SETUP.md) and [DEPLOYMENT.md](DEPLOYMENT.md). GitHub branch publication does not itself confirm Supabase deployment.
 
 Validation on 13 October 2026: 156 Admin HTTP/SDK tests plus 7 inherited session-timeout tests (163 total), 124 real local Auth/database/RLS/Edge checks, Deno check/lint and frontend production build passed. The build emitted dependency-level `use client` directive warnings. All 50 imported migrations remain byte-equivalent after line-ending normalization. Hosted validation remains separate.
+
+Revalidated on 14 October 2026 for the published console integration: 156 Admin HTTP/SDK tests, 7 inherited player-session tests and 8 console transport/cache tests passed (171 total); 124 real local Auth/database/RLS/Edge checks passed and removed their temporary fixtures. Admin lint/TypeScript/production build, the player frontend production build and Deno check/lint passed. The player build still emitted dependency-level `use client` directive warnings. Documentation review checked 18 Markdown files, the three Player BE-2 reference scripts and both generated YAML specs, including all 1,203 internal schema references; Markdown links/fences and YAML syntax/duplicate keys/references passed. No database migration SQL or rating algorithm was changed. The known carousel caller-version/audit and moderation gaps remain; these passing tests do not assert that those missing capabilities work. No hosted deployment was performed.

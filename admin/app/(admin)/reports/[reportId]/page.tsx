@@ -20,6 +20,8 @@ import { PlayerLink, PlayerProfileCard } from "@/components/shared/PlayerProfile
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { formatDateTime, humanize, TARGET_TYPE_LABEL } from "@/lib/format";
 import { useAdminAction } from "@/lib/hooks/useAdminAction";
+import { IS_API } from "@/lib/config";
+import { ReportEvidence } from "@/components/monitoring/ReportEvidence";
 import {
   admin_hide_post,
   admin_restore_account,
@@ -113,7 +115,7 @@ export default function ReportDetailPage() {
       <BackendGapNotice
         message={
           pending && unavailableReason("admin_review_report")
-            ? "Resolving and dismissing aren't available yet: the database can't store the required review note (DB06). Account, post and league actions are disabled until DB02–DB04."
+            ? "Resolving and dismissing aren't available yet: the database can't store the required review note (DB05). Account, post and league actions are disabled until DB02–DB04."
             : null
         }
       />
@@ -143,6 +145,7 @@ export default function ReportDetailPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
+          {IS_API && <ReportEvidence key={reportId} reportId={reportId} showCurrentTarget />}
           <Card>
             <CardHeader title="Report" />
             <CardBody>
@@ -261,11 +264,11 @@ export default function ReportDetailPage() {
               </Card>
             )}
 
-            {report.target_type === "club" && (
+            {!IS_API && report.target_type === "club" && (
               <Notice title={`Club ${report.target_id}`}>Club details aren&apos;t available from the admin API yet.</Notice>
             )}
 
-            {!targetPlayer && !post && !league && !match && !adminPost && report.target_type !== "club" && (
+            {!targetPlayer && !post && !league && !match && !adminPost && report.target_type !== "club" && report.target_type !== "group" && (
               <Notice tone="warning" title="Content no longer exists">
                 {data.deleted
                   ? `"${data.deleted.label}" was deleted ${formatDateTime(data.deleted.deleted_at)}. Reason: ${data.deleted.reason}`

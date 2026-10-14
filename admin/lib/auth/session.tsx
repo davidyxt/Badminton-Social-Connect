@@ -14,6 +14,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import type { Session } from "@supabase/supabase-js";
 import { getSupabase, onAuthFailure } from "@/lib/api/client";
 import { IS_API } from "@/lib/config";
+import { resetApiCache, setApiCacheOwner } from "@/lib/api/sync";
 import { MOCK_ADMIN } from "@/lib/mock-data";
 import type { Admin } from "@/lib/types";
 
@@ -62,6 +63,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<SessionState | null>(null);
 
   const update = useCallback((next: SessionState) => {
+    if (IS_API) {
+      const owner = next.status === "authenticated" ? next.admin?.admin_id ?? null : null;
+      setApiCacheOwner(owner);
+    }
     setState(next);
     if (IS_API) return;
     try {
@@ -79,21 +84,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return;
     }
     const supabase = getSupabase();
-    void supabase.auth.getSession().then(({ data }) => setState(fromSupabase(data.session)));
+    void supabase.auth.getSession().then(({ data }) => update(fromSupabase(data.session)));
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT") {
+        resetApiCache();
         setState((prev) => (signingOutByUser || prev?.status !== "authenticated" ? { status: "signed_out", admin: null } : { status: "expired", admin: prev.admin }));
         signingOutByUser = false;
       } else if (session) {
-        setState(fromSupabase(session));
+        update(fromSupabase(session));
       }
     });
-    const offAuthFailure = onAuthFailure(() => setState((prev) => (prev?.status === "authenticated" ? { status: "expired", admin: prev.admin } : prev)));
+    const offAuthFailure = onAuthFailure((reason) => {
+      resetApiCache();
+      setState((prev) => (prev?.status === "authenticated" ? { status: reason === "restricted" ? "restricted" : "expired", admin: prev.admin } : prev));
+    });
     return () => {
       sub.subscription.unsubscribe();
       offAuthFailure();
     };
-  }, []);
+  }, [update]);
 
   const signIn = useCallback(
     async (email: string, password: string) => {

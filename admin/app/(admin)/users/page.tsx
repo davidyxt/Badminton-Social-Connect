@@ -52,7 +52,8 @@ export default function UsersPage() {
         </div>
       ),
     },
-    { id: "status", header: "Status", sortValue: (r) => r.player.status, cell: (r) => <StatusBadge status={r.player.status} /> },
+    { id: "status", header: "Status", sortValue: (r) => r.player.status, cell: (r) => <StatusBadge status={r.player.account_state === "deleted" ? "deleted" : r.player.status} /> },
+    { id: "registration", header: "Registration", sortValue: (r) => r.player.account_state ?? "", cell: (r) => r.player.account_state ? <StatusBadge status={r.player.account_state} /> : "—" },
     { id: "band", header: "Rating band", sortValue: (r) => r.player.self_rating_band, cell: (r) => r.player.self_rating_band },
     {
       id: "reliability",
@@ -97,6 +98,11 @@ export default function UsersPage() {
         searchPlaceholder="Search name, email or suburb"
         filters={[
           {
+            id: "registration", label: "Registration",
+            options: [{ value: "registered", label: "Registered" }, { value: "registration_pending", label: "Pending" }, { value: "deleted", label: "Deleted" }],
+            getValue: (r) => r.player.account_state ?? "",
+          },
+          {
             id: "status",
             label: "Status",
             options: [
@@ -108,7 +114,7 @@ export default function UsersPage() {
           {
             id: "band",
             label: "Band",
-            options: ["Beginner", "Intermediate", "Advanced"].map((b) => ({ value: b, label: b })),
+            options: [...new Set(rows.map((r) => r.player.self_rating_band))].sort().map((b) => ({ value: b, label: b })),
             getValue: (r) => r.player.self_rating_band,
           },
           {
