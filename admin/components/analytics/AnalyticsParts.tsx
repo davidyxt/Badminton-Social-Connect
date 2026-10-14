@@ -5,14 +5,12 @@ import { featureGap } from "@/lib/api/capabilities";
 import { IS_API } from "@/lib/config";
 import { changeVsPrevious } from "./range";
 
+/** API mode only: which metrics the backend can't report yet. */
 export function SampleDataNotice() {
+  if (!IS_API) return null;
   return (
     <div className="mb-6">
-      {IS_API ? (
-        <Notice>{featureGap("analytics")} Days are complete Melbourne days, up to yesterday.</Notice>
-      ) : (
-        <Notice>Sample data. App-event tracking isn&apos;t built yet, so these aren&apos;t real usage figures.</Notice>
-      )}
+      <Notice>{featureGap("analytics")} Days are complete Melbourne days, up to yesterday.</Notice>
     </div>
   );
 }

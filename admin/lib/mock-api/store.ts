@@ -18,7 +18,7 @@ import type { MockDatabase } from "@/lib/types";
  * written to localStorage.
  */
 
-const STORAGE_KEY = "bsc-admin:mock-db:v2";
+const STORAGE_KEY = "bsc-admin:mock-db:v3";
 
 let db: MockDatabase = IS_API ? createEmptyDb() : createInitialDb();
 const listeners = new Set<() => void>();

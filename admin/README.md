@@ -66,7 +66,7 @@ When the backend adds a capability, remove it from `lib/api/capabilities.ts` and
 
 ## Mock controls
 
-In mock mode, the **Mock controls** button (bottom left) is demo tooling for states a real backend would produce:
+In mock mode, the **Mock controls** button (bottom left) is testing tooling for states a real backend would produce. The console never says it's showing mock data, so the button is hidden by default: open any page with `?devtools=1` to show it in that browser (`?devtools=0` hides it again), or set `NEXT_PUBLIC_SHOW_DEV_TOOLS=true`. It offers:
 
 | Control | What it shows |
 | --- | --- |

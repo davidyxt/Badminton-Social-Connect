@@ -64,7 +64,11 @@ export default function PlayerProfilePage() {
   if (!data) return <RecordNotFound what="Player" backHref="/users" backLabel="Back to users" />;
 
   const { player, profile, reports, activity } = data;
-  const lastSuspension = activity.find((a) => a.action === "suspend_account");
+  // The newest suspend/restore entry decides; a suspension already undone by a restore is stale.
+  const lastAccountChange = activity
+    .filter((a) => a.action === "suspend_account" || a.action === "restore_account")
+    .reduce<(typeof activity)[number] | undefined>((latest, a) => (!latest || a.created_at > latest.created_at ? a : latest), undefined);
+  const lastSuspension = lastAccountChange?.action === "suspend_account" ? lastAccountChange : undefined;
   const latest = activity[0];
   const recentlyRestored = player.status === "active" && latest?.action === "restore_account";
   const history = data.history[format];

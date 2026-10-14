@@ -38,6 +38,9 @@ interface Row {
 }
 
 type StatusTab = "all" | "published" | "hidden";
+
+/** Published = live in Find Games. Cancelled and completed posts only appear under All. */
+const isPublished = (post: GamePost) => post.status === "open" || post.status === "full";
 type Dialog = "hide" | "restore" | "delete" | null;
 
 /** Screens 24 (list), 27 (post detail), 28 (hidden, restorable), 29 (hide), 30 (delete), 31 (restore). */
@@ -65,7 +68,8 @@ function GamePostModeration() {
   });
 
   const hiddenCount = rows.filter((r) => r.post.status === "hidden").length;
-  const visible = tab === "all" ? rows : rows.filter((r) => (tab === "hidden" ? r.post.status === "hidden" : r.post.status !== "hidden"));
+  const publishedCount = rows.filter((r) => isPublished(r.post)).length;
+  const visible = tab === "all" ? rows : rows.filter((r) => (tab === "hidden" ? r.post.status === "hidden" : isPublished(r.post)));
 
   const columns: Column<Row>[] = [
     {
@@ -110,7 +114,7 @@ function GamePostModeration() {
         onChange={(id) => setTab(id as StatusTab)}
         tabs={[
           { id: "all", label: "All", count: rows.length },
-          { id: "published", label: "Published", count: rows.length - hiddenCount },
+          { id: "published", label: "Published", count: publishedCount },
           { id: "hidden", label: "Hidden", count: hiddenCount },
         ]}
       />
@@ -293,6 +297,7 @@ function PostPanel({ postId, onClose }: { postId: string; onClose: () => void })
       <RestorePostModal
         open={dialog === "restore"}
         postTitle={post.title}
+        suspendedOrganiser={!post.organiser_group_id && data.organiser?.status === "suspended" ? data.organiser.display_name : null}
         onClose={close}
         onConfirm={({ reason }) =>
           run(() => admin_restore_post({ postId: post.post_id, note: reason }), {

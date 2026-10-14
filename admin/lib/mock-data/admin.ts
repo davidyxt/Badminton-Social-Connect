@@ -33,7 +33,6 @@ const logSeeds: LogSeed[] = [
   ["2026-09-27T20:22:00Z", "hide_post", "game_post", "gp-3011", "Reason: Hostile tone towards other players"],
   ["2026-09-27T20:20:00Z", "review_report", "report", "rpt-2034", "Outcome: resolved. Post hidden. Organiser reminded of community guidelines."],
   ["2026-09-27T04:12:00Z", "delete_post", "game_post", "gp-2988", "Reason: Commercial spam, not a game post. Repeat offence."],
-  ["2026-09-25T22:00:00Z", "resolve_dispute", "dispute", "dsp-6999", "Outcome: dismissed. Both partners on side A confirmed the score."],
   ["2026-09-21T02:15:00Z", "publish_admin_post", "admin_post", "ap-8001", "Published carousel card \"Welcome to Badminton Social Connect\""],
   ["2026-09-18T01:30:00Z", "delete_league", "mini_league", "ml-3990", "Reason: Organiser requested removal of an accidental test league."],
   ["2026-09-15T03:40:00Z", "publish_admin_post", "admin_post", "ap-8002", "Published carousel card \"Be a reliable player\""],

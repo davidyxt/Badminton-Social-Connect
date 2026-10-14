@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { SignInForm } from "@/components/layout/SignInForm";
-import { useSession } from "@/lib/auth/session";
+import { returnPathFromLocation, useSession } from "@/lib/auth/session";
 
 /** Screen 46 */
 export default function SignInPage() {
@@ -11,7 +11,7 @@ export default function SignInPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (status === "authenticated") router.replace("/overview");
+    if (status === "authenticated") router.replace(returnPathFromLocation());
   }, [status, router]);
 
   return (

@@ -8,7 +8,7 @@ import { LiveIndicator } from "@/components/shared/LiveIndicator";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { formatDateTime, humanize } from "@/lib/format";
-import { selectResultForMatch, useQuery } from "@/lib/mock-api";
+import { isDisputeUnresolved, selectResultForMatch, useQuery } from "@/lib/mock-api";
 import type { Match, MatchResult } from "@/lib/types";
 import { MINI_LEAGUES_ENABLED } from "@/lib/features";
 
@@ -39,7 +39,7 @@ export default function GamesPage() {
           ? (db.mini_leagues.find((l) => l.league_id === match.league_id)
               ?.name ?? `${match.league_id} (deleted)`)
           : null,
-        openDisputes: disputes.filter((d) => d.status === "open").length,
+        openDisputes: disputes.filter(isDisputeUnresolved).length,
         disputes: disputes.length,
       };
     });
@@ -91,7 +91,7 @@ export default function GamesPage() {
             <div className="mt-0.5 text-[13px] text-danger">Dispute open</div>
           ) : r.disputes > 0 ? (
             <div className="mt-0.5 text-[13px] text-ink-muted">
-              Dispute resolved
+              Dispute closed
             </div>
           ) : null}
         </div>
@@ -101,11 +101,19 @@ export default function GamesPage() {
       id: "score",
       header: "Score",
       sortValue: (r) => r.result?.score ?? "",
+      // Only a confirmed score is final; anything else is muted with its result status.
       cell: (r) =>
-        r.result ? (
+        r.result?.status === "confirmed" ? (
           <span className="whitespace-nowrap tabular-nums">
             {r.result.score}
           </span>
+        ) : r.result ? (
+          <div className="whitespace-nowrap">
+            <span className="text-ink-muted tabular-nums">{r.result.score}</span>
+            <div className="text-[13px] text-ink-faint">
+              {humanize(r.result.status)}
+            </div>
+          </div>
         ) : (
           <span className="text-ink-faint">—</span>
         ),

@@ -24,8 +24,8 @@ export function HidePostModal({ postTitle, ...props }: FlowProps & { postTitle: 
   );
 }
 
-/** Screen 31 */
-export function RestorePostModal({ postTitle, ...props }: FlowProps & { postTitle: string }) {
+/** Screen 31. `suspendedOrganiser`: the organiser's name when their account is suspended; warns but doesn't block. */
+export function RestorePostModal({ postTitle, suspendedOrganiser, ...props }: FlowProps & { postTitle: string; suspendedOrganiser?: string | null }) {
   return (
     <ConfirmDialog
       {...props}
@@ -37,7 +37,13 @@ export function RestorePostModal({ postTitle, ...props }: FlowProps & { postTitl
       }
       confirmLabel="Restore post"
       reason={{ label: "Note", placeholder: "Optional: why this post is being restored" }}
-    />
+    >
+      {suspendedOrganiser && (
+        <Notice tone="warning">
+          {suspendedOrganiser}&apos;s account is suspended. Restoring puts this post back in Find Games while they can&apos;t sign in to manage it.
+        </Notice>
+      )}
+    </ConfirmDialog>
   );
 }
 

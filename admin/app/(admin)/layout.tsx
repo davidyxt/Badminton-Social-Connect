@@ -2,11 +2,11 @@
 
 import { LoaderCircle, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Button } from "@/components/shared/Button";
 import { syncNow, useSyncStatus } from "@/lib/api/sync";
-import { useSession, type SessionStatus } from "@/lib/auth/session";
+import { useSession, withReturnPath, type SessionStatus } from "@/lib/auth/session";
 import { useIdleTimeout } from "@/lib/auth/useIdleTimeout";
 import { API_POLL_INTERVAL_MS, IS_API } from "@/lib/config";
 import { selectOpenDisputeCount, selectPendingReportCount, useDb } from "@/lib/mock-api";
@@ -30,8 +30,15 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const sync = useSyncStatus();
   useIdleTimeout(session.status === "authenticated", session.expire);
 
+  /** A deliberate sign-out here goes to a plain /sign-in; anything else remembers the page to come back to. */
+  const signingOut = useRef(false);
   useEffect(() => {
-    if (session.status !== "authenticated") router.replace(REDIRECTS[session.status]);
+    if (session.status === "authenticated") {
+      signingOut.current = false;
+      return;
+    }
+    const target = REDIRECTS[session.status];
+    router.replace(signingOut.current ? target : withReturnPath(target, window.location.pathname + window.location.search));
   }, [session.status, router]);
 
   useEffect(() => {
@@ -73,8 +80,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       admin={session.admin}
       badges={{ reports: selectPendingReportCount(db), disputes: selectOpenDisputeCount(db) }}
       onSignOut={() => {
+        signingOut.current = true;
         session.signOut();
-        router.replace("/sign-in");
       }}
     >
       {children}

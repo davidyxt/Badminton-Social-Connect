@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { LiveIndicator } from "@/components/shared/LiveIndicator";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { resolveTarget } from "@/lib/activity";
 import { ACTION_LABEL, formatDateTime, humanize, TARGET_TYPE_LABEL } from "@/lib/format";
 import { MINI_LEAGUES_ENABLED } from "@/lib/features";
 import { isDisputeUnresolved, selectVisibleActivity, selectVisibleReports, useQuery } from "@/lib/mock-api";
@@ -74,7 +75,10 @@ export default function OverviewPage() {
         at: lastSuspended(l.league_id) ?? l.created_at,
         status: l.status,
       })),
-      activity: selectVisibleActivity(db).sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 6),
+      activity: selectVisibleActivity(db)
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .slice(0, 6)
+        .map((entry) => ({ entry, href: resolveTarget(db, entry.target_type, entry.target_id).href })),
     };
   });
 
@@ -162,15 +166,29 @@ export default function OverviewPage() {
               <p className="text-[13px] text-ink-muted">No admin actions yet.</p>
             ) : (
               <ol className="divide-y divide-line border-y border-line">
-                {data.activity.map((e) => (
-                  <li key={e.log_id} className="py-2.5">
-                    <div className="text-[13px] font-medium text-ink">{ACTION_LABEL[e.action] ?? humanize(e.action)}</div>
-                    <div className="line-clamp-2 text-[13px] text-ink-muted">{e.details}</div>
-                    <div className="mt-0.5 text-xs text-ink-faint">
-                      {TARGET_TYPE_LABEL[e.target_type] ?? humanize(e.target_type)} · {formatDateTime(e.created_at)}
-                    </div>
-                  </li>
-                ))}
+                {data.activity.map(({ entry: e, href }) => {
+                  const body = (
+                    <>
+                      <div className="text-[13px] font-medium text-ink">{ACTION_LABEL[e.action] ?? humanize(e.action)}</div>
+                      <div className="line-clamp-2 text-[13px] text-ink-muted">{e.details}</div>
+                      <div className="mt-0.5 text-xs text-ink-faint">
+                        {TARGET_TYPE_LABEL[e.target_type] ?? humanize(e.target_type)} · {formatDateTime(e.created_at)}
+                      </div>
+                    </>
+                  );
+                  // Links to the record, like the Activity log; plain text once the record is gone.
+                  return (
+                    <li key={e.log_id}>
+                      {href ? (
+                        <Link href={href} className="-mx-2 block rounded-md px-2 py-2.5 hover:bg-subtle">
+                          {body}
+                        </Link>
+                      ) : (
+                        <div className="py-2.5">{body}</div>
+                      )}
+                    </li>
+                  );
+                })}
               </ol>
             )}
           </section>

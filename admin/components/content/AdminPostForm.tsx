@@ -1,6 +1,6 @@
 "use client";
 
-import { ImageOff, TriangleAlert, Upload, X } from "lucide-react";
+import { ImageOff, RefreshCw, TriangleAlert, Upload, X } from "lucide-react";
 import { useId, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/shared/Button";
 import { useDialogFocus } from "@/components/shared/ConfirmDialog";
@@ -25,11 +25,15 @@ export interface AdminPostFormProps {
   maxOrder: number;
   onSubmit: (values: AdminPostFormValues) => Promise<ActionOutcome>;
   onClose: () => void;
+  /** Edit only: replace the form with the card's latest saved version after a conflict. */
+  onReload?: () => void;
 }
 
-/** Thumbnail for a carousel card, with a placeholder when there's no image. */
+/** Thumbnail for a carousel card, with a placeholder when there's no image or it fails to load. */
 export function CardImage({ src, alt, className = "" }: { src: string; alt: string; className?: string }) {
-  if (!src.trim()) {
+  // Remembers which src failed, so a new src gets a fresh attempt.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  if (!src.trim() || failedSrc === src) {
     return (
       <div className={`flex flex-col items-center justify-center gap-1 bg-neutral-soft text-ink-faint ${className}`}>
         <ImageOff className="size-5" aria-hidden />
@@ -39,7 +43,7 @@ export function CardImage({ src, alt, className = "" }: { src: string; alt: stri
   }
   // Plain <img>: the source may be a data URL from the upload field (mock mode).
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt={alt} className={`bg-neutral-soft object-cover ${className}`} />;
+  return <img src={src} alt={alt} onError={() => setFailedSrc(src)} className={`bg-neutral-soft object-cover ${className}`} />;
 }
 
 /** Create / edit a home page carousel card. NEW (no Figma design). */
@@ -76,9 +80,12 @@ function validate(v: AdminPostFormValues, maxOrder: number): Errors {
   return e;
 }
 
-function AdminPostFormInner({ mode, initial, maxOrder, onSubmit, onClose }: AdminPostFormProps) {
-  const [values, setValues] = useState<AdminPostFormValues>(initial);
-  const [orderText, setOrderText] = useState(String(initial.display_order));
+function AdminPostFormInner({ mode, initial, maxOrder, onSubmit, onClose, onReload }: AdminPostFormProps) {
+  const [fields, setValues] = useState<Omit<AdminPostFormValues, "display_order">>(initial);
+  // null until the admin edits the order. Untouched, it follows the current position, clamped to `maxOrder`
+  // in case cards were removed in another session; only a typed value can be out of range.
+  const [orderText, setOrderText] = useState<string | null>(null);
+  const [conflict, setConflict] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -95,10 +102,16 @@ function AdminPostFormInner({ mode, initial, maxOrder, onSubmit, onClose }: Admi
     "input",
   );
 
+  const values: AdminPostFormValues = {
+    ...fields,
+    display_order:
+      orderText === null ? Math.min(initial.display_order, maxOrder) : orderText === "" ? NaN : Number(orderText),
+  };
+
   // Errors show (and update live) once the user has tried to save.
   const errors: Errors = submitted ? validate(values, maxOrder) : {};
 
-  const set = <K extends keyof AdminPostFormValues>(key: K, value: AdminPostFormValues[K]) => {
+  const set = <K extends keyof typeof fields>(key: K, value: AdminPostFormValues[K]) => {
     setValues((v) => ({ ...v, [key]: value }));
   };
 
@@ -134,6 +147,7 @@ function AdminPostFormInner({ mode, initial, maxOrder, onSubmit, onClose }: Admi
     const outcome = await onSubmit({ ...values, title: values.title.trim(), body: values.body.trim(), image_url: values.image_url.trim() });
     setSubmitting(false);
     if (outcome === "failed") setFailed(true);
+    if (outcome === "conflict") setConflict(true);
   }
 
   const publishing = values.status === "published";
@@ -248,11 +262,9 @@ function AdminPostFormInner({ mode, initial, maxOrder, onSubmit, onClose }: Admi
                     </Button>
                   )}
                 </div>
-                <p className="text-xs text-ink-faint">
-                  {IS_API
-                    ? "Image upload isn't available yet. Host the image somewhere public and paste its address."
-                    : "Uploaded images are only stored in this browser's demo data."}
-                </p>
+                {IS_API && (
+                  <p className="text-xs text-ink-faint">Image upload isn&apos;t available yet. Host the image somewhere public and paste its address.</p>
+                )}
                 {fileError && (
                   <p role="alert" className="flex items-center gap-1 text-[13px] text-danger">
                     <TriangleAlert className="size-3.5" aria-hidden />
@@ -274,12 +286,9 @@ function AdminPostFormInner({ mode, initial, maxOrder, onSubmit, onClose }: Admi
                   inputMode="numeric"
                   min={1}
                   max={maxOrder}
-                  value={orderText}
+                  value={orderText ?? String(values.display_order)}
                   disabled={submitting}
-                  onChange={(e) => {
-                    setOrderText(e.target.value);
-                    set("display_order", e.target.value === "" ? NaN : Number(e.target.value));
-                  }}
+                  onChange={(e) => setOrderText(e.target.value)}
                   aria-invalid={errors.display_order ? true : undefined}
                   aria-describedby={errors.display_order ? `${ids.order}-error` : `${ids.order}-hint`}
                   className={`${inputClass(Boolean(errors.display_order))} w-28`}
@@ -314,6 +323,24 @@ function AdminPostFormInner({ mode, initial, maxOrder, onSubmit, onClose }: Admi
                 </p>
               </fieldset>
             </div>
+
+            {conflict && onReload && (
+              <div role="alert" className="rounded-md bg-warning-soft px-3 py-2.5 text-[13px] text-ink">
+                <p className="flex items-center gap-1.5 font-medium">
+                  <RefreshCw className="size-3.5 text-warning" aria-hidden />
+                  This card was changed in another session.
+                </p>
+                <p className="mt-0.5 text-ink-muted">Your edits are still here. Load the latest version to start again from it (your edits will be discarded), or close without saving.</p>
+                <div className="mt-2 flex gap-2">
+                  <Button size="sm" onClick={onReload}>
+                    Load latest version
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={onClose}>
+                    Close without saving
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {failed && (
               <div role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-[13px] text-danger">

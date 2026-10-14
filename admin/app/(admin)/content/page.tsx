@@ -10,7 +10,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AdminPostForm,
   CardImage,
@@ -21,6 +21,7 @@ import { Card, SectionHeading } from "@/components/shared/Card";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { useFeedback } from "@/components/shared/FeedbackToast";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { formatDateTime } from "@/lib/format";
 import { useAdminAction } from "@/lib/hooks/useAdminAction";
@@ -33,13 +34,14 @@ import {
 import type { AdminPost } from "@/lib/types";
 
 /**
- * `post` and `position` are snapshots from when the dialog opened: the edit is
- * saved against that version (`updated_at`), so a change made in another
- * session in the meantime is reported as a conflict rather than overwritten.
+ * `post` is a snapshot from when the dialog opened (or the latest version was
+ * reloaded): the edit is saved against that version (`updated_at`), so a change
+ * made in another session in the meantime is reported as a conflict rather than
+ * overwritten.
  */
 type Dialog =
   | { kind: "create" }
-  | { kind: "edit"; post: AdminPost; position: number }
+  | { kind: "edit"; post: AdminPost }
   | { kind: "remove"; post: AdminPost }
   | null;
 
@@ -56,14 +58,35 @@ function publishBlocker(
 
 /** NEW (no Figma design): home page carousel management. */
 export default function ContentPage() {
-  const [dialog, setDialog] = useState<Dialog>(null);
+  const [openDialog, setDialog] = useState<Dialog>(null);
   const { run, pending } = useAdminAction();
+  const feedback = useFeedback();
   const close = () => setDialog(null);
 
   const posts = useQuery((db) =>
     [...db.admin_posts].sort((a, b) => a.display_order - b.display_order),
   );
   const published = posts.filter((p) => p.status === "published");
+
+  // A card removed in another session while its edit dialog is open: there is
+  // nothing left to save, so the dialog closes with the usual conflict notice.
+  const editIndex =
+    openDialog?.kind === "edit"
+      ? posts.findIndex((p) => p.admin_post_id === openDialog.post.admin_post_id)
+      : -1;
+  const removedId =
+    openDialog?.kind === "edit" && editIndex === -1
+      ? openDialog.post.admin_post_id
+      : null;
+  const dialog = removedId ? null : openDialog;
+  useEffect(() => {
+    if (!removedId) return;
+    feedback.show({
+      kind: "conflict",
+      title: "Record changed",
+      message: "This card was removed in another session.",
+    });
+  }, [removedId, feedback]);
 
   // Positions are list positions (1-based), not raw display_order values: the
   // API can leave gaps in display_order after a delete.
@@ -105,9 +128,11 @@ export default function ContentPage() {
   const submitForm = (values: AdminPostFormValues) => {
     if (dialog?.kind === "edit") {
       const { post } = dialog;
+      // Compare against the card's current position (other cards can be
+      // removed or moved meanwhile), so an untouched order field sends no move.
       const original: AdminPostFormValues = {
         ...post,
-        display_order: dialog.position,
+        display_order: editIndex + 1,
       };
       // Only send changed fields so the activity log records the right action.
       const patch: Partial<AdminPostFormValues> = {};
@@ -126,11 +151,9 @@ export default function ContentPage() {
             ...patch,
             expectedUpdatedAt: post.updated_at,
           }),
-        {
-          success: "Card saved",
-          onSuccess: close,
-          onConflict: close,
-        },
+        // On a conflict the dialog stays open with the admin's input; the form
+        // offers to reload the latest version.
+        { success: "Card saved", onSuccess: close },
       );
     }
     return run(() => create_admin_post(values), {
@@ -149,7 +172,7 @@ export default function ContentPage() {
           title: dialog.post.title,
           body: dialog.post.body,
           image_url: dialog.post.image_url,
-          display_order: dialog.position,
+          display_order: editIndex + 1,
           status: dialog.post.status,
         }
       : {
@@ -345,7 +368,7 @@ export default function ContentPage() {
                         variant="ghost"
                         icon={<Pencil aria-hidden />}
                         onClick={() =>
-                          setDialog({ kind: "edit", post, position: i + 1 })
+                          setDialog({ kind: "edit", post })
                         }
                       >
                         Edit
@@ -369,8 +392,12 @@ export default function ContentPage() {
       </div>
 
       <AdminPostForm
-        // Remount when switching between cards so the form picks up the right values.
-        key={dialog?.kind === "edit" ? dialog.post.admin_post_id : "new"}
+        // Remount when switching cards or reloading the latest version, so the form picks up the right values.
+        key={
+          dialog?.kind === "edit"
+            ? `${dialog.post.admin_post_id}:${dialog.post.updated_at}`
+            : "new"
+        }
         open={dialog?.kind === "create" || dialog?.kind === "edit"}
         mode={dialog?.kind === "edit" ? "edit" : "create"}
         initial={formInitial}
@@ -379,6 +406,11 @@ export default function ContentPage() {
         }
         onClose={close}
         onSubmit={submitForm}
+        onReload={
+          dialog?.kind === "edit"
+            ? () => setDialog({ kind: "edit", post: posts[editIndex] })
+            : undefined
+        }
       />
 
       <ConfirmDialog

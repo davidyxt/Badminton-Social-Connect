@@ -13,8 +13,9 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useSession } from "@/lib/auth/session";
 import { ACTION_FEATURE, ACTION_LABEL, TARGET_TYPE_LABEL, downloadFile, formatDateTime, humanize, resultStatusOf, toCsv } from "@/lib/format";
+import { localDateTime, localDay, resolveTarget } from "@/lib/activity";
 import { selectVisibleActivity, useQuery } from "@/lib/mock-api";
-import type { ActivityLog, MockDatabase } from "@/lib/types";
+import type { ActivityLog } from "@/lib/types";
 
 interface Row {
   entry: ActivityLog;
@@ -30,44 +31,6 @@ interface Row {
   admin: string;
   /** Local calendar date (YYYY-MM-DD) for the date range filter. */
   day: string;
-}
-
-const pad = (n: number) => String(n).padStart(2, "0");
-const localDay = (iso: string) => {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
-
-/** Resolves a log target to a label + link, or nulls when the record no longer exists. */
-function resolveTarget(db: MockDatabase, type: string, id: string): { label: string | null; href: string | null } {
-  switch (type) {
-    case "player": {
-      const p = db.players.find((x) => x.player_id === id);
-      return p ? { label: p.display_name, href: `/users/${id}` } : { label: null, href: null };
-    }
-    case "report": {
-      const r = db.reports.find((x) => x.report_id === id);
-      return r ? { label: r.reason, href: `/reports/${id}` } : { label: null, href: null };
-    }
-    case "mini_league": {
-      const l = db.mini_leagues.find((x) => x.league_id === id);
-      return l ? { label: l.name, href: `/mini-leagues/${id}` } : { label: null, href: null };
-    }
-    case "game_post": {
-      const g = db.game_posts.find((x) => x.post_id === id);
-      return g ? { label: g.title, href: `/moderation/game-posts?post=${id}` } : { label: null, href: null };
-    }
-    case "dispute": {
-      const d = db.disputes.find((x) => x.dispute_id === id);
-      return d ? { label: id, href: `/disputes/${id}` } : { label: null, href: null };
-    }
-    case "admin_post": {
-      const a = db.admin_posts.find((x) => x.admin_post_id === id);
-      return a ? { label: a.title, href: "/content" } : { label: null, href: null };
-    }
-    default:
-      return { label: null, href: null };
-  }
 }
 
 /** Screen 45 */
@@ -167,7 +130,8 @@ export default function ActivityLogPage() {
   const exportCsv = (filtered: Row[]) => {
     const csv = toCsv(
       filtered.map((r) => ({
-        when: r.entry.created_at,
+        // Local time, like the table and the date filter.
+        when: localDateTime(r.entry.created_at),
         action: r.actionLabel,
         action_code: r.entry.action,
         feature: r.feature,

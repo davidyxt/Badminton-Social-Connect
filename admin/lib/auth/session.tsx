@@ -80,6 +80,30 @@ function readStored(): SessionState {
   return { status: "signed_out", admin: null };
 }
 
+/** Where to land after signing in when there's no (valid) return path. */
+export const DEFAULT_RETURN_PATH = "/overview";
+
+/**
+ * A `?next=` value is only followed when it is a same-origin path ("/reports"),
+ * never a protocol-relative or absolute URL, so a crafted link can't send the
+ * admin off-site after signing in.
+ */
+export function safeReturnPath(raw: string | null | undefined): string {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return DEFAULT_RETURN_PATH;
+  return raw;
+}
+
+/** The return path carried in the current URL's `?next=`. */
+export function returnPathFromLocation(): string {
+  return safeReturnPath(new URLSearchParams(window.location.search).get("next"));
+}
+
+/** `path` with `?next=<returnTo>`, or just `path` when returnTo is the default. */
+export function withReturnPath(path: string, returnTo: string): string {
+  const next = safeReturnPath(returnTo);
+  return next === DEFAULT_RETURN_PATH ? path : `${path}?next=${encodeURIComponent(next)}`;
+}
+
 function fromSupabase(session: Session | null): SessionState {
   if (!session) return { status: "signed_out", admin: null };
   const user = session.user;
@@ -115,7 +139,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // Session lives in localStorage, which only exists after mount.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setState(readStored());
-      return;
+      // Sign-out, expiry or lost access in another tab reaches this one; the layout guard then redirects.
+      const onStorage = (e: StorageEvent) => {
+        if (e.key === STORAGE_KEY || e.key === null) setState(readStored());
+      };
+      window.addEventListener("storage", onStorage);
+      return () => window.removeEventListener("storage", onStorage);
     }
     const supabase = getSupabase();
     void supabase.auth.getSession().then(({ data }) => setState(fromSupabase(data.session)));

@@ -10,6 +10,7 @@ import {
   Notice,
   SectionHeading,
 } from "@/components/shared/Card";
+import { ButtonLink } from "@/components/shared/Button";
 import { GamePostSummary } from "@/components/shared/ContentSummaries";
 import { RecordNotFound } from "@/components/shared/NotFound";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -17,6 +18,7 @@ import { PlayerLink } from "@/components/shared/PlayerProfileCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { formatDateTime, humanize } from "@/lib/format";
 import {
+  isDisputeUnresolved,
   selectDisputesForMatch,
   selectFlagsForMatch,
   selectGamePost,
@@ -30,18 +32,23 @@ import {
 import type { Player } from "@/lib/types";
 import { MINI_LEAGUES_ENABLED } from "@/lib/features";
 
-/** One row of the scoreboard: the side's players, its per-game points and a winner mark. */
+/**
+ * One row of the scoreboard: the side's players, its per-game points and a winner mark.
+ * `confirmed` off: the score is only as submitted, so the mark stays neutral and nothing is bolded.
+ */
 function SideRow({
   label,
   ids,
   players,
   winner,
+  confirmed,
   points,
 }: {
   label: string;
   ids: string[];
   players: Map<string, Player>;
   winner: boolean;
+  confirmed: boolean;
   points: number[];
 }) {
   return (
@@ -55,15 +62,18 @@ function SideRow({
         ))}
       </ul>
       <div className="flex items-center gap-4 sm:justify-end">
-        {winner && (
-          <span className="text-xs font-medium text-success">Winner</span>
-        )}
+        {winner &&
+          (confirmed ? (
+            <span className="text-xs font-medium text-success">Winner</span>
+          ) : (
+            <span className="text-xs text-ink-muted">Submitted as winner</span>
+          ))}
         {points.length > 0 && (
           <div className="flex gap-1">
             {points.map((pt, i) => (
               <span
                 key={i}
-                className={`w-8 text-right text-sm tabular-nums ${winner ? "font-semibold text-ink" : "text-ink-muted"}`}
+                className={`w-8 text-right text-sm tabular-nums ${winner && confirmed ? "font-semibold text-ink" : "text-ink-muted"}`}
               >
                 {pt}
               </span>
@@ -110,7 +120,8 @@ export default function MatchDetailPage() {
   const { match, result, players, disputes, league, post } = data;
   const name = (ids: string[]) =>
     ids.map((id) => players.get(id)?.display_name ?? id).join(" & ");
-  const openDisputes = disputes.filter((d) => d.status === "open");
+  const openDisputes = disputes.filter(isDisputeUnresolved);
+  const confirmed = result?.status === "confirmed";
 
   return (
     <>
@@ -158,6 +169,7 @@ export default function MatchDetailPage() {
                     ids={match.side_a}
                     players={players}
                     winner={result?.winning_side === "A"}
+                    confirmed={confirmed}
                     points={result ? result.games.map(([a]) => a) : []}
                   />
                   <SideRow
@@ -165,6 +177,7 @@ export default function MatchDetailPage() {
                     ids={match.side_b}
                     players={players}
                     winner={result?.winning_side === "B"}
+                    confirmed={confirmed}
                     points={result ? result.games.map(([, b]) => b) : []}
                   />
                 </div>
@@ -194,7 +207,7 @@ export default function MatchDetailPage() {
                       value: <StatusBadge status={result.status} />,
                     },
                     {
-                      label: "Winning side",
+                      label: confirmed ? "Winning side" : "Submitted winner",
                       value: result.winning_side
                         ? `Side ${result.winning_side} (${name(result.winning_side === "A" ? match.side_a : match.side_b)})`
                         : "—",
@@ -251,8 +264,12 @@ export default function MatchDetailPage() {
                           label="Excluded"
                           tone="neutral"
                         />
-                      ) : result.status === "confirmed" ? (
+                      ) : confirmed ? (
                         "Yes"
+                      ) : result.status === "expired" ? (
+                        "No, it expired without confirmation"
+                      ) : result.status === "rejected" ? (
+                        "No, it was rejected"
                       ) : (
                         "Only once confirmed"
                       ),
@@ -271,7 +288,18 @@ export default function MatchDetailPage() {
             {post && (
               <section>
                 <SectionHeading title="Originating game post" />
-                <GamePostSummary post={post} organiser={data.organiser} />
+                <GamePostSummary
+                  post={post}
+                  organiser={data.organiser}
+                  actions={
+                    <ButtonLink
+                      href={`/moderation/game-posts?post=${post.post_id}`}
+                      size="sm"
+                    >
+                      View post
+                    </ButtonLink>
+                  }
+                />
               </section>
             )}
             {match.post_id && !post && (

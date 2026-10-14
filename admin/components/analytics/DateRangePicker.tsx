@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/shared/Button";
 import { clampDate, daysInRange, isWeekly, longLabel, PRESETS, presetRange, type DateRange } from "./range";
 
@@ -12,6 +12,31 @@ export function DateRangePicker({ value, onChange, min, max }: { value: DateRang
   const [customOpen, setCustomOpen] = useState(false);
   const [draft, setDraft] = useState({ from: value.from, to: value.to });
   const [error, setError] = useState<string | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const customRef = useRef<HTMLButtonElement>(null);
+
+  // Close on a click outside the picker or Escape anywhere, not only when focus is in the panel.
+  useEffect(() => {
+    if (!customOpen) return;
+    const onPointer = (e: PointerEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setCustomOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      const focusInside = wrapRef.current?.contains(document.activeElement);
+      setCustomOpen(false);
+      if (focusInside) customRef.current?.focus();
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [customOpen]);
+
+  // Typed dates outside the data window are pulled in on Apply; say so before then.
+  const outOfRange = [draft.from, draft.to].some((d) => d && (d < min || d > max));
 
   const openCustom = () => {
     setDraft({ from: value.from, to: value.to });
@@ -38,7 +63,7 @@ export function DateRangePicker({ value, onChange, min, max }: { value: DateRang
 
   return (
     <div className="mb-6">
-      <div className="relative flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div ref={wrapRef} className="relative flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="inline-flex h-8 items-center rounded-md border border-line-strong bg-surface p-0.5" role="group" aria-label="Date range">
           {PRESETS.map((d) => (
             <button
@@ -55,6 +80,7 @@ export function DateRangePicker({ value, onChange, min, max }: { value: DateRang
             </button>
           ))}
           <button
+            ref={customRef}
             type="button"
             className={segment(value.preset === "custom" || customOpen)}
             aria-pressed={value.preset === "custom" || customOpen}
@@ -78,9 +104,6 @@ export function DateRangePicker({ value, onChange, min, max }: { value: DateRang
           <div
             id="custom-range-panel"
             className="absolute top-full left-0 z-20 mt-2 w-[min(400px,calc(100vw-2rem))] rounded-lg border border-line bg-surface p-4 shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
-            onKeyDown={(e) => {
-              if (e.key === "Escape") setCustomOpen(false);
-            }}
           >
             <div className="flex flex-wrap items-end gap-3">
               <label className="flex flex-col gap-1 text-[13px] text-ink-muted">
@@ -117,6 +140,10 @@ export function DateRangePicker({ value, onChange, min, max }: { value: DateRang
             {error ? (
               <p className="mt-2 text-[13px] text-danger" role="alert">
                 {error}
+              </p>
+            ) : outOfRange ? (
+              <p className="mt-2 text-[13px] text-warning" role="status">
+                Data is available from {longLabel(min)} to {longLabel(max)}. Dates outside that are moved to fit when you apply.
               </p>
             ) : (
               <p className="mt-2 text-xs text-ink-faint">

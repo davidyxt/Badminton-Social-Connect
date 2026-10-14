@@ -1,11 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/shared/Button";
-import { useSession } from "@/lib/auth/session";
+import { returnPathFromLocation, useSession } from "@/lib/auth/session";
 import { resetIdleTimer } from "@/lib/auth/useIdleTimeout";
-import { IS_API } from "@/lib/config";
+
+/** Deliberately loose: catches typos like a missing "@" or domain; the server decides the rest. */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const inputClass =
   "mt-1.5 block h-9 w-full rounded-md border border-line-strong bg-surface px-2.5 text-sm text-ink placeholder:text-ink-faint focus:border-brand focus:ring-2 focus:ring-brand/20 focus:outline-none aria-[invalid=true]:border-danger aria-[invalid=true]:focus:ring-danger/20";
@@ -17,14 +19,20 @@ export function SignInForm({ submitLabel = "Sign in" }: { submitLabel?: string }
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ email?: string; password?: string; form?: string }>({});
   const [submitting, setSubmitting] = useState(false);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const next: typeof errors = {};
     if (!email.trim()) next.email = "Enter your email address.";
+    else if (!EMAIL_PATTERN.test(email.trim())) next.email = "Enter a valid email address.";
     if (!password) next.password = "Enter your password.";
     setErrors(next);
-    if (next.email || next.password) return;
+    if (next.email || next.password) {
+      (next.email ? emailRef : passwordRef).current?.focus();
+      return;
+    }
     setSubmitting(true);
     try {
       // Reset first so the guard doesn't treat the old idle window as expired.
@@ -35,8 +43,8 @@ export function SignInForm({ submitLabel = "Sign in" }: { submitLabel?: string }
       setSubmitting(false);
       return;
     }
-    // Signing in always lands on Overview; the guard re-routes non-admins to access-restricted.
-    router.replace("/overview");
+    // Back to the page that asked for sign-in (?next=), else Overview; the guard re-routes non-admins to access-restricted.
+    router.replace(returnPathFromLocation());
   }
 
   return (
@@ -54,8 +62,12 @@ export function SignInForm({ submitLabel = "Sign in" }: { submitLabel?: string }
           id="email"
           type="email"
           autoComplete="username"
+          ref={emailRef}
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
+          }}
           aria-invalid={!!errors.email}
           aria-describedby={errors.email ? "email-error" : undefined}
           placeholder="admin@badmintonsocialconnect.com.au"
@@ -75,8 +87,12 @@ export function SignInForm({ submitLabel = "Sign in" }: { submitLabel?: string }
           id="password"
           type="password"
           autoComplete="current-password"
+          ref={passwordRef}
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+          }}
           aria-invalid={!!errors.password}
           aria-describedby={errors.password ? "password-error" : undefined}
           className={inputClass}
@@ -90,12 +106,6 @@ export function SignInForm({ submitLabel = "Sign in" }: { submitLabel?: string }
       <Button type="submit" variant="primary" loading={submitting} className="mt-2 h-9 w-full">
         {submitting ? "Signing in…" : submitLabel}
       </Button>
-      {!IS_API && (
-        <p className="text-xs text-ink-faint">
-          Mock sign-in: any email and password work. Use an email starting with <span className="font-mono">player</span> to see the
-          access-restricted screen.
-        </p>
-      )}
     </form>
   );
 }

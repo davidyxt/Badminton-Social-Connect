@@ -10,9 +10,13 @@
 import { useId, useMemo, useRef, useState } from "react";
 
 export interface ChartPoint {
-  /** x label, e.g. a date */
+  /** x label, e.g. a date; also used in the tooltip and table */
   label: string;
   value: number;
+  /** Shorter label for the x axis, when `label` carries extra detail. */
+  axisLabel?: string;
+  /** The period is incomplete (e.g. a short last week); drawn lighter so it doesn't read as a drop. */
+  partial?: boolean;
 }
 
 const SERIES = "var(--color-brand)";
@@ -117,7 +121,11 @@ function Tooltip({ x, y, width, label, value, valueLabel }: { x: number; y: numb
   );
 }
 
-function xLabelIndexes(n: number, max = 6): number[] {
+/** Evenly spaced tick indexes, as many as fit the width without labels touching (2–6). */
+function xLabelIndexes(points: ChartPoint[], innerW: number): number[] {
+  const n = points.length;
+  const longest = Math.max(...points.map((p) => (p.axisLabel ?? p.label).length));
+  const max = Math.max(2, Math.min(6, Math.floor(innerW / (longest * 6.5 + 16))));
   if (n <= max) return Array.from({ length: n }, (_, i) => i);
   const step = (n - 1) / (max - 1);
   return Array.from({ length: max }, (_, i) => Math.round(i * step));
@@ -193,9 +201,9 @@ export function LineChart({
               </text>
             </g>
           ))}
-          {xLabelIndexes(points.length).map((i) => (
+          {xLabelIndexes(points, innerW).map((i) => (
             <text key={i} x={x(i)} y={H - 8} textAnchor="middle" className="fill-ink-faint text-[11px] tabular-nums">
-              {points[i].label}
+              {points[i].axisLabel ?? points[i].label}
             </text>
           ))}
           <path d={area} fill={`url(#${gradientId})`} />
@@ -263,9 +271,9 @@ export function ColumnChart({
               </text>
             </g>
           ))}
-          {xLabelIndexes(points.length).map((i) => (
+          {xLabelIndexes(points, innerW).map((i) => (
             <text key={i} x={PAD.left + slot * i + slot / 2} y={H - 8} textAnchor="middle" className="fill-ink-faint text-[11px] tabular-nums">
-              {points[i].label}
+              {points[i].axisLabel ?? points[i].label}
             </text>
           ))}
           {points.map((p, i) => {
@@ -282,7 +290,7 @@ export function ColumnChart({
               <g key={p.label} onMouseEnter={() => setHover(i)}>
                 {/* Hit target spans the whole slot, larger than the mark. */}
                 <rect x={PAD.left + slot * i} y={PAD.top} width={slot} height={innerH} fill="transparent" />
-                {d && <path d={d} fill={SERIES} opacity={hover === null || hover === i ? 1 : 0.45} />}
+                {d && <path d={d} fill={SERIES} opacity={(hover === null || hover === i ? 1 : 0.45) * (p.partial ? 0.5 : 1)} />}
               </g>
             );
           })}

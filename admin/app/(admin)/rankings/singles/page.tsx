@@ -7,20 +7,36 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useQuery } from "@/lib/mock-api";
 import type { Player, Ranking } from "@/lib/types";
 
+type DisplayStatus = "active" | "suspended" | "registration_pending";
+
+/** Same precedence as /users: an unfinished registration outranks the access status. */
+function displayStatus(player: Player | null): DisplayStatus | null {
+  if (!player) return null;
+  if (player.registration_state === "registration_pending") return "registration_pending";
+  return player.status === "suspended" ? "suspended" : "active";
+}
+
+const STATUS_ORDER: Record<DisplayStatus, number> = { active: 0, suspended: 1, registration_pending: 2 };
+
 interface Row {
   rank: number;
   ranking: Ranking;
   player: Player | null;
+  status: DisplayStatus | null;
 }
 
 /** Screen 15 (read-only). */
 export default function SinglesRankingsPage() {
   const rows = useQuery<Row[]>((db) => {
     const players = new Map(db.players.map((p) => [p.player_id, p]));
+    // Deleted accounts are anonymised, so they come off the leaderboard (and the ranks close up).
     return db.rankings
-      .filter((r) => r.format === "singles")
+      .filter((r) => r.format === "singles" && players.get(r.player_id)?.registration_state !== "deleted")
       .sort((a, b) => b.ranking_points - a.ranking_points)
-      .map((ranking, i) => ({ rank: i + 1, ranking, player: players.get(ranking.player_id) ?? null }));
+      .map((ranking, i) => {
+        const player = players.get(ranking.player_id) ?? null;
+        return { rank: i + 1, ranking, player, status: displayStatus(player) };
+      });
   });
 
   const columns: Column<Row>[] = [
@@ -32,8 +48,15 @@ export default function SinglesRankingsPage() {
     {
       id: "status",
       header: "Status",
-      sortValue: (r) => r.player?.status ?? "",
-      cell: (r) => (r.player ? <StatusBadge status={r.player.status} tone={r.player.status === "active" ? "neutral" : undefined} /> : <span className="text-ink-faint">—</span>),
+      sortValue: (r) => (r.status ? STATUS_ORDER[r.status] : -1),
+      cell: (r) =>
+        r.status === "registration_pending" ? (
+          <StatusBadge status="pending" label="Registration pending" tone="neutral" />
+        ) : r.status ? (
+          <StatusBadge status={r.status} tone={r.status === "active" ? "neutral" : undefined} />
+        ) : (
+          <span className="text-ink-faint">—</span>
+        ),
     },
   ];
 

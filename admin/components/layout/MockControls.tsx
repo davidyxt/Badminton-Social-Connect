@@ -12,9 +12,28 @@ import { useSession } from "@/lib/auth/session";
 import { resetStore, setMockConfig, simulate_incoming_report, useMockConfig } from "@/lib/mock-api";
 
 const LIVE_REPORT_INTERVAL_MS = 20_000;
+const DEV_TOOLS_KEY = "bsc-admin:dev-tools";
+
+/**
+ * The panel is hidden unless NEXT_PUBLIC_SHOW_DEV_TOOLS=true, or the console was opened
+ * with ?devtools=1 (remembered in this browser; ?devtools=0 hides it again).
+ */
+function devToolsEnabled(): boolean {
+  if (process.env.NEXT_PUBLIC_SHOW_DEV_TOOLS === "true") return true;
+  try {
+    const param = new URLSearchParams(window.location.search).get("devtools");
+    if (param === "1") localStorage.setItem(DEV_TOOLS_KEY, "1");
+    if (param === "0") localStorage.removeItem(DEV_TOOLS_KEY);
+    return localStorage.getItem(DEV_TOOLS_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 export function MockControls() {
   const [open, setOpen] = useState(false);
+  // Rendered client-side only (after AppProviders hydrates), so reading window here is safe.
+  const [visible] = useState(devToolsEnabled);
   const config = useMockConfig();
   const session = useSession();
   const router = useRouter();
@@ -26,6 +45,9 @@ export function MockControls() {
   }, [config.liveReports]);
 
   const armed = config.failNext || config.conflictNext || config.failureRate > 0;
+
+  // The live-report timer above keeps running either way; only the panel is hidden.
+  if (!visible) return null;
 
   if (!open) {
     return (

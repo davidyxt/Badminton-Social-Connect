@@ -32,6 +32,7 @@ interface FeedbackContextValue {
 
 const FeedbackContext = createContext<FeedbackContextValue | null>(null);
 const SUCCESS_TIMEOUT_MS = 3500;
+const CONFLICT_TIMEOUT_MS = 8000;
 
 export function FeedbackProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -47,7 +48,9 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   const schedule = useCallback(
     (id: number, kind: FeedbackKind) => {
       clearTimeout(timers.current.get(id));
+      // Errors stay until dismissed (they offer Retry); confirmations and "record changed" notices clear themselves.
       if (kind === "success") timers.current.set(id, setTimeout(() => dismiss(id), SUCCESS_TIMEOUT_MS));
+      if (kind === "conflict") timers.current.set(id, setTimeout(() => dismiss(id), CONFLICT_TIMEOUT_MS));
     },
     [dismiss],
   );

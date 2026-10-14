@@ -15,10 +15,23 @@ import type { Player, PlayerProfile } from "@/lib/types";
 /** Slightly tighter cell padding so all eight columns fit at 1280px without horizontal scroll. */
 const TIGHT = "px-3!";
 
+type DisplayStatus = "active" | "suspended" | "registration_pending" | "deleted";
+
+/** Sort order for the Status column: routine first, lifecycle states last. */
+const STATUS_ORDER: Record<DisplayStatus, number> = { active: 0, suspended: 1, registration_pending: 2, deleted: 3 };
+
+/** One status per account: a deleted or unfinished registration outranks the access status. */
+function displayStatus(player: Player): DisplayStatus {
+  if (player.registration_state === "deleted") return "deleted";
+  if (player.registration_state === "registration_pending") return "registration_pending";
+  return player.status === "suspended" ? "suspended" : "active";
+}
+
 interface Row {
   player: Player;
   profile: PlayerProfile | null;
   openReports: number;
+  status: DisplayStatus;
 }
 
 /** Screen 08 */
@@ -29,10 +42,11 @@ export default function UsersPage() {
       player,
       profile: profiles.get(player.player_id) ?? null,
       openReports: db.reports.filter((r) => r.status === "pending" && r.target_type === "player" && r.target_id === player.player_id).length,
+      status: displayStatus(player),
     }));
   });
 
-  const suspended = rows.filter((r) => r.player.status === "suspended").length;
+  const suspended = rows.filter((r) => r.status === "suspended").length;
 
   const columns: Column<Row>[] = [
     {
@@ -60,15 +74,15 @@ export default function UsersPage() {
       id: "status",
       className: TIGHT,
       header: "Status",
-      sortValue: (r) => `${r.player.registration_state}-${r.player.status}`,
+      sortValue: (r) => STATUS_ORDER[r.status],
       // Only a suspension gets colour; routine and lifecycle states stay quiet.
       cell: (r) =>
-        r.player.registration_state === "deleted" ? (
+        r.status === "deleted" ? (
           <StatusBadge status="deleted" label="Deleted" />
-        ) : r.player.registration_state === "registration_pending" ? (
+        ) : r.status === "registration_pending" ? (
           <StatusBadge status="pending" label="Registration pending" tone="neutral" />
         ) : (
-          <StatusBadge status={r.player.status} />
+          <StatusBadge status={r.status} />
         ),
     },
     { id: "band", header: "Band", className: `${TIGHT} whitespace-nowrap`, sortValue: (r) => r.player.self_rating_band, cell: (r) => r.player.self_rating_band },
@@ -137,8 +151,10 @@ export default function UsersPage() {
             options: [
               { value: "active", label: "Active" },
               { value: "suspended", label: "Suspended" },
+              { value: "registration_pending", label: "Registration pending" },
+              { value: "deleted", label: "Deleted" },
             ],
-            getValue: (r) => r.player.status,
+            getValue: (r) => r.status,
           },
           {
             id: "account",

@@ -90,6 +90,8 @@ export default function ReportDetailPage() {
   if (!data) return <RecordNotFound what="Report" backHref="/reports" backLabel="Back to reports" />;
   const { report, targetPlayer, post, league, match, adminPost, group } = data;
   const pending = report.status === "pending";
+  // Reviewed elsewhere (another tab or admin) while a review dialog was open: there's nothing left to review.
+  if (!pending && (dialog === "resolve" || dialog === "dismiss")) setDialog(null);
   // "Mini League" is a product name, so it keeps its capitals mid-sentence.
   const targetNoun = report.target_type === "mini_league" ? TARGET_TYPE_LABEL.mini_league : TARGET_TYPE_LABEL[report.target_type].toLowerCase();
 
@@ -347,6 +349,7 @@ export default function ReportDetailPage() {
           <RestorePostModal
             open={dialog === "restore-post"}
             postTitle={post.title}
+            suspendedOrganiser={!post.organiser_group_id && data.owner?.status === "suspended" ? data.owner.display_name : null}
             onClose={close}
             onConfirm={({ reason }) => run(() => admin_restore_post({ postId: post.post_id, note: reason }), opts("Game post restored"))}
           />

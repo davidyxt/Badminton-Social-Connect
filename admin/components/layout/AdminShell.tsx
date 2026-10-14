@@ -2,7 +2,7 @@
 
 import { LogOut, Menu, RefreshCw, TriangleAlert, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { syncNow, useSyncStatus } from "@/lib/api/sync";
 import { IS_API } from "@/lib/config";
 import type { Admin } from "@/lib/types";
@@ -110,6 +110,34 @@ export function AdminShell({
     setMobileOpen(false);
   }
 
+  // Mobile drawer as a modal dialog: focus moves in on open and back to "Open menu" on close,
+  // Escape closes it, and it closes if the window grows past the lg breakpoint (where it's hidden).
+  const openButtonRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (!mobileOpen) {
+      if (wasOpen.current) openButtonRef.current?.focus();
+      wasOpen.current = false;
+      return;
+    }
+    wasOpen.current = true;
+    closeButtonRef.current?.focus();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileOpen(false);
+    };
+    const wide = window.matchMedia("(min-width: 1024px)");
+    const onWide = () => {
+      if (wide.matches) setMobileOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    wide.addEventListener("change", onWide);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      wide.removeEventListener("change", onWide);
+    };
+  }, [mobileOpen]);
+
   return (
     <div className="flex min-h-screen bg-canvas">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2 focus:text-[13px]">
@@ -126,10 +154,15 @@ export function AdminShell({
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-black/20" onClick={() => setMobileOpen(false)} aria-hidden />
-          <aside className="relative flex h-full w-[280px] max-w-[85vw] flex-col border-r border-line bg-sidebar shadow-[0_8px_30px_rgba(0,0,0,0.08)]">
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation menu"
+            className="relative flex h-full w-[280px] max-w-[85vw] flex-col border-r border-line bg-sidebar shadow-[0_8px_30px_rgba(0,0,0,0.08)]">
             <div className="flex items-center justify-between pr-2">
               <Brand />
               <button
+                ref={closeButtonRef}
                 type="button"
                 onClick={() => setMobileOpen(false)}
                 className="rounded-md p-1.5 text-ink-faint hover:bg-sidebar-hover hover:text-ink"
@@ -143,9 +176,11 @@ export function AdminShell({
         </div>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      {/* Inert behind the open drawer, so Tab stays inside it. */}
+      <div className="flex min-w-0 flex-1 flex-col" inert={mobileOpen}>
         <header className="sticky top-0 z-30 flex h-12 items-center gap-3 border-b border-line bg-surface px-4 sm:px-6">
           <button
+            ref={openButtonRef}
             type="button"
             onClick={() => setMobileOpen(true)}
             className="-ml-1.5 rounded-md p-1.5 text-ink-muted hover:bg-subtle hover:text-ink lg:hidden"
@@ -155,15 +190,12 @@ export function AdminShell({
           </button>
           <BrandMark className="lg:hidden" />
           <div className="flex-1" />
-          {IS_API && <SyncIndicator />}
-          <span
-            className="hidden items-center gap-1.5 text-xs text-ink-faint sm:inline-flex"
-            title={IS_API ? "Reading and writing the admin-api Edge Function" : "In-memory sample data; nothing is saved to a server"}
-          >
-            <span className={`size-1.5 rounded-full ${IS_API ? "bg-success" : "bg-ink-faint/60"}`} aria-hidden />
-            {IS_API ? "Live API" : "Mock data"}
-          </span>
-          <span className="hidden h-4 w-px bg-line sm:block" aria-hidden />
+          {IS_API && (
+            <>
+              <SyncIndicator />
+              <span className="hidden h-4 w-px bg-line sm:block" aria-hidden />
+            </>
+          )}
           <div className="flex min-w-0 items-center gap-2">
             <Avatar name={admin.display_name} size="sm" />
             <div className="hidden min-w-0 leading-tight sm:block">

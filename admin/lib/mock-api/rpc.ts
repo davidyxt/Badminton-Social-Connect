@@ -18,7 +18,7 @@
 import { api } from "@/lib/api/actions";
 import { IS_API } from "@/lib/config";
 import { ACTION_RESULT_STATUS } from "@/lib/format";
-import { isVisibleTargetType } from "@/lib/features";
+import { MINI_LEAGUES_ENABLED, isVisibleTargetType } from "@/lib/features";
 import { MOCK_ADMIN, liveReportTemplates } from "@/lib/mock-data";
 import type {
   ActivityLog,
@@ -141,7 +141,8 @@ export async function admin_suspend_account(args: { playerId: string; reason: st
     });
     const sideEffects = [
       hiddenPosts ? `${hiddenPosts} game post${hiddenPosts > 1 ? "s" : ""} hidden` : null,
-      suspendedLeagues ? `${suspendedLeagues} Mini League${suspendedLeagues > 1 ? "s" : ""} suspended` : null,
+      // Leagues are still suspended with the account, but not mentioned while the feature is hidden.
+      suspendedLeagues && MINI_LEAGUES_ENABLED ? `${suspendedLeagues} Mini League${suspendedLeagues > 1 ? "s" : ""} suspended` : null,
     ].filter(Boolean);
     return withLog(
       {

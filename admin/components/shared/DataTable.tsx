@@ -122,7 +122,7 @@ export function DataTable<T>({
           )}
           {filters.map((f) => (
             <label key={f.id} className="flex items-center gap-1.5 text-[13px] text-ink-muted">
-              <span className="sr-only sm:not-sr-only">{f.label}</span>
+              <span>{f.label}</span>
               <select
                 value={filterValues[f.id] ?? ""}
                 onChange={(e) => {
