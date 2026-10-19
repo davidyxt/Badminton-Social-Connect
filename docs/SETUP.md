@@ -91,6 +91,35 @@ once at the end, so they are ready after `db reset`. After recording and
 confirming results locally, run them straight away with
 `select private.rate_new_results();` in the SQL editor (Studio) or psql.
 
+### Bulk mock data
+
+The dev seed has one example of most cases. For lists that scroll, full
+leaderboards and every state at volume, run:
+
+```bash
+python3 supabase/seeds/scripts/mock_data.py                      # about 150 players, 300 games
+python3 supabase/seeds/scripts/mock_data.py --players 50 --games 80
+python3 supabase/seeds/scripts/mock_data.py --players 500 --games 1500 --seed 7
+```
+
+It always starts with `npx supabase db reset`, then adds mock players
+(`mock001@example.com` onwards, password `Passw0rd!`) on top of the dev seed:
+
+- groups with pending members
+- upcoming games in every state: full, waiting requests, invitations, cancelled, removed
+- past games with results recorded through the real functions: confirmed, pending, disputed, expired, rejected, never recorded
+- no-shows and late withdrawals
+- ratings, with established and provisional players
+- admin flags, blocks, reports, leagues, quick messages, check-ins
+- notifications of every type
+
+It takes about 40 seconds at the default size. The same `--seed` gives the
+same data. When it finishes it prints a summary, and an account to sign in as
+for each case (a result to confirm, an invitation to answer, a host with
+requests waiting, and so on). It refuses to run against anything but the
+local stack. The generator is `supabase/seeds/scripts/mock_data.sql`; that
+folder isn't loaded by `db reset` on its own.
+
 ### Tests
 
 ```bash
