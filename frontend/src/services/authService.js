@@ -1,10 +1,16 @@
 import { supabase } from "./supabase";
+import { getStorage, saveLastActivity } from "../utils/idleTimeout";
+import { TERMS_VERSION, PRIVACY_VERSION } from "../config/legal";
 
 const authCallbackUrl = `${window.location.origin}/auth/callback`;
 const emailConfirmedUrl = `${window.location.origin}/auth/confirmed`;
 const resetPasswordUrl = `${window.location.origin}/reset-password`;
 
 export const signIn = async (email, password, captchaToken) => {
+  // Start the idle clock before the session lands, so an old record from a
+  // previous visit can never sign this new session straight back out.
+  saveLastActivity(getStorage(), Date.now());
+
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -23,23 +29,32 @@ export const signUp = async ({
   password,
   firstName,
   lastName,
+  username,
+  dateOfBirth,
+  stateCode,
   captchaToken,
   selfRatingBand,
-  dateOfBirth,
   state,
 }) => {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      // Stored in auth.users.raw_user_meta_data
+      // Stored in auth.users.raw_user_meta_data. The database's sign-up
+      // trigger creates the player from it and runs the 18+ age gate: an
+      // under-18 date of birth or a taken username fails the sign-up.
       data: {
         first_name: firstName,
         last_name: lastName,
+        username,
+        date_of_birth: dateOfBirth,
+        age_declared: true,
+        terms_version: TERMS_VERSION,
+        privacy_version: PRIVACY_VERSION,
+        state: stateCode ?? state,
         display_name: `${firstName} ${lastName}`.trim(),
         self_rating_band: selfRatingBand,
-        date_of_birth: dateOfBirth,
-        playing_state: state,
+        playing_state: state ?? stateCode,
       },
       // Where the email verification link sends the user
       emailRedirectTo: emailConfirmedUrl,
@@ -115,15 +130,28 @@ export const signOut = async () => {
 // Auth users with email verification need registration after their first session.
 // This RPC is explicitly defined in the API; it enforces the minimum age.
 export const completePlayerRegistration = async () => {
-  const {data:{user},error:userError}=await supabase.auth.getUser();
-  if(userError) throw userError;
-  if(!user) return false;
-  const {data:existing,error:lookupError}=await supabase.from('player').select('playerId').eq('playerId',user.id).maybeSingle();
-  if(lookupError) throw lookupError;
-  if(existing) return true;
-  const m=user.user_metadata||{};
-  if(!m.display_name||!m.self_rating_band||!m.date_of_birth||!m.playing_state)return false;
-  const {error}=await supabase.rpc('register_player',{displayName:m.display_name,selfRatingBand:m.self_rating_band,dateOfBirth:m.date_of_birth,state:m.playing_state});
-  if(error)throw error;
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!user) return false;
+  const { data: existing, error: lookupError } = await supabase
+    .from("player")
+    .select("playerId")
+    .eq("playerId", user.id)
+    .maybeSingle();
+  if (lookupError) throw lookupError;
+  if (existing) return true;
+  const m = user.user_metadata || {};
+  if (!m.display_name || !m.self_rating_band || !m.date_of_birth || !m.playing_state)
+    return false;
+  const { error } = await supabase.rpc("register_player", {
+    displayName: m.display_name,
+    selfRatingBand: m.self_rating_band,
+    dateOfBirth: m.date_of_birth,
+    state: m.playing_state,
+  });
+  if (error) throw error;
   return true;
 };

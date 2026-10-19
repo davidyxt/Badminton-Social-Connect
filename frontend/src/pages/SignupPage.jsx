@@ -1,9 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { signUp, signInWithGoogle, completePlayerRegistration } from "../services/authService";
+import {
+  signUp,
+  signInWithGoogle,
+  completePlayerRegistration,
+} from "../services/authService";
 import Captcha, { useCaptcha } from "../components/auth/Captcha";
 import { getAuthErrorMessage } from "../utils/authErrors";
 import { PASSWORD_HINT, getPasswordError } from "../utils/passwordPolicy";
+import { isUsernameAvailable, listStates } from "../services/playerService";
+import { isOldEnough } from "../config/legal";
 import "../styles/auth.css";
 
 function SignupPage() {
@@ -13,24 +19,34 @@ function SignupPage() {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
+    username: "",
     email: "",
+    dateOfBirth: "",
+    stateCode: "",
     password: "",
     confirmPassword: "",
-    dateOfBirth: "",
-    selfRatingBand: "Beginner",
-    state: "VIC",
+    ageDeclared: false,
+    termsAccepted: false,
   });
+
+  const [states, setStates] = useState([]);
+
+  useEffect(() => {
+    listStates()
+      .then(setStates)
+      .catch(() => setStates([]));
+  }, []);
 
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleChange = (event) => {
-    const { name, value } = event.target;
+    const { name, value, type, checked } = event.target;
 
     setFormData((previous) => ({
       ...previous,
-      [name]: value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
@@ -51,18 +67,32 @@ function SignupPage() {
       return;
     }
 
+    if (!isOldEnough(formData.dateOfBirth)) {
+      setError("You must be 18 or over to use Badminton Social Connect.");
+      return;
+    }
+
     setLoading(true);
 
     try {
+      // Checked here so the player gets a clear message; the database checks
+      // again when the account is created.
+      if (!(await isUsernameAvailable(formData.username.trim()))) {
+        setError(
+          "That username is taken or not allowed. Use 3-20 letters, numbers, _ or ."
+        );
+        return;
+      }
+
       const { session } = await signUp({
         email: formData.email,
         password: formData.password,
         firstName: formData.firstName,
         lastName: formData.lastName,
-        captchaToken: captcha.token,
+        username: formData.username.trim(),
         dateOfBirth: formData.dateOfBirth,
-        selfRatingBand: formData.selfRatingBand,
-        state: formData.state,
+        stateCode: formData.stateCode,
+        captchaToken: captcha.token,
       });
 
       if (session) {
@@ -82,7 +112,6 @@ function SignupPage() {
     }
   };
 
-
   const handleGoogle = async () => {
     setError("");
     setLoading(true);
@@ -97,18 +126,12 @@ function SignupPage() {
 
   return (
     <div className="auth-page">
-
-    <Link
-        to="/"
-        className="auth-close-button"
-        aria-label="Back to main menu"
-        >
+      <Link to="/" className="auth-close-button" aria-label="Back to main menu">
         ×
-    </Link>
+      </Link>
 
       <div className="auth-brand-panel">
         <div className="auth-brand-content">
-
           <h1>Join the community</h1>
 
           <p>
@@ -125,9 +148,7 @@ function SignupPage() {
 
             <h2>Create your account</h2>
 
-            <p>
-              Enter your details to join Badminton Social Connect.
-            </p>
+            <p>Enter your details to join Badminton Social Connect.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="auth-form">
@@ -163,24 +184,28 @@ function SignupPage() {
               </div>
             </div>
 
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="dateOfBirth">Date of birth</label>
-                <input id="dateOfBirth" name="dateOfBirth" type="date" value={formData.dateOfBirth} onChange={handleChange} max={new Date().toISOString().slice(0,10)} required />
-              </div>
-              <div className="form-group">
-                <label htmlFor="state">Playing state</label>
-                <select id="state" name="state" value={formData.state} onChange={handleChange} required>
-                  {['VIC','NSW','QLD','SA','WA','TAS','ACT','NT'].map(value=><option key={value} value={value}>{value}</option>)}
-                </select>
-              </div>
-            </div>
             <div className="form-group">
-              <label htmlFor="selfRatingBand">Playing level</label>
-              <select id="selfRatingBand" name="selfRatingBand" value={formData.selfRatingBand} onChange={handleChange}>
-                {['Beginner','Intermediate','Advanced'].map(value=><option key={value} value={value}>{value}</option>)}
-              </select>
+              <label htmlFor="username">Username</label>
+
+              <input
+                id="username"
+                type="text"
+                name="username"
+                placeholder="sarah_k"
+                value={formData.username}
+                onChange={handleChange}
+                autoComplete="username"
+                minLength={3}
+                maxLength={20}
+                pattern="[A-Za-z0-9_.]{3,20}"
+                required
+              />
+
+              <span className="form-hint">
+                What other players see. 3-20 letters, numbers, _ or .
+              </span>
             </div>
+
             <div className="form-group">
               <label htmlFor="email">Email address</label>
 
@@ -194,6 +219,44 @@ function SignupPage() {
                 autoComplete="email"
                 required
               />
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="dateOfBirth">Date of birth</label>
+
+                <input
+                  id="dateOfBirth"
+                  type="date"
+                  name="dateOfBirth"
+                  value={formData.dateOfBirth}
+                  onChange={handleChange}
+                  autoComplete="bday"
+                  max={new Date().toISOString().slice(0, 10)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="stateCode">State or territory</label>
+
+                <select
+                  id="stateCode"
+                  name="stateCode"
+                  value={formData.stateCode}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="" disabled>
+                    Choose
+                  </option>
+                  {states.map((s) => (
+                    <option key={s.state_code} value={s.state_code}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div className="form-group">
@@ -210,15 +273,11 @@ function SignupPage() {
                 required
               />
 
-              <span className="form-hint">
-                {PASSWORD_HINT}
-              </span>
+              <span className="form-hint">{PASSWORD_HINT}</span>
             </div>
 
             <div className="form-group">
-              <label htmlFor="confirmPassword">
-                Confirm password
-              </label>
+              <label htmlFor="confirmPassword">Confirm password</label>
 
               <input
                 id="confirmPassword"
@@ -231,6 +290,31 @@ function SignupPage() {
                 required
               />
             </div>
+
+            <label className="auth-checkbox">
+              <input
+                type="checkbox"
+                name="ageDeclared"
+                checked={formData.ageDeclared}
+                onChange={handleChange}
+                required
+              />
+              <span>I confirm I am 18 or over.</span>
+            </label>
+
+            <label className="auth-checkbox">
+              <input
+                type="checkbox"
+                name="termsAccepted"
+                checked={formData.termsAccepted}
+                onChange={handleChange}
+                required
+              />
+              <span>
+                I accept the <a href="/terms" target="_blank">terms of use</a>{" "}
+                and the <a href="/privacy" target="_blank">privacy notice</a>.
+              </span>
+            </label>
 
             {error && (
               <div className="auth-error" role="alert">
@@ -269,8 +353,7 @@ function SignupPage() {
           </button>
 
           <div className="auth-footer-text">
-            Already have an account?{" "}
-            <Link to="/login">Log in</Link>
+            Already have an account? <Link to="/login">Log in</Link>
           </div>
         </div>
       </div>

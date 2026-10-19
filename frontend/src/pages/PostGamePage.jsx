@@ -60,11 +60,16 @@ function PostGamePage() {
 
       const game = await createGame(formData);
 
+      // The confirmation page shows the form's own fields (date, startTime,
+      // durationMinutes, venue...). Pass those, with the new game's id: the
+      // database row uses other names (proposed_time, venue_id...).
+      const gameId = game.id ?? game.post_id;
+
       navigate(
-        `/post-game/confirmation/${game.id}`,
+        `/post-game/confirmation/${gameId}`,
         {
           state: {
-            game,
+            game: { ...formData, id: gameId },
           },
         }
       );

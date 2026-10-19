@@ -1,0 +1,4 @@
+# Team documents (Requirements, Technical Design, Sprint Backlog) are shared
+# outside Git (items-to-confirm 7).
+docs/*.docx
+docs/*.xlsx
