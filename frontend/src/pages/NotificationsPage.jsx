@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import * as api from "../services/badmintonApi";
+import { useEffect, useState } from "react";
 
 import {
   CheckCircle2,
@@ -13,99 +13,6 @@ import {
 } from "lucide-react";
 
 import "../styles/NotificationsPage.css";
-
-
-/* ======================================================
-   TEMPORARY DATA
-
-   Later this can come from Supabase.
-
-   Set this to [] to test the empty state.
-   ====================================================== */
-
-const initialNotifications = [
-  {
-    id: 1,
-    type: "request",
-    title: "Jordan K. accepted your game request.",
-    message: "Tap to view match details",
-    time: "2 min ago",
-    unread: true,
-    target: "/games/1",
-  },
-
-  {
-    id: 2,
-    type: "result",
-    title:
-      "Sam T. submitted your match result. Please confirm it.",
-    message:
-      "21–18, 17–21, 21–16 — Sam won",
-    time: "1 hour ago",
-    unread: true,
-    target: "/games/2",
-  },
-
-  {
-    id: 3,
-    type: "league",
-    title:
-      "You moved to #3 in Northside Social League.",
-    message:
-      "After your win vs Maya R.",
-    time: "2 days ago",
-    unread: true,
-    target: "/leagues/1",
-  },
-
-  {
-    id: 4,
-    type: "reminder",
-    title:
-      "Your match is tomorrow at 3:00 PM.",
-    message:
-      "vs Jordan K. · MSAC, Albert Park",
-    time: "1 day ago",
-    unread: false,
-    target: "/games/3",
-  },
-
-  {
-    id: 5,
-    type: "cancelled",
-    title:
-      "Maya R. cancelled your match.",
-    message:
-      "Find another game or post your own",
-    time: "3 days ago",
-    unread: false,
-    target: "/find",
-  },
-
-  {
-    id: 6,
-    type: "game",
-    title:
-      "New game posted near you.",
-    message:
-      "Singles · Intermediate · Albert Park",
-    time: "4 days ago",
-    unread: false,
-    target: "/find",
-  },
-
-  {
-    id: 7,
-    type: "rating",
-    title:
-      "Your rating increased to 1271.",
-    message:
-      "+23 after win vs Jordan K.",
-    time: "5 days ago",
-    unread: false,
-    target: "/rankings",
-  },
-];
 
 
 function getNotificationIcon(type) {
@@ -135,53 +42,30 @@ function getNotificationIcon(type) {
 
 
 function NotificationsPage() {
-  const navigate = useNavigate();
 
   const [
     notifications,
     setNotifications,
   ] = useState(
-    initialNotifications
+    []
   );
+  const [loadError,setLoadError]=useState("");
+  const [userId,setUserId]=useState(null);
+  useEffect(()=>{let live=true;api.getCurrentUserId().then(id=>{if(!live||!id)return;setUserId(id);return api.getNotifications(id)}).then(rows=>{if(live&&rows)setNotifications(rows.map(n=>({id:n.notificationId,type:n.type,title:n.message||"Notification",message:"",time:"",unread:!n.isRead,target:null})));}).catch(e=>{if(live)setLoadError(e.message)});return()=>{live=false};},[]);
 
 
-  const handleNotificationClick = (
-    notification
-  ) => {
-    setNotifications(
-      (previous) =>
-        previous.map((item) =>
-          item.id ===
-          notification.id
-            ? {
-                ...item,
-                unread: false,
-              }
-            : item
-        )
-    );
-
-
-    if (notification.target) {
-      navigate(
-        notification.target
-      );
-    }
+  const handleNotificationClick = async notification => {
+    if(!notification.unread)return;
+    try{await api.markNotificationRead(notification.id);
+      setNotifications(previous=>previous.map(item=>item.id===notification.id?{...item,unread:false}:item));
+    }catch(e){setLoadError(e.message);}
   };
-
-
-  const markAllRead = () => {
-    setNotifications(
-      (previous) =>
-        previous.map(
-          (notification) => ({
-            ...notification,
-            unread: false,
-          })
-        )
-    );
+  const markAllRead = async () => {
+    if(!userId)return;
+    try{await api.markNotificationsRead(userId);
+      setNotifications(previous=>previous.map(item=>({...item,unread:false})));
+    }catch(e){setLoadError(e.message);}
   };
-
 
   const hasUnread =
     notifications.some(
@@ -192,6 +76,7 @@ function NotificationsPage() {
 
   return (
     <div className="notifications-page">
+      {loadError && <p role="alert">{loadError}</p>}
 
       {/* HEADER */}
 

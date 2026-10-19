@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import "../styles/auth.css";
+import { completePlayerRegistration } from "../services/authService";
 
 // Landing page for OAuth and email-confirmation redirects.
 // The Supabase client exchanges the ?code= in the URL for a session on load.
@@ -17,7 +18,8 @@ function AuthCallbackPage() {
   useEffect(() => {
     if (error || loading) return;
 
-    navigate(session ? "/dashboard" : "/login", { replace: true });
+    if(session){completePlayerRegistration().catch(console.error).finally(()=>navigate("/dashboard",{replace:true}));}
+    else navigate("/login",{replace:true});
   }, [error, loading, session, navigate]);
 
   if (error) {

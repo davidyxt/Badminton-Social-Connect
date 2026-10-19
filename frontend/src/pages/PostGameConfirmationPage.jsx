@@ -68,6 +68,7 @@ function PostGameConfirmationPage() {
   const location = useLocation();
 
   const game = location.state?.game;
+  if(!game?.postId && !game?.id) return <div className="post-game-page"><p>No newly posted game was provided. Check the Find Games page for existing posts.</p><button type="button" onClick={()=>navigate('/find')}>Find Games</button></div>;
 
 
   return (
@@ -115,9 +116,7 @@ function PostGameConfirmationPage() {
               </strong>
 
               <span>
-                {game.style === "social"
-                  ? "Social Game"
-                  : "Competitive Game"}
+                {game.suburb||game.venue||'Suburb not specified'}
               </span>
             </div>
 
@@ -148,8 +147,6 @@ function PostGameConfirmationPage() {
 
             <span>
               {formatTime(game.startTime)}
-              {" • "}
-              {game.durationMinutes} minutes
             </span>
 
           </div>

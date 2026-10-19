@@ -33,6 +33,8 @@ export const signUp = async ({
   dateOfBirth,
   stateCode,
   captchaToken,
+  selfRatingBand,
+  state,
 }) => {
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -49,7 +51,10 @@ export const signUp = async ({
         age_declared: true,
         terms_version: TERMS_VERSION,
         privacy_version: PRIVACY_VERSION,
-        state: stateCode,
+        state: stateCode ?? state,
+        display_name: `${firstName} ${lastName}`.trim(),
+        self_rating_band: selfRatingBand,
+        playing_state: state ?? stateCode,
       },
       // Where the email verification link sends the user
       emailRedirectTo: emailConfirmedUrl,
@@ -120,4 +125,33 @@ export const signOut = async () => {
   const { error } = await supabase.auth.signOut();
 
   if (error) throw error;
+};
+
+// Auth users with email verification need registration after their first session.
+// This RPC is explicitly defined in the API; it enforces the minimum age.
+export const completePlayerRegistration = async () => {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!user) return false;
+  const { data: existing, error: lookupError } = await supabase
+    .from("player")
+    .select("playerId")
+    .eq("playerId", user.id)
+    .maybeSingle();
+  if (lookupError) throw lookupError;
+  if (existing) return true;
+  const m = user.user_metadata || {};
+  if (!m.display_name || !m.self_rating_band || !m.date_of_birth || !m.playing_state)
+    return false;
+  const { error } = await supabase.rpc("register_player", {
+    displayName: m.display_name,
+    selfRatingBand: m.self_rating_band,
+    dateOfBirth: m.date_of_birth,
+    state: m.playing_state,
+  });
+  if (error) throw error;
+  return true;
 };

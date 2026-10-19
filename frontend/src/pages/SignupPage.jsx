@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { signUp, signInWithGoogle } from "../services/authService";
+import {
+  signUp,
+  signInWithGoogle,
+  completePlayerRegistration,
+} from "../services/authService";
 import Captcha, { useCaptcha } from "../components/auth/Captcha";
 import { getAuthErrorMessage } from "../utils/authErrors";
 import { PASSWORD_HINT, getPasswordError } from "../utils/passwordPolicy";
@@ -28,7 +32,9 @@ function SignupPage() {
   const [states, setStates] = useState([]);
 
   useEffect(() => {
-    listStates().then(setStates).catch(() => setStates([]));
+    listStates()
+      .then(setStates)
+      .catch(() => setStates([]));
   }, []);
 
   const [error, setError] = useState("");
@@ -72,7 +78,9 @@ function SignupPage() {
       // Checked here so the player gets a clear message; the database checks
       // again when the account is created.
       if (!(await isUsernameAvailable(formData.username.trim()))) {
-        setError("That username is taken or not allowed. Use 3-20 letters, numbers, _ or .");
+        setError(
+          "That username is taken or not allowed. Use 3-20 letters, numbers, _ or ."
+        );
         return;
       }
 
@@ -88,6 +96,7 @@ function SignupPage() {
       });
 
       if (session) {
+        await completePlayerRegistration();
         navigate("/dashboard");
       } else {
         // Email verification is on: no session until the link is clicked.
@@ -103,7 +112,6 @@ function SignupPage() {
     }
   };
 
-
   const handleGoogle = async () => {
     setError("");
     setLoading(true);
@@ -118,18 +126,12 @@ function SignupPage() {
 
   return (
     <div className="auth-page">
-
-    <Link
-        to="/"
-        className="auth-close-button"
-        aria-label="Back to main menu"
-        >
+      <Link to="/" className="auth-close-button" aria-label="Back to main menu">
         ×
-    </Link>
+      </Link>
 
       <div className="auth-brand-panel">
         <div className="auth-brand-content">
-
           <h1>Join the community</h1>
 
           <p>
@@ -146,9 +148,7 @@ function SignupPage() {
 
             <h2>Create your account</h2>
 
-            <p>
-              Enter your details to join Badminton Social Connect.
-            </p>
+            <p>Enter your details to join Badminton Social Connect.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="auth-form">
@@ -232,6 +232,7 @@ function SignupPage() {
                   value={formData.dateOfBirth}
                   onChange={handleChange}
                   autoComplete="bday"
+                  max={new Date().toISOString().slice(0, 10)}
                   required
                 />
               </div>
@@ -246,7 +247,9 @@ function SignupPage() {
                   onChange={handleChange}
                   required
                 >
-                  <option value="" disabled>Choose</option>
+                  <option value="" disabled>
+                    Choose
+                  </option>
                   {states.map((s) => (
                     <option key={s.state_code} value={s.state_code}>
                       {s.name}
@@ -270,15 +273,11 @@ function SignupPage() {
                 required
               />
 
-              <span className="form-hint">
-                {PASSWORD_HINT}
-              </span>
+              <span className="form-hint">{PASSWORD_HINT}</span>
             </div>
 
             <div className="form-group">
-              <label htmlFor="confirmPassword">
-                Confirm password
-              </label>
+              <label htmlFor="confirmPassword">Confirm password</label>
 
               <input
                 id="confirmPassword"
@@ -354,8 +353,7 @@ function SignupPage() {
           </button>
 
           <div className="auth-footer-text">
-            Already have an account?{" "}
-            <Link to="/login">Log in</Link>
+            Already have an account? <Link to="/login">Log in</Link>
           </div>
         </div>
       </div>
