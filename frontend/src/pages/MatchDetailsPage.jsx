@@ -1,260 +1,39 @@
-import {
-    useLocation,
-    useNavigate,
-    useParams,
-  } from "react-router-dom";
-  
-  import {
-    MessageCircle,
-    TriangleAlert,
-    CheckCircle2,
-  } from "lucide-react";
-  
-  import "../styles/MatchResultFlow.css";
-  
-  
-  const fallbackMatch = {
-    id: "match-1",
-  
-    opponent: {
-      id: 2,
-      name: "Jordan K.",
-      initials: "JK",
-      level: "Intermediate",
-    },
-  
-    format: "Singles",
-  
-    date: "Saturday, 7 September",
-    time: "3:00 PM",
-  
-    venue: "MSAC, Albert Park",
-  
-    level: "Intermediate",
-  
-    confirmed: true,
-  };
-  
-  
-  function MatchDetailsPage() {
-    const navigate = useNavigate();
-    const location = useLocation();
-    const { matchId } = useParams();
-  
-    const passedMatch =
-      location.state?.match;
-  
-    const match = {
-      ...fallbackMatch,
-      ...passedMatch,
-  
-      id:
-        passedMatch?.id ??
-        matchId,
-    };
-  
-  
-    return (
-      <div className="match-flow-page">
-  
-        {/* SECONDARY HEADER */}
-  
-        <header className="match-flow-header">
-  
-          <button
-            type="button"
-            onClick={() =>
-              navigate(-1)
-            }
-          >
-            ←
-          </button>
-  
-          <h1>
-            Match Details
-          </h1>
-  
-        </header>
-  
-  
-        <main className="match-flow-content">
-  
-  
-          {/* CONFIRMED */}
-  
-          <section className="confirmed-banner">
-  
-            <div className="confirmed-banner-title">
-  
-              <CheckCircle2 size={22} />
-  
-              <strong>
-                Match Confirmed
-              </strong>
-  
-            </div>
-  
-            <p>
-              Both players have confirmed.
-              See you on court!
-            </p>
-  
-          </section>
-  
-  
-          {/* MATCH */}
-  
-          <section className="match-flow-card">
-  
-            <div className="match-opponent">
-  
-              <div className="match-avatar">
-                {match.opponent.initials}
-              </div>
-  
-  
-              <div>
-  
-                <h2>
-                  {match.opponent.name}
-                </h2>
-  
-                <span className="match-level-pill">
-                  {match.opponent.level}
-                </span>
-  
-              </div>
-  
-            </div>
-  
-  
-            <div className="match-flow-divider" />
-  
-  
-            <div className="match-detail-row">
-              <span>Format</span>
-  
-              <strong>
-                {match.format}
-              </strong>
-            </div>
-  
-  
-            <div className="match-detail-row">
-              <span>Date</span>
-  
-              <strong>
-                {match.date}
-              </strong>
-            </div>
-  
-  
-            <div className="match-detail-row">
-              <span>Time</span>
-  
-              <strong>
-                {match.time}
-              </strong>
-            </div>
-  
-  
-            <div className="match-detail-row">
-              <span>Venue</span>
-  
-              <strong>
-                {match.venue}
-              </strong>
-            </div>
-  
-  
-            <div className="match-detail-row">
-              <span>Level</span>
-  
-              <strong>
-                {match.level}
-              </strong>
-            </div>
-  
-          </section>
-  
-  
-          {/* ACTIONS */}
-  
-          <div className="match-secondary-actions">
-  
-            <button
-              type="button"
-              onClick={() =>
-                console.log(
-                  "Message:",
-                  match.opponent.id
-                )
-              }
-            >
-              <MessageCircle size={17} />
-              Message
-            </button>
-  
-  
-            <button
-              type="button"
-              className="cancel-match-button"
-              onClick={() =>
-                console.log(
-                  "Cancel match:",
-                  match.id
-                )
-              }
-            >
-              Cancel Match
-            </button>
-  
-          </div>
-  
-  
-          {/* WARNING */}
-  
-          <div className="match-warning">
-  
-            <TriangleAlert size={20} />
-  
-            <p>
-              Cancellations within 24 hours
-              affect your reliability.
-              Cancel early if needed.
-            </p>
-  
-          </div>
-  
-        </main>
-  
-  
-        {/* BOTTOM ACTION */}
-  
-        <div className="match-flow-bottom-action">
-  
-          <button
-            type="button"
-            className="match-flow-primary"
-            onClick={() =>
-              navigate(
-                `/matches/${match.id}/record-result`,
-                {
-                  state: {
-                    match,
-                  },
-                }
-              )
-            }
-          >
-            Record Result After Match
-          </button>
-  
-        </div>
-  
-      </div>
-    );
-  }
-  
-  
-  export default MatchDetailsPage;
+import {useEffect,useState} from 'react';
+import {useNavigate,useParams} from 'react-router-dom';
+import {CheckCircle2,TriangleAlert} from 'lucide-react';
+import * as api from '../services/badmintonApi';
+import '../styles/MatchResultFlow.css';
+function MatchDetailsPage(){
+ const navigate=useNavigate();const {matchId}=useParams();
+ const [match,setMatch]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[disputing,setDisputing]=useState(false),[reason,setReason]=useState('');
+ const refresh=async()=>{const m=await api.getMatch(matchId);if(!m)throw new Error('Match not found or you are not allowed to view it.');setMatch(m);};
+ useEffect(()=>{let live=true;(async()=>{try{const m=await api.getMatch(matchId);if(!m)throw new Error('Match not found or you are not allowed to view it.');if(live)setMatch(m);}catch(e){if(live)setError(e.message);}finally{if(live)setLoading(false);}})();return()=>{live=false;};},[matchId]);
+ const latest=match?.result;
+ const confirm=async()=>{setError('');setBusy(true);try{if(!latest?.id)throw new Error('No pending result ID.');const card=await api.confirmResult(latest.id);navigate(`/matches/${matchId}/result-confirmed`,{state:{result:card?.result||null}});}catch(e){setError(e.message||'Could not confirm result.');}finally{setBusy(false);}};
+ const dispute=async e=>{e.preventDefault();setError('');setBusy(true);try{if(!latest?.id)throw new Error('No result to dispute.');await api.raiseDispute(latest.id,reason.trim());setDisputing(false);await refresh();}catch(e){setError(e.message||'Could not dispute result.');}finally{setBusy(false);}};
+ const a=match?.sides?.a||[],b=match?.sides?.b||[];
+ return <div className="match-flow-page"><header className="match-flow-header"><button type="button" onClick={()=>navigate(-1)}>←</button><h1>Match Details</h1></header>
+  {error&&<p role="alert" style={{padding:14,color:'#a32727'}}>{error}</p>}{loading&&<p>Loading match...</p>}
+  {match&&<main className="match-flow-content"><section className="match-flow-card"><h2>{match.format||'Badminton'} Match</h2>
+   <div className="match-detail-row"><span>Status</span><strong>{latest?.verificationStatus||latest?.status||'No result'}</strong></div>
+   <div className="match-detail-row"><span>Played at</span><strong>{match.playedAt?new Date(match.playedAt).toLocaleString('en-AU'):'Not scheduled'}</strong></div>
+   <div className="match-detail-row"><span>Location</span><strong>{match.location||'Not specified'}</strong></div>
+   <div className="match-detail-row"><span>Side A</span><strong>{a.map(p=>p.name).join(', ')||'Unknown'}</strong></div>
+   <div className="match-detail-row"><span>Side B</span><strong>{b.map(p=>p.name).join(', ')||'Unknown'}</strong></div>
+   {latest&&<><div className="match-flow-divider"/><h3>Result</h3>
+    <div className="match-detail-row"><span>Score</span><strong>{latest.score||'Not recorded'}</strong></div>
+    <div className="match-detail-row"><span>Winning side</span><strong>{latest.winningSide?.toUpperCase()||'Unknown'}</strong></div>
+    {latest.ratingChange&&<div className="match-detail-row"><span>Rating change</span><strong>{latest.ratingChange.before} → {latest.ratingChange.after}</strong></div>}
+    {latest.ratingPending&&<p>Rating will update after the nightly calculation.</p>}
+   </>}
+  </section>
+  {match.gameId&&<button type="button" className="match-flow-primary" onClick={()=>navigate(`/games/${match.gameId}`)}>View Game</button>}
+  {latest?.canConfirm&&<section className="match-flow-card"><p>Only a player from the opposing side can confirm or dispute this result.</p>
+   <button type="button" disabled={busy} onClick={confirm}><CheckCircle2 size={16}/> Confirm Result</button>
+   <button type="button" onClick={()=>setDisputing(v=>!v)}><TriangleAlert size={16}/> Dispute</button>
+   {disputing&&<form onSubmit={dispute}><label htmlFor="disputeReason">Dispute reason</label><textarea id="disputeReason" value={reason} onChange={e=>setReason(e.target.value)} required/><button type="submit" disabled={busy||!reason.trim()}>Submit Dispute</button></form>}
+  </section>}
+  </main>}
+ </div>;
+}
+export default MatchDetailsPage;

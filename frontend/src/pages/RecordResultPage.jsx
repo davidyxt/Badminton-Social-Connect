@@ -1,410 +1,48 @@
-import { useState } from "react";
-
-import {
-  useLocation,
-  useNavigate,
-  useParams,
-} from "react-router-dom";
-
-import {
-  Info,
-  Plus,
-} from "lucide-react";
-
-import "../styles/MatchResultFlow.css";
-
-
-const fallbackMatch = {
-  id: "match-1",
-
-  currentUser: {
-    id: 1,
-    name: "Alex C.",
-    initials: "AC",
-  },
-
-  opponent: {
-    id: 2,
-    name: "Jordan K.",
-    initials: "JK",
-  },
-};
-
-
-function RecordResultPage() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { matchId } = useParams();
-
-
-  const passedMatch =
-    location.state?.match;
-
-
-  const match = {
-    ...fallbackMatch,
-    ...passedMatch,
-
-    id:
-      passedMatch?.id ??
-      matchId,
-
-    currentUser:
-      passedMatch?.currentUser ??
-      fallbackMatch.currentUser,
-
-    opponent:
-      passedMatch?.opponent ??
-      fallbackMatch.opponent,
-  };
-
-
-  const [winnerId, setWinnerId] =
-    useState(
-      match.currentUser.id
-    );
-
-
-  const [sets, setSets] =
-    useState([
-      {
-        player1: "21",
-        player2: "18",
-      },
-
-      {
-        player1: "17",
-        player2: "21",
-      },
-
-      {
-        player1: "21",
-        player2: "16",
-      },
-    ]);
-
-
-  const updateSet = (
-    index,
-    field,
-    value
-  ) => {
-
-    setSets((previous) =>
-      previous.map(
-        (set, setIndex) =>
-          setIndex === index
-            ? {
-                ...set,
-                [field]:
-                  value,
-              }
-            : set
-      )
-    );
-
-  };
-
-
-  const addSet = () => {
-
-    setSets((previous) => [
-      ...previous,
-      {
-        player1: "",
-        player2: "",
-      },
-    ]);
-
-  };
-
-
-  const handleSubmit = () => {
-
-    const result = {
-      id:
-        `result-${Date.now()}`,
-
-      matchId:
-        match.id,
-
-      winnerId,
-
-      sets,
-
-      status:
-        "pending_confirmation",
-    };
-
-
-    navigate(
-      `/matches/${match.id}/result-submitted`,
-      {
-        state: {
-          match,
-          result,
-        },
-      }
-    );
-
-  };
-
-
-  return (
-    <div className="match-flow-page">
-
-      <header className="match-flow-header">
-
-        <button
-          type="button"
-          onClick={() =>
-            navigate(-1)
-          }
-        >
-          ←
-        </button>
-
-        <h1>
-          Record Result
-        </h1>
-
-      </header>
-
-
-      <main className="match-flow-content">
-
-        <section className="match-flow-card">
-
-
-          {/* PLAYERS */}
-
-          <div className="result-versus">
-
-            <div className="result-player">
-
-              <div className="large-match-avatar">
-                {
-                  match.currentUser
-                    .initials
-                }
-              </div>
-
-              <strong>
-                {
-                  match.currentUser
-                    .name
-                }
-              </strong>
-
-              <span>
-                You
-              </span>
-
-            </div>
-
-
-            <strong className="versus-text">
-              VS
-            </strong>
-
-
-            <div className="result-player">
-
-              <div className="large-match-avatar dark">
-                {
-                  match.opponent
-                    .initials
-                }
-              </div>
-
-              <strong>
-                {
-                  match.opponent
-                    .name
-                }
-              </strong>
-
-              <span>
-                Opponent
-              </span>
-
-            </div>
-
-          </div>
-
-
-          {/* WINNER */}
-
-          <h3 className="result-section-title">
-            WINNER
-          </h3>
-
-
-          <div className="winner-buttons">
-
-            <button
-              type="button"
-              className={
-                winnerId ===
-                match.currentUser.id
-                  ? "selected"
-                  : ""
-              }
-              onClick={() =>
-                setWinnerId(
-                  match.currentUser.id
-                )
-              }
-            >
-              I Won
-            </button>
-
-
-            <button
-              type="button"
-              className={
-                winnerId ===
-                match.opponent.id
-                  ? "selected"
-                  : ""
-              }
-              onClick={() =>
-                setWinnerId(
-                  match.opponent.id
-                )
-              }
-            >
-              {
-                match.opponent
-                  .name
-              }{" "}
-              Won
-            </button>
-
-          </div>
-
-
-          {/* SCORES */}
-
-          <h3 className="result-section-title scores-heading">
-            SCORES
-            <span>
-              {" "}
-              (OPTIONAL)
-            </span>
-          </h3>
-
-
-          <div className="score-list">
-
-            {sets.map(
-              (set, index) => (
-
-                <div
-                  className="score-row"
-                  key={index}
-                >
-
-                  <span>
-                    Set {index + 1}
-                  </span>
-
-
-                  <input
-                    type="number"
-                    min="0"
-                    max="30"
-                    value={
-                      set.player1
-                    }
-                    onChange={(event) =>
-                      updateSet(
-                        index,
-                        "player1",
-                        event.target.value
-                      )
-                    }
-                  />
-
-
-                  <strong>
-                    –
-                  </strong>
-
-
-                  <input
-                    type="number"
-                    min="0"
-                    max="30"
-                    value={
-                      set.player2
-                    }
-                    onChange={(event) =>
-                      updateSet(
-                        index,
-                        "player2",
-                        event.target.value
-                      )
-                    }
-                  />
-
-                </div>
-
-              )
-            )}
-
-          </div>
-
-
-          <button
-            type="button"
-            className="add-set-button"
-            onClick={addSet}
-          >
-            <Plus size={15} />
-            Add Set
-          </button>
-
-        </section>
-
-
-        <div className="result-info-message">
-
-          <Info size={19} />
-
-          <p>
-            Rankings are only updated
-            once{" "}
-            <strong>
-              {match.opponent.name}
-            </strong>{" "}
-            confirms this result.
-            Unconfirmed results don't
-            affect your rating.
-          </p>
-
-        </div>
-
-      </main>
-
-
-      <div className="match-flow-bottom-action">
-
-        <button
-          type="button"
-          className="match-flow-primary"
-          onClick={
-            handleSubmit
-          }
-        >
-          Submit Result
-        </button>
-
-      </div>
-
-    </div>
-  );
+import {useEffect,useState} from 'react';
+import {useNavigate,useParams} from 'react-router-dom';
+import {Info,Plus} from 'lucide-react';
+import * as api from '../services/badmintonApi';
+import '../styles/MatchResultFlow.css';
+// BL-021: submit_result creates a new match from a *game post* and accepted
+// players. It is not a score update on an already-existing match ID.
+function RecordResultPage(){
+ const navigate=useNavigate(),{gameId,matchId}=useParams();
+ const [game,setGame]=useState(null),[me,setMe]=useState(null),[opponents,setOpponents]=useState([]),[partner,setPartner]=useState('');
+ const [sets,setSets]=useState([{a:'',b:''},{a:'',b:''}]),[error,setError]=useState(''),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false);
+ useEffect(()=>{let live=true;(async()=>{try{
+  const id=await api.getCurrentUserId();let postId=gameId;
+  if(!postId&&matchId){const match=await api.getMatch(matchId);postId=match?.gameId;}
+  if(!postId)throw new Error('This result form requires an original game post.');
+  const card=await api.getGame(postId);
+  if(!card?.canRecordResult)throw new Error('You cannot record a result for this game yet. It must have started, and you must be an accepted player.');
+  if(live){setMe(id);setGame(card);}
+ }catch(e){if(live)setError(e.message);}finally{if(live)setLoading(false);}})();return()=>{live=false;};},[gameId,matchId]);
+ const players=(game?.players||[]).filter(p=>p.id!==me);
+ const isDoubles=String(game?.format||'').toLowerCase().includes('doubles');
+ const maxOpponents=isDoubles?2:1;
+ const toggleOpponent=id=>setOpponents(list=>list.includes(id)?list.filter(x=>x!==id):list.length<maxOpponents?[...list,id]:list);
+ const update=(index,field,value)=>setSets(old=>old.map((s,i)=>i===index?{...s,[field]:value}:s));
+ const submit=async()=>{setError('');
+  if(opponents.length!==maxOpponents)return setError(`Select ${maxOpponents} opponent${maxOpponents===1?'':'s'}.`);
+  if(isDoubles&&(!partner||opponents.includes(partner)))return setError('Select a different accepted player as your partner.');
+  if(sets.some(s=>s.a===''||s.b===''))return setError('Enter both scores for each game.');
+  const games=sets.map(s=>[Number(s.a),Number(s.b)]);
+  setSaving(true);try{const result=await api.submitResult(game.id,opponents,isDoubles?partner:null,games);
+   if(!result?.matchId)throw new Error('Result was submitted but a match ID was not returned.');
+   navigate(`/matches/${result.matchId}/result-submitted`,{state:{result:{...result,score:games.map(g=>g.join('-')).join(' ')}}});
+  }catch(e){setError(e.message||'Result submission failed.');}finally{setSaving(false);}
+ };
+ return <div className="match-flow-page"><header className="match-flow-header"><button type="button" onClick={()=>navigate(game?.id?`/games/${game.id}`:'/dashboard')}>←</button><h1>Record Result</h1></header>
+ {loading&&<p>Loading accepted players...</p>}{error&&<p role="alert" style={{padding:12,color:'#a32727'}}>{error}</p>}
+ {game&&<main className="match-flow-content"><section className="match-flow-card"><h3>ACCEPTED PLAYERS</h3><p>{game.title} · {game.format}</p>
+  {isDoubles&&<label>Partner<select value={partner} onChange={e=>{setPartner(e.target.value);setOpponents(old=>old.filter(x=>x!==e.target.value));}}><option value="">Choose partner</option>{players.filter(p=>!opponents.includes(p.id)).map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select></label>}
+  <fieldset style={{border:0,padding:0}}><legend>Choose {maxOpponents} opponent{maxOpponents>1?'s':''}</legend>{players.filter(p=>p.id!==partner).map(p=><label key={p.id} style={{display:'block',marginTop:9}}><input type="checkbox" checked={opponents.includes(p.id)} onChange={()=>toggleOpponent(p.id)}/> {p.name}</label>)}</fieldset>
+ </section><section className="match-flow-card"><h3 className="result-section-title">GAME SCORES</h3><p>Scores are from your side's point of view. Best of three, to 21 (win by two, cap at 30).</p>
+  <div className="score-list">{sets.map((s,i)=><div className="score-row" key={i}><span>Game {i+1}</span><input aria-label={`Game ${i+1} your side`} type="number" min="0" max="30" value={s.a} onChange={e=>update(i,'a',e.target.value)}/><strong>–</strong><input aria-label={`Game ${i+1} opponents`} type="number" min="0" max="30" value={s.b} onChange={e=>update(i,'b',e.target.value)}/></div>)}</div>
+  {sets.length===2&&<button className="add-set-button" type="button" onClick={()=>setSets(old=>[...old,{a:'',b:''}])}><Plus size={15}/> Add third game</button>}
+  {sets.length===3&&<button className="add-set-button" type="button" onClick={()=>setSets(old=>old.slice(0,2))}>Remove third game</button>}
+ </section><div className="result-info-message"><Info size={18}/><p>Your opponent must confirm the result before it is rated.</p></div>
+ <button className="match-flow-primary" type="button" disabled={saving} onClick={submit}>{saving?'Submitting...':'Submit Result'}</button></main>}
+ </div>;
 }
-
-
 export default RecordResultPage;
