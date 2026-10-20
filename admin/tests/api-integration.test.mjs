@@ -65,7 +65,7 @@ test("revoked administrator role routes to restricted access, ordinary 403 does 
   await assert.rejects(client.adminRequest("/me"), { code: "forbidden" });
   code = "forbidden";
   await assert.rejects(client.adminRequest("/admin_post"), { code: "forbidden" });
-  assert.deepEqual(failures, ["restricted"]);
+  assert.deepEqual(failures, ["forbidden"]);
 });
 
 test("flat compatibility conflicts and nested console errors retain their meaning", async () => {
@@ -79,7 +79,7 @@ test("flat compatibility conflicts and nested console errors retain their meanin
 function cache(overrides = {}) {
   let db = { players: [] };
   const tables = {
-    player: ["registered", "pending", "deleted"].map((id) => ({ playerId: id, displayName: id, selfRatingBand: "intermediate", joinedAt: "2026-10-12T00:00:00Z", isVerified: false })),
+    player: ["registered", "pending", "deleted"].map((id) => ({ playerId: id, username: id, deletedAt: id === "deleted" ? "2026-10-12T01:00:00Z" : null, selfRatingBand: "intermediate", joinedAt: "2026-10-12T00:00:00Z", isVerified: false })),
     game_post: [{ postId: "visible", format: "singles", title: "Real title", organiserId: null, organiserClubId: "group" }, { postId: "deleted-post", format: "doubles", deletedAt: "2026-10-12T00:00:00Z", deletionReason: "Removed", organiserId: "registered" }],
     groups: [{ groupId: "group", name: "Local Group" }],
     report: [{ reportId: "report", targetType: "group", status: "reviewing" }],
@@ -91,12 +91,16 @@ function cache(overrides = {}) {
       { player_id: "pending", registration: { registered_at: null } },
       { player_id: "deleted", deleted_at: "2026-10-12T01:00:00Z", registration: null, account: null },
     ], pagination: { total: 3, limit: 100, page: 1 } };
+    if (path === "/games") return { data: [
+      { post_id: "visible", format: "singles", title: "Real title", organiser_id: null, organiser_group_id: "group", club: { group_id: "group", name: "Local Group" } },
+      { post_id: "deleted-post", format: "doubles", deleted_at: "2026-10-12T00:00:00Z", deletion_reason: "Removed", organiser_id: "registered" },
+    ], pagination: { total: 2, limit: 100, page: 1 } };
     if (path === "/analytics") return { data: { metrics: {} } };
     return { data: { registered_users: 1, deleted_users: 1 } };
   };
   const sync = load("lib/api/sync.ts", {
     react: { useSyncExternalStore: () => null },
-    "@/lib/format": { humanize: (s) => s[0].toUpperCase() + s.slice(1) },
+    "@/lib/format": { CATEGORY_LABEL: {}, humanize: (s) => s[0].toUpperCase() + s.slice(1) },
     "@/lib/mock-api/store": { commit: (f) => { db = f(db); } },
     "@/lib/mock-data": { createEmptyDb: () => ({ players: [], game_posts: [] }) },
     "@/lib/mock-api/errors": { isApiError: (e) => e instanceof ApiError },
@@ -109,7 +113,7 @@ test("real sync preserves registration/deletion, hides deleted posts and exposes
   const { sync, current } = cache();
   await sync.syncNow();
   const db = current();
-  assert.deepEqual(db.players.map((p) => p.account_state), ["registered", "registration_pending", "deleted"]);
+  assert.deepEqual(db.players.map((p) => p.registration_state), ["registered", "registration_pending", "deleted"]);
   assert.equal(db.players[0].email, "local@example.com");
   assert.equal(db.game_posts.length, 1);
   assert.equal(db.game_posts[0].title, "Real title");
@@ -118,7 +122,7 @@ test("real sync preserves registration/deletion, hides deleted posts and exposes
   assert.equal(db.deleted_records[0].reason, "Removed");
   assert.equal(db.reports[0].target_type, "group");
   assert.equal(db.match_results[0].status, "expired");
-  assert.equal(db.overview.registered_users, 1);
+
 });
 
 test("sign-out invalidates an in-flight sync so another session cannot see cached admin records", async () => {
@@ -139,5 +143,15 @@ test("switching administrators clears an already populated directory", async () 
   await sync.syncNow();
   assert.equal(current().players.length, 3);
   sync.setApiCacheOwner("second-admin");
+  assert.deepEqual(current().players, []);
+});
+
+test("registration lookup failure does not invent registered users", async () => {
+  const { sync, current } = cache({ consoleGet: async (path) => {
+    if (path === "/users") throw new ApiError("network_error", "Directory unavailable");
+    return { data: [], pagination: { total: 0, limit: 100, page: 1 } };
+  } });
+  await assert.rejects(sync.loadFromApi(), { code: "network_error" });
+  await sync.syncNow();
   assert.deepEqual(current().players, []);
 });

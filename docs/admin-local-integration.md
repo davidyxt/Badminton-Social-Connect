@@ -1,6 +1,6 @@
 # Admin console integration and testing
 
-The `admin-api/local-console-integration` branch connects the Next.js Admin console in `admin/` to the Admin Edge Function on the Player BE-2 0.4 database. It combines frontend baseline `f6b68d1` with backend `a1a3e0a` and the additional console reads, cache handling and tests described here. Later commits on `admin-console-frontend` have not been merged into this branch. This is a working integration for the currently supported capabilities, not completion of all Admin backlog tasks.
+The local `admin-api/main-console-integration-20261020` branch combines latest `main` (`e42beb7`), our completed Admin integration (`6d8e8f2`) and latest `admin-console-frontend` (`5b204e7`). The Next.js console in `admin/` uses the Admin Edge Function and the existing 50 migrations. Mini Leagues remain hidden by default, following the latest frontend scope. This local integration has not been pushed or deployed.
 
 ## Data sources and boundaries
 
@@ -70,9 +70,9 @@ Use `--workdir` on CLI start/serve commands too. Keep the CLI process serving `a
 
 ## Remaining limitations
 
-Unsupported moderation, private report decisions, full activity/deletion audit and immutable leaderboard snapshots remain unavailable. No score, confirmation, ranking or game/league lifecycle write is enabled through the console. The shared SQL engine owns rating calculations. Refer to [admin-database-handoff.md](admin-database-handoff.md) for DB01–DB11 work and [admin-api.md](admin-api.md) for exact 501/405 responses.
+Unsupported moderation, private report decisions, full activity/deletion audit and immutable leaderboard snapshots remain unavailable. No score, confirmation, ranking or game/league lifecycle write is enabled through the console. The shared SQL engine owns rating calculations. Refer to [admin-database-handoff.md](admin-database-handoff.md) for gaps in the currently visible screens and [admin-api.md](admin-api.md) for exact 501/405 responses.
 
-Carousel edits check changes during the server request, but the console does not yet send the version originally opened by the editor. A stale form can overwrite an earlier edit. Reordering uses multiple requests, so it can partially succeed. Deletion reasons and successful announcement operations cannot be audited until DB01 exists. The console reacts to ended or restricted Auth sessions, but this frontend baseline has no additional 30-minute browser idle enforcement. These are known acceptance gaps, not claims of complete conflict/audit/session-policy support.
+Carousel edits send the editor's `expectedUpdatedAt` version and the backend rejects stale or concurrent saves with 409. Reordering still uses multiple requests and can partially succeed. Deletion reasons and successful announcement operations cannot be audited until action logs are stored. The latest frontend enforces a 30-minute browser idle sign-out; this is not proof of hosted server session configuration.
 
 ## Verification
 
@@ -93,7 +93,9 @@ In `supabase/functions/admin-api`, run `deno check --frozen index.ts` and `deno 
 node supabase/tests/admin-api-live.test.mjs
 ```
 
-The live test refuses hosted URLs, exercises real Auth/Postgres/RLS/Edge transport and removes only its own temporary fixtures. The demo account remains for manual testing. The eight console tests use controlled responses to verify client transport, pagination, registration/deletion mapping and cache isolation; they complement rather than replace the real-stack suite.
+The live test refuses hosted URLs, exercises real Auth/Postgres/RLS/Edge transport and removes only its own temporary fixtures. The demo account remains for manual testing. The nine console tests use controlled responses to verify client transport, pagination, registration/deletion mapping and cache isolation; they complement rather than replace the real-stack suite.
+
+On 20 October 2026, 165 backend/inherited-session tests, 9 console tests and 124 real-stack checks passed, along with Admin lint/build and Deno check/lint. A supplemental 12-check run executed the actual frontend modules against local Supabase, covering real reads/writes, conflicts, directory failure, idle expiry and cache clearing. The latest main player app currently fails its separate build because `frontend/src/services/badmintonApi` is missing; its page imports were retained.
 
 Validation is recorded in [admin-api.md](admin-api.md#validation-and-deployment). Browser checks verified real login, overview, report evidence, ratings, result monitoring and retained deletions. Local success does not establish hosted deployment, mathematical acceptance of every rating scenario or completion of unsupported Admin actions. The historical BE-1 `rls_test.sh` and `api_test.py` still need adaptation to the new result write restrictions; their old passing counts are not current 0.4 evidence.
 

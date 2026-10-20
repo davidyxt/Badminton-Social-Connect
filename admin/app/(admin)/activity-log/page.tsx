@@ -10,16 +10,20 @@ import { DataTable, type Column } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { LiveIndicator } from "@/components/shared/LiveIndicator";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useSession } from "@/lib/auth/session";
-import { ACTION_FEATURE, ACTION_LABEL, TARGET_TYPE_LABEL, downloadFile, formatDateTime, humanize, toCsv } from "@/lib/format";
-import { useQuery } from "@/lib/mock-api";
-import type { ActivityLog, MockDatabase } from "@/lib/types";
+import { ACTION_FEATURE, ACTION_LABEL, TARGET_TYPE_LABEL, downloadFile, formatDateTime, humanize, resultStatusOf, toCsv } from "@/lib/format";
+import { localDateTime, localDay, resolveTarget } from "@/lib/activity";
+import { selectVisibleActivity, useQuery } from "@/lib/mock-api";
+import type { ActivityLog } from "@/lib/types";
 
 interface Row {
   entry: ActivityLog;
   actionLabel: string;
   feature: string;
   typeLabel: string;
+  /** The target's status after the action (DB01 "new state"), or null when the action didn't change status. */
+  status: string | null;
   /** Human label for the target, when it still exists. */
   targetLabel: string | null;
   /** Link to the record, when it still exists. */
@@ -29,44 +33,6 @@ interface Row {
   day: string;
 }
 
-const pad = (n: number) => String(n).padStart(2, "0");
-const localDay = (iso: string) => {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
-
-/** Resolves a log target to a label + link, or nulls when the record no longer exists. */
-function resolveTarget(db: MockDatabase, type: string, id: string): { label: string | null; href: string | null } {
-  switch (type) {
-    case "player": {
-      const p = db.players.find((x) => x.player_id === id);
-      return p ? { label: p.display_name, href: `/users/${id}` } : { label: null, href: null };
-    }
-    case "report": {
-      const r = db.reports.find((x) => x.report_id === id);
-      return r ? { label: r.reason, href: `/reports/${id}` } : { label: null, href: null };
-    }
-    case "mini_league": {
-      const l = db.mini_leagues.find((x) => x.league_id === id);
-      return l ? { label: l.name, href: `/mini-leagues/${id}` } : { label: null, href: null };
-    }
-    case "game_post": {
-      const g = db.game_posts.find((x) => x.post_id === id);
-      return g ? { label: g.title, href: `/moderation/game-posts?post=${id}` } : { label: null, href: null };
-    }
-    case "dispute": {
-      const d = db.disputes.find((x) => x.dispute_id === id);
-      return d ? { label: id, href: `/disputes/${id}` } : { label: null, href: null };
-    }
-    case "admin_post": {
-      const a = db.admin_posts.find((x) => x.admin_post_id === id);
-      return a ? { label: a.title, href: "/content" } : { label: null, href: null };
-    }
-    default:
-      return { label: null, href: null };
-  }
-}
-
 /** Screen 45 */
 export default function ActivityLogPage() {
   const { admin } = useSession();
@@ -74,7 +40,7 @@ export default function ActivityLogPage() {
   const [to, setTo] = useState("");
 
   const rows = useQuery<Row[]>((db) =>
-    [...db.activity_log]
+    selectVisibleActivity(db)
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
       .map((entry) => {
         const target = resolveTarget(db, entry.target_type, entry.target_id);
@@ -83,6 +49,7 @@ export default function ActivityLogPage() {
           actionLabel: ACTION_LABEL[entry.action] ?? humanize(entry.action),
           feature: ACTION_FEATURE[entry.action] ?? "Other",
           typeLabel: TARGET_TYPE_LABEL[entry.target_type] ?? humanize(entry.target_type),
+          status: entry.new_status !== undefined ? entry.new_status : resultStatusOf(entry.action, entry.details),
           targetLabel: target.label,
           targetHref: target.href,
           admin: admin && admin.admin_id === entry.admin_id ? admin.display_name : entry.admin_id,
@@ -100,6 +67,11 @@ export default function ActivityLogPage() {
   const actionOptions = unique(rows.map((r) => r.entry.action))
     .map((a) => ({ value: a, label: ACTION_LABEL[a] ?? humanize(a) }))
     .sort((a, b) => a.label.localeCompare(b.label));
+  const NO_CHANGE = "none";
+  const statusOptions = [
+    ...unique(rows.flatMap((r) => (r.status ? [r.status] : []))).map((st) => ({ value: st, label: humanize(st) })),
+    ...(rows.some((r) => !r.status) ? [{ value: NO_CHANGE, label: "No status change" }] : []),
+  ];
 
   const columns: Column<Row>[] = [
     {
@@ -116,7 +88,7 @@ export default function ActivityLogPage() {
       cell: (r) => (
         <div>
           <div className="font-medium text-ink">{r.actionLabel}</div>
-          <div className="text-xs text-ink-muted">{r.feature}</div>
+          <div className="text-[13px] text-ink-muted">{r.feature}</div>
         </div>
       ),
       className: "whitespace-nowrap",
@@ -127,18 +99,25 @@ export default function ActivityLogPage() {
       sortValue: (r) => `${r.typeLabel} ${r.targetLabel ?? r.entry.target_id}`,
       cell: (r) => (
         <div className="min-w-0">
-          <div className="text-xs text-ink-muted">{r.typeLabel}</div>
           {r.targetHref ? (
             <Link href={r.targetHref} className="block max-w-[220px] truncate font-medium text-ink hover:text-brand hover:underline">
               {r.targetLabel}
             </Link>
           ) : (
-            <span className="font-mono text-xs text-ink-faint" title="This record no longer exists">
+            <span className="block font-mono text-xs text-ink-faint" title="This record no longer exists">
               {r.entry.target_id} (deleted)
             </span>
           )}
+          <div className="text-[13px] text-ink-muted">{r.typeLabel}</div>
         </div>
       ),
+    },
+    {
+      id: "status",
+      header: "Status",
+      sortValue: (r) => r.status ?? "",
+      cell: (r) => (r.status ? <StatusBadge status={r.status} /> : <span className="text-ink-faint">—</span>),
+      className: "whitespace-nowrap",
     },
     {
       id: "details",
@@ -151,10 +130,12 @@ export default function ActivityLogPage() {
   const exportCsv = (filtered: Row[]) => {
     const csv = toCsv(
       filtered.map((r) => ({
-        when: r.entry.created_at,
+        // Local time, like the table and the date filter.
+        when: localDateTime(r.entry.created_at),
         action: r.actionLabel,
         action_code: r.entry.action,
         feature: r.feature,
+        status: r.status ? humanize(r.status) : "",
         target_type: r.typeLabel,
         target_id: r.entry.target_id,
         target: r.targetLabel ?? "(deleted)",
@@ -168,41 +149,38 @@ export default function ActivityLogPage() {
   };
 
   const dateInput =
-    "h-9 rounded-lg border border-line-strong bg-surface px-2.5 text-sm text-ink focus:ring-2 focus:ring-brand/30 focus:outline-none";
+    "h-8 rounded-md border border-line-strong bg-surface px-2.5 text-[13px] text-ink tabular-nums transition-colors hover:border-ink-faint/60 focus:border-brand focus:ring-2 focus:ring-brand/20 focus:outline-none";
 
   return (
     <>
-      <PageHeader
-        title="Activity log"
-        meta={<LiveIndicator />}
-        description="Every admin action, newest first. New actions appear here as they happen."
-      />
+      <PageHeader title="Activity log" meta={<LiveIndicator />} description="Every admin action, newest first." />
       <BackendGapNotice message={featureGap("activityLog")} />
 
-      <div className="mb-3 flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-sm text-ink-muted">
-          From
-          <input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} className={dateInput} />
-        </label>
-        <label className="flex flex-col gap-1 text-sm text-ink-muted">
-          To
-          <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} className={dateInput} />
-        </label>
-        {(from || to) && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="mb-0.5"
-            onClick={() => {
-              setFrom("");
-              setTo("");
-            }}
-          >
-            Clear dates
-          </Button>
-        )}
+      <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Date range">
+          <label className="flex items-center gap-1.5 text-[13px] text-ink-muted">
+            From
+            <input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} className={dateInput} />
+          </label>
+          <label className="flex items-center gap-1.5 text-[13px] text-ink-muted">
+            To
+            <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} className={dateInput} />
+          </label>
+          {(from || to) && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setFrom("");
+                setTo("");
+              }}
+            >
+              Clear dates
+            </Button>
+          )}
+        </div>
         {rangeInvalid && (
-          <p role="alert" className="mb-2 text-sm text-danger">
+          <p role="alert" className="text-[13px] text-danger">
             The start date is after the end date, so the date range isn&apos;t applied.
           </p>
         )}
@@ -220,10 +198,11 @@ export default function ActivityLogPage() {
           { id: "type", label: "Type", options: typeOptions, getValue: (r) => r.entry.target_type },
           { id: "feature", label: "Feature", options: featureOptions, getValue: (r) => r.feature },
           { id: "action", label: "Action", options: actionOptions, getValue: (r) => r.entry.action },
+          { id: "status", label: "Status", options: statusOptions, getValue: (r) => r.status ?? NO_CHANGE },
         ]}
         initialSort={{ columnId: "when", direction: "desc" }}
         toolbarExtra={(filtered) => (
-          <Button size="sm" icon={<Download className="size-4" aria-hidden />} disabled={filtered.length === 0} onClick={() => exportCsv(filtered)}>
+          <Button size="sm" icon={<Download aria-hidden />} disabled={filtered.length === 0} onClick={() => exportCsv(filtered)}>
             Export CSV ({filtered.length})
           </Button>
         )}

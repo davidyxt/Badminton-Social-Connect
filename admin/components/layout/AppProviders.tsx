@@ -24,8 +24,8 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
   if (!ready) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-ink-muted" role="status">
-        <LoaderCircle className="size-6 animate-spin" aria-hidden />
+      <div className="flex min-h-screen items-center justify-center bg-canvas text-ink-faint" role="status">
+        <LoaderCircle className="size-5 animate-spin" aria-hidden />
         <span className="sr-only">Loading admin console</span>
       </div>
     );

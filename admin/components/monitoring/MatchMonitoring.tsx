@@ -10,14 +10,14 @@ import { formatDateTime, humanize } from "@/lib/format";
 import { ReadFeedback } from "./ReadFeedback";
 import { SnapshotDetails } from "./SnapshotDetails";
 
-export function MatchMonitoring({ matchId }: { matchId: string }) {
+export function MatchMonitoring({ matchId, flagsOnly = false }: { matchId: string; flagsOnly?: boolean }) {
   const [page, setPage] = useState(1);
-  const context = useConsoleRead<MatchContext>(`/matches/${matchId}/context`);
+  const context = useConsoleRead<MatchContext>(flagsOnly ? null : `/matches/${matchId}/context`);
   const flags = useConsoleRead<ResultFlag[]>("/result_flags", { match_id: matchId, page, limit: 25 });
   const players = useQuery(selectPlayerMap);
   const name = (id: string | null) => id ? players.get(id)?.display_name ?? id : "Not recorded";
   return <div className="space-y-6">
-    <Card><CardHeader title="Submitted scores & confirmations" description="Stored opposing-side confirmations; this is not a complete per-player decision history." /><CardBody>
+    {!flagsOnly && <Card><CardHeader title="Submitted scores & confirmations" description="Stored opposing-side confirmations; this is not a complete per-player decision history." /><CardBody>
       <ReadFeedback {...context} />
       {context.response && <>
         {context.response.data.results.length ? context.response.data.results.map((r) => <div key={r.result_id} className="mb-4 border-b border-line pb-4 last:mb-0 last:border-0 last:pb-0"><DetailList items={[
@@ -28,7 +28,7 @@ export function MatchMonitoring({ matchId }: { matchId: string }) {
         ]} /></div>) : <p className="text-sm text-ink-muted">No result has been submitted.</p>}
         {context.response.data.related_counts.results > context.response.data.results.length && <Notice>Showing the first {context.response.data.results.length} submissions of {context.response.data.related_counts.results}.</Notice>}
       </>}
-    </CardBody></Card>
+    </CardBody></Card>}
     <Card><CardHeader title="Result anomaly flags" description="Informational only. Flags do not block or reject a result." /><CardBody>
       <ReadFeedback {...flags} />
       {flags.response && <>

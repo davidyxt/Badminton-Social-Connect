@@ -1,7 +1,7 @@
 import type { MockDatabase } from "@/lib/types";
 import { activityLog, adminPosts } from "./admin";
-import { deletedRecords, gamePosts, miniLeagues } from "./content";
-import { disputes, leagueStandings, matchResults, matches, rankingHistory, rankings } from "./games";
+import { deletedRecords, gamePosts, groups, miniLeagues } from "./content";
+import { disputes, leagueStandings, matchResults, matches, rankingHistory, rankings, resultFlags } from "./games";
 import { playerProfiles, players } from "./players";
 import { analyticsSeries } from "./analytics";
 import { reports } from "./reports";
@@ -28,6 +28,8 @@ export function createInitialDb(): MockDatabase {
     ranking_history: rankingHistory,
     league_standings: leagueStandings,
     deleted_records: deletedRecords,
+    result_flags: resultFlags,
+    groups,
     usage_analytics: analyticsSeries,
   });
 }
@@ -49,6 +51,8 @@ export function createEmptyDb(): MockDatabase {
     ranking_history: [],
     league_standings: [],
     deleted_records: [],
+    result_flags: [],
+    groups: [],
     usage_analytics: {},
   };
 }

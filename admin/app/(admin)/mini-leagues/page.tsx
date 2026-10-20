@@ -38,7 +38,7 @@ export default function MiniLeaguesPage() {
       cell: (r) => (
         <div className="min-w-0">
           <div className="font-medium text-ink">{r.league.name}</div>
-          <div className="text-xs text-ink-muted capitalize">
+          <div className="text-[13px] text-ink-muted capitalize">
             {r.league.format} · {r.league.suburb}
           </div>
         </div>
@@ -77,7 +77,7 @@ export default function MiniLeaguesPage() {
 
   return (
     <>
-      <PageHeader title="Mini Leagues" description={`${rows.length} leagues · ${suspended} suspended. Open a league to see members, standings and matches.`} />
+      <PageHeader title="Mini Leagues" description={`${rows.length} leagues · ${suspended} suspended`} />
       <DataTable
         caption="Mini Leagues"
         rows={rows}

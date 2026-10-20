@@ -10,7 +10,7 @@ import { ApiError } from "@/lib/mock-api/errors";
 import { getDb } from "@/lib/mock-api/store";
 import { unavailableReason, type AdminAction } from "./capabilities";
 import { adminRequest } from "./client";
-import { syncNow } from "./sync";
+import { mapAdminPost, syncNow, type ApiAdminPost } from "./sync";
 
 type AdminPostInput = Pick<AdminPost, "title" | "body" | "image_url" | "display_order" | "status">;
 
@@ -30,6 +30,41 @@ async function rpc<T>(name: AdminAction, body: Record<string, unknown>): Promise
 
 const findPost = (id: string) => getDb().game_posts.find((p) => p.post_id === id) as GamePost;
 const findLeague = (id: string) => getDb().mini_leagues.find((l) => l.league_id === id) as MiniLeague;
+const findCard = (id: string) => getDb().admin_posts.find((p) => p.admin_post_id === id);
+
+/**
+ * Renumber `cards` 1..n, placing `movingId` (if given) at `position`.
+ * PATCHes every other card whose order changes and returns the moving card's
+ * new order, which the caller saves itself.
+ */
+async function renumberCards(cards: AdminPost[], movingId: string | null, position: number): Promise<number | undefined> {
+  const sorted = [...cards].sort((a, b) => a.display_order - b.display_order);
+  const moving = sorted.find((p) => p.admin_post_id === movingId);
+  const rest = sorted.filter((p) => p.admin_post_id !== movingId);
+  if (moving) rest.splice(Math.min(Math.max(position - 1, 0), rest.length), 0, moving);
+  let movingOrder: number | undefined;
+  for (const [i, p] of rest.entries()) {
+    if (p.admin_post_id === movingId) movingOrder = i + 1;
+    else if (p.display_order !== i + 1) {
+      await adminRequest(`/admin_post`, { method: "PATCH", query: { adminPostId: `eq.${p.admin_post_id}` }, body: { displayOrder: i + 1 } });
+    }
+  }
+  return movingOrder;
+}
+
+/**
+ * The backend only rejects changes made during the request itself, so check
+ * the card hasn't changed since the admin opened the form.
+ */
+async function assertUnchanged(adminPostId: string, expectedUpdatedAt: string): Promise<void> {
+  const [current] = await adminRequest<Pick<ApiAdminPost, "adminPostId" | "updatedAt">[]>(`/admin_post`, {
+    query: { adminPostId: `eq.${adminPostId}`, select: "adminPostId,updatedAt" },
+  });
+  if (!current) throw new ApiError("not_found", "This card no longer exists. It may have been removed in another session.");
+  if (current.updatedAt !== expectedUpdatedAt) {
+    throw new ApiError("conflict", "This card was changed in another session. Review the latest version before saving again.");
+  }
+}
 
 export const api = {
   admin_suspend_account: (a: { playerId: string; reason: string }) => rpc<{ success: boolean }>("admin_suspend_account", a),
@@ -43,7 +78,7 @@ export const api = {
     await rpc("admin_restore_post", { postId: a.postId });
     return findPost(a.postId);
   },
-  // Not in the spec yet: rpc() refuses before any request while the capability is unavailable.
+  // Not in the backend yet (it would 404): rpc() refuses before any request while the capability is unavailable.
   admin_delete_post: (a: { postId: string; reason: string }) => rpc<{ success: boolean }>("admin_delete_post", a),
   admin_suspend_league: async (a: { leagueId: string; reason: string }) => {
     await rpc("admin_suspend_league", a);
@@ -66,7 +101,7 @@ export const api = {
 
   // Carousel: PostgREST-style CRUD on /admin_post (works today).
   create_admin_post: async (input: AdminPostInput): Promise<AdminPost> => {
-    const created = await adminRequest<{ adminPostId: string }>("/admin_post", {
+    const created = await adminRequest<ApiAdminPost>("/admin_post", {
       method: "POST",
       body: {
         title: input.title.trim(),
@@ -76,39 +111,64 @@ export const api = {
         status: input.status,
       },
     });
-    await syncNow();
-    return getDb().admin_posts.find((p) => p.admin_post_id === created.adminPostId) as AdminPost;
+    // The API stores display order as given; shift the others so the new card lands where asked, as in the mock.
+    // Best effort: the card is saved, and reporting a failure here would invite creating it twice.
+    try {
+      const others = getDb().admin_posts.filter((p) => p.admin_post_id !== created.adminPostId);
+      const order = await renumberCards([...others, mapAdminPost(created)], created.adminPostId, input.display_order);
+      if (order !== undefined && order !== created.displayOrder) {
+        await adminRequest(`/admin_post`, { method: "PATCH", query: { adminPostId: `eq.${created.adminPostId}` }, body: { displayOrder: order } });
+      }
+    } catch {
+      // Left as saved; the next sync shows the actual order.
+    } finally {
+      await syncNow();
+    }
+    return findCard(created.adminPostId) ?? mapAdminPost(created);
   },
-  update_admin_post: async (args: { adminPostId: string } & Partial<AdminPostInput>): Promise<AdminPost> => {
-    const { adminPostId, ...patch } = args;
+  update_admin_post: async (args: { adminPostId: string; expectedUpdatedAt?: string | null } & Partial<AdminPostInput>): Promise<AdminPost> => {
+    const { adminPostId, expectedUpdatedAt, ...patch } = args;
+    if (expectedUpdatedAt) await assertUnchanged(adminPostId, expectedUpdatedAt);
+
     const body: Record<string, unknown> = {};
+    if (expectedUpdatedAt) body.expectedUpdatedAt = expectedUpdatedAt;
     if (patch.title !== undefined) body.title = patch.title.trim();
     if (patch.body !== undefined) body.body = patch.body.trim() || null;
     if (patch.image_url !== undefined) body.imageUrl = patch.image_url.trim() || null;
     if (patch.status !== undefined) body.status = patch.status;
 
-    if (patch.display_order !== undefined) {
-      // The API stores display order as given; renumber the others so moving a card behaves like the mock.
-      const sorted = [...getDb().admin_posts].sort((a, b) => a.display_order - b.display_order);
-      const moving = sorted.find((p) => p.admin_post_id === adminPostId);
-      const rest = sorted.filter((p) => p.admin_post_id !== adminPostId);
-      if (moving) rest.splice(Math.min(Math.max(patch.display_order - 1, 0), rest.length), 0, moving);
-      for (const [i, p] of rest.entries()) {
-        if (p.admin_post_id === adminPostId) body.displayOrder = i + 1;
-        else if (p.display_order !== i + 1) {
-          await adminRequest(`/admin_post`, { method: "PATCH", query: { adminPostId: `eq.${p.admin_post_id}` }, body: { displayOrder: i + 1 } });
-        }
+    let saved: ApiAdminPost | undefined;
+    try {
+      if (patch.display_order !== undefined) {
+        // Renumber the others so moving a card behaves like the mock; the card itself is patched below.
+        const order = await renumberCards(getDb().admin_posts, adminPostId, patch.display_order);
+        if (order !== undefined) body.displayOrder = order;
       }
+      if (Object.keys(body).length > 0) {
+        [saved] = await adminRequest<ApiAdminPost[]>(`/admin_post`, { method: "PATCH", query: { adminPostId: `eq.${adminPostId}` }, body });
+      }
+    } finally {
+      // Even after a partial failure, so the store shows what actually saved.
+      await syncNow();
     }
-    if (Object.keys(body).length > 0) {
-      await adminRequest(`/admin_post`, { method: "PATCH", query: { adminPostId: `eq.${adminPostId}` }, body });
-    }
-    await syncNow();
-    return getDb().admin_posts.find((p) => p.admin_post_id === adminPostId) as AdminPost;
+    const card = findCard(adminPostId) ?? (saved && mapAdminPost(saved));
+    if (!card) throw new ApiError("not_found", "This card no longer exists. It may have been removed in another session.");
+    return card;
   },
   delete_admin_post: async (a: { adminPostId: string }) => {
     await adminRequest(`/admin_post`, { method: "DELETE", query: { adminPostId: `eq.${a.adminPostId}` } });
-    await syncNow();
+    // Close the gap so the remaining cards stay numbered 1..n. Best effort: the card is already gone.
+    try {
+      await renumberCards(
+        getDb().admin_posts.filter((p) => p.admin_post_id !== a.adminPostId),
+        null,
+        0,
+      );
+    } catch {
+      // A gap in the numbering doesn't change the carousel's order.
+    } finally {
+      await syncNow();
+    }
     return { success: true };
   },
 };

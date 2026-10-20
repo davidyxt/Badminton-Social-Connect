@@ -1,4 +1,4 @@
-import type { Dispute, LeagueStanding, Match, MatchResult, Ranking, RankingHistoryPoint } from "@/lib/types";
+import type { Dispute, LeagueStanding, Match, MatchResult, Ranking, RankingHistoryPoint, ResultFlag } from "@/lib/types";
 import { players } from "./players";
 
 const match = (m: Omit<Match, "league_id" | "post_id"> & Partial<Match>): Match => ({
@@ -24,7 +24,9 @@ export const matches: Match[] = [
   match({ match_id: "mt-5014", format: "doubles", proposed_time: "2026-10-04T08:00:00Z", suburb: "Doncaster", venue: "Doncaster Leisure Centre", status: "completed", side_a: ["plr-1009", "plr-1014"], side_b: ["plr-1004", "plr-1019"], league_id: "ml-4004" }),
 ];
 
-export const matchResults: MatchResult[] = [
+type ResultSeed = Omit<MatchResult, "games" | "confirmed_by" | "confirmed_at" | "excluded_from_ranking">;
+
+const resultSeeds: ResultSeed[] = [
   { result_id: "res-6001", match_id: "mt-5001", score: "21-17, 19-21, 21-15", status: "confirmed", winning_side: "A", submitted_by: "plr-1001", submitted_at: "2026-09-20T10:05:00Z" },
   { result_id: "res-6002", match_id: "mt-5002", score: "21-12, 21-14", status: "confirmed", winning_side: "A", submitted_by: "plr-1013", submitted_at: "2026-09-22T11:00:00Z" },
   { result_id: "res-6003", match_id: "mt-5003", score: "18-21, 21-19, 22-20", status: "confirmed", winning_side: "A", submitted_by: "plr-1002", submitted_at: "2026-09-24T10:40:00Z" },
@@ -36,13 +38,37 @@ export const matchResults: MatchResult[] = [
   { result_id: "res-6009", match_id: "mt-5009", score: "21-14, 21-16", status: "pending", winning_side: "A", submitted_by: "plr-1006", submitted_at: "2026-10-07T10:30:00Z" },
   { result_id: "res-6010", match_id: "mt-5010", score: "21-19, 20-22, 21-17", status: "disputed", winning_side: "A", submitted_by: "plr-1002", submitted_at: "2026-10-08T10:10:00Z" },
   { result_id: "res-6014", match_id: "mt-5014", score: "21-11, 21-9", status: "confirmed", winning_side: "A", submitted_by: "plr-1009", submitted_at: "2026-10-04T09:30:00Z" },
+  { result_id: "res-6011", match_id: "mt-5011", score: "21-17, 21-19", status: "expired", winning_side: "A", submitted_by: "plr-1003", submitted_at: "2026-10-09T09:40:00Z" },
 ];
 
-export const disputes: Dispute[] = [
+/** Confirmations come from the opposing side; scores are stored per game as [side A, side B]. */
+export const matchResults: MatchResult[] = resultSeeds.map((r) => {
+  const m = matches.find((x) => x.match_id === r.match_id);
+  const confirmer = r.status === "confirmed" && m ? (r.winning_side === "A" ? m.side_b[0] : m.side_a[0]) : null;
+  return {
+    ...r,
+    games: r.score.split(",").map((g) => g.trim().split("-").map(Number) as [number, number]),
+    confirmed_by: confirmer ?? null,
+    confirmed_at: confirmer ? new Date(Date.parse(r.submitted_at) + 3 * 3_600_000).toISOString() : null,
+    excluded_from_ranking: r.result_id === "res-6008",
+  };
+});
+
+const disputeSeeds: Omit<Dispute, "result_id">[] = [
   { dispute_id: "dsp-7001", match_id: "mt-5004", reason: "Score entered as 21-18 in the second game, it was 18-21 and we went to a third.", status: "open", raised_by: "plr-1010", created_at: "2026-09-28T02:10:00Z" },
   { dispute_id: "dsp-7002", match_id: "mt-5006", reason: "Third game finished 23-21 to us, not the other way round.", status: "open", raised_by: "plr-1003", created_at: "2026-10-01T12:40:00Z" },
   { dispute_id: "dsp-7003", match_id: "mt-5010", reason: "We never played a third game, they retired injured after the second.", status: "open", raised_by: "plr-1010", created_at: "2026-10-08T12:05:00Z" },
   { dispute_id: "dsp-6999", match_id: "mt-5003", reason: "Wrong winner recorded.", status: "dismissed", raised_by: "plr-1020", created_at: "2026-09-25T03:00:00Z" },
+];
+
+export const disputes: Dispute[] = disputeSeeds.map((d) => ({
+  ...d,
+  result_id: matchResults.find((r) => r.match_id === d.match_id)?.result_id ?? null,
+}));
+
+export const resultFlags: ResultFlag[] = [
+  { flag_id: "flg-1", result_id: "res-6010", match_id: "mt-5010", kind: "unusual_win_pattern", detail: { winning_side: "A", recent_wins_against_opponent: 5 }, created_at: "2026-10-08T12:00:00Z" },
+  { flag_id: "flg-2", result_id: "res-6001", match_id: "mt-5001", kind: "rating_swing", detail: { player: "Sophie Nguyen", change: -64 }, created_at: "2026-09-21T14:00:00Z" },
 ];
 
 /** Deterministic pseudo-random generator so fixtures look varied but never change between loads. */
@@ -76,13 +102,16 @@ export const rankingHistory: RankingHistoryPoint[] = rankings.flatMap((r, i) => 
   let value = r.ranking_points;
   const end = Date.UTC(2026, 9, 5);
   for (let w = 0; w < 12; w++) {
+    const before = Math.round(value - (rand() - 0.35) * 40);
     points.unshift({
       player_id: r.player_id,
       format: r.format,
       recorded_at: new Date(end - w * 7 * 86_400_000).toISOString(),
       ranking_points: value,
+      ranking_points_before: before,
+      match_id: null,
     });
-    value = Math.round(value - (rand() - 0.35) * 40);
+    value = before;
   }
   return points;
 });

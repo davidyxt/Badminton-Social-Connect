@@ -10,11 +10,11 @@
  *       security boundary is always the backend (Edge Function + RLS), never
  *       this file.
  */
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabase, onAuthFailure } from "@/lib/api/client";
+import { resetSyncState, setApiCacheOwner } from "@/lib/api/sync";
 import { IS_API } from "@/lib/config";
-import { resetApiCache, setApiCacheOwner } from "@/lib/api/sync";
 import { MOCK_ADMIN } from "@/lib/mock-data";
 import type { Admin } from "@/lib/types";
 
@@ -29,6 +29,8 @@ interface SessionContextValue extends SessionState {
   /** Resolves on success; throws an Error with a user-facing message otherwise. */
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => void;
+  /** End the session and show the session-expired screen (idle timeout). */
+  expire: () => void;
   simulateExpiry: () => void;
   simulateRestricted: () => void;
 }
@@ -38,6 +40,32 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 
 /** Distinguishes our own sign-out from Supabase ending the session (which shows "session expired"). */
 let signingOutByUser = false;
+/** Set when the API refused this account (403), so a token refresh doesn't bring the console back. */
+let restrictedByApi = false;
+
+/**
+ * Other tabs only see Supabase's SIGNED_OUT, so a deliberate sign-out leaves a
+ * short-lived marker telling them to show "signed out" rather than "expired".
+ */
+const SIGNED_OUT_AT_KEY = "bsc-admin:signed-out-at";
+const SIGNED_OUT_MARKER_MS = 10_000;
+
+function markDeliberateSignOut() {
+  try {
+    window.localStorage.setItem(SIGNED_OUT_AT_KEY, String(Date.now()));
+  } catch {
+    // Other tabs will show "session expired" instead; still signed out.
+  }
+}
+
+function wasDeliberateSignOut(): boolean {
+  try {
+    const at = Number(window.localStorage.getItem(SIGNED_OUT_AT_KEY));
+    return Number.isFinite(at) && Date.now() - at < SIGNED_OUT_MARKER_MS;
+  } catch {
+    return false;
+  }
+}
 
 /** Emails starting with "player" sign in as a non-admin, to reach the access-restricted screen. */
 const isNonAdminEmail = (email: string) => email.trim().toLowerCase().startsWith("player");
@@ -52,6 +80,30 @@ function readStored(): SessionState {
   return { status: "signed_out", admin: null };
 }
 
+/** Where to land after signing in when there's no (valid) return path. */
+export const DEFAULT_RETURN_PATH = "/overview";
+
+/**
+ * A `?next=` value is only followed when it is a same-origin path ("/reports"),
+ * never a protocol-relative or absolute URL, so a crafted link can't send the
+ * admin off-site after signing in.
+ */
+export function safeReturnPath(raw: string | null | undefined): string {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return DEFAULT_RETURN_PATH;
+  return raw;
+}
+
+/** The return path carried in the current URL's `?next=`. */
+export function returnPathFromLocation(): string {
+  return safeReturnPath(new URLSearchParams(window.location.search).get("next"));
+}
+
+/** `path` with `?next=<returnTo>`, or just `path` when returnTo is the default. */
+export function withReturnPath(path: string, returnTo: string): string {
+  const next = safeReturnPath(returnTo);
+  return next === DEFAULT_RETURN_PATH ? path : `${path}?next=${encodeURIComponent(next)}`;
+}
+
 function fromSupabase(session: Session | null): SessionState {
   if (!session) return { status: "signed_out", admin: null };
   const user = session.user;
@@ -61,12 +113,19 @@ function fromSupabase(session: Session | null): SessionState {
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<SessionState | null>(null);
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  // Data loaded from the API belongs to the signed-in admin; drop it once they're not.
+  const status = state?.status;
+  useEffect(() => {
+    if (IS_API && status && status !== "authenticated") resetSyncState();
+  }, [status]);
 
   const update = useCallback((next: SessionState) => {
-    if (IS_API) {
-      const owner = next.status === "authenticated" ? next.admin?.admin_id ?? null : null;
-      setApiCacheOwner(owner);
-    }
+    if (IS_API) setApiCacheOwner(next.status === "authenticated" ? next.admin?.admin_id ?? null : null);
     setState(next);
     if (IS_API) return;
     try {
@@ -81,22 +140,39 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // Session lives in localStorage, which only exists after mount.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setState(readStored());
-      return;
+      // Sign-out, expiry or lost access in another tab reaches this one; the layout guard then redirects.
+      const onStorage = (e: StorageEvent) => {
+        if (e.key === STORAGE_KEY || e.key === null) setState(readStored());
+      };
+      window.addEventListener("storage", onStorage);
+      return () => window.removeEventListener("storage", onStorage);
     }
     const supabase = getSupabase();
     void supabase.auth.getSession().then(({ data }) => update(fromSupabase(data.session)));
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT") {
-        resetApiCache();
-        setState((prev) => (signingOutByUser || prev?.status !== "authenticated" ? { status: "signed_out", admin: null } : { status: "expired", admin: prev.admin }));
+        setApiCacheOwner(null);
+        const deliberate = signingOutByUser || wasDeliberateSignOut();
         signingOutByUser = false;
+        setState((prev) => {
+          if (deliberate) return { status: "signed_out", admin: null };
+          // Our own expiry or lost access ends the Supabase session too; keep the screen it chose.
+          if (prev?.status === "expired" || (prev?.status === "restricted" && restrictedByApi)) return prev;
+          return prev?.status === "authenticated" ? { status: "expired", admin: prev.admin } : { status: "signed_out", admin: null };
+        });
       } else if (session) {
         update(fromSupabase(session));
       }
     });
-    const offAuthFailure = onAuthFailure((reason) => {
-      resetApiCache();
-      setState((prev) => (prev?.status === "authenticated" ? { status: reason === "restricted" ? "restricted" : "expired", admin: prev.admin } : prev));
+    const offAuthFailure = onAuthFailure((kind) => {
+      const current = stateRef.current;
+      if (current?.status !== "authenticated") return;
+      setApiCacheOwner(null);
+      // 401: the session ended. 403: the account lost admin access (the layout shows access restricted).
+      if (kind === "forbidden") restrictedByApi = true;
+      setState({ status: kind === "forbidden" ? "restricted" : "expired", admin: current.admin });
+      // Clear the stored session as expire() does, so a reload doesn't restore it and loop back here.
+      void supabase.auth.signOut({ scope: "local" });
     });
     return () => {
       sub.subscription.unsubscribe();
@@ -107,6 +183,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(
     async (email: string, password: string) => {
       if (IS_API) {
+        restrictedByApi = false;
         const { data, error } = await getSupabase().auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw new Error(error.message === "Invalid login credentials" ? "Email or password is incorrect." : error.message);
         update(fromSupabase(data.session));
@@ -126,9 +203,27 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     update({ status: "signed_out", admin: null });
     if (IS_API) {
       signingOutByUser = true;
+      restrictedByApi = false;
+      markDeliberateSignOut();
       void getSupabase().auth.signOut();
     }
   }, [update]);
+
+  const expire = useCallback(() => {
+    setState((prev) => {
+      const next: SessionState = { status: "expired", admin: prev?.admin ?? null };
+      if (!IS_API) {
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        } catch {
+          // Non-essential.
+        }
+      }
+      return next;
+    });
+    // Ending the Supabase session also clears the token; the auth listener keeps the expired state.
+    if (IS_API) void getSupabase().auth.signOut({ scope: "local" });
+  }, []);
 
   const value = useMemo<SessionContextValue | null>(() => {
     if (!state) return null;
@@ -136,10 +231,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       ...state,
       signIn,
       signOut,
+      expire,
       simulateExpiry: () => update({ status: "expired", admin: state.admin }),
       simulateRestricted: () => update({ status: "restricted", admin: state.admin }),
     };
-  }, [state, signIn, signOut, update]);
+  }, [state, signIn, signOut, expire, update]);
 
   // Nothing session-dependent can render until the stored session has been read.
   if (!value) return null;

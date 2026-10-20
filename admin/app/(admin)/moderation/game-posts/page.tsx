@@ -8,8 +8,7 @@ import { Suspense, useState } from "react";
 import { DeletePostModal, HidePostModal, RestorePostModal } from "@/components/modals/PostModals";
 import { ActivityTimeline } from "@/components/shared/ActivityTimeline";
 import { Button } from "@/components/shared/Button";
-import { Card, CardBody, CardHeader, Notice } from "@/components/shared/Card";
-import { GamePostSummary } from "@/components/shared/ContentSummaries";
+import { DetailList, Notice, SectionHeading } from "@/components/shared/Card";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PlayerLink } from "@/components/shared/PlayerProfileCard";
@@ -39,6 +38,9 @@ interface Row {
 }
 
 type StatusTab = "all" | "published" | "hidden";
+
+/** Published = live in Find Games. Cancelled and completed posts only appear under All. */
+const isPublished = (post: GamePost) => post.status === "open" || post.status === "full";
 type Dialog = "hide" | "restore" | "delete" | null;
 
 /** Screens 24 (list), 27 (post detail), 28 (hidden, restorable), 29 (hide), 30 (delete), 31 (restore). */
@@ -66,7 +68,8 @@ function GamePostModeration() {
   });
 
   const hiddenCount = rows.filter((r) => r.post.status === "hidden").length;
-  const visible = tab === "all" ? rows : rows.filter((r) => (tab === "hidden" ? r.post.status === "hidden" : r.post.status !== "hidden"));
+  const publishedCount = rows.filter((r) => isPublished(r.post)).length;
+  const visible = tab === "all" ? rows : rows.filter((r) => (tab === "hidden" ? r.post.status === "hidden" : isPublished(r.post)));
 
   const columns: Column<Row>[] = [
     {
@@ -76,12 +79,12 @@ function GamePostModeration() {
       cell: (r) => (
         <div className="min-w-0">
           <div className={`font-medium ${r.post.post_id === selectedId ? "text-brand" : "text-ink"}`}>{r.post.title}</div>
-          <div className="text-xs text-ink-muted">by {r.organiser?.display_name || r.post.organiser_group_name || r.post.organiser_id || r.post.organiser_club_id || "Unavailable organiser"}</div>
+          <div className="text-[13px] text-ink-muted">by {r.post.organiser_group_name ?? r.organiser?.display_name ?? (r.post.organiser_id || "a group")}</div>
         </div>
       ),
     },
     { id: "status", header: "Status", sortValue: (r) => r.post.status, cell: (r) => <StatusBadge status={r.post.status} /> },
-    { id: "format", header: "Format", sortValue: (r) => r.post.format, cell: (r) => <span className="capitalize">{r.post.format}</span> },
+    { id: "format", header: "Format", sortValue: (r) => r.post.format, cell: (r) => humanize(r.post.format) },
     { id: "suburb", header: "Suburb", sortValue: (r) => r.post.suburb, cell: (r) => r.post.suburb },
     {
       id: "time",
@@ -111,7 +114,7 @@ function GamePostModeration() {
         onChange={(id) => setTab(id as StatusTab)}
         tabs={[
           { id: "all", label: "All", count: rows.length },
-          { id: "published", label: "Published", count: rows.length - hiddenCount },
+          { id: "published", label: "Published", count: publishedCount },
           { id: "hidden", label: "Hidden", count: hiddenCount },
         ]}
       />
@@ -121,7 +124,7 @@ function GamePostModeration() {
         columns={columns}
         getRowId={(r) => r.post.post_id}
         rowHref={(r) => `${BASE}?post=${r.post.post_id}`}
-        getSearchText={(r) => `${r.post.title} ${r.organiser?.display_name ?? r.post.organiser_group_name ?? ""} ${r.post.suburb} ${r.post.venue} ${r.post.post_id}`}
+        getSearchText={(r) => `${r.post.title} ${r.organiser?.display_name ?? ""} ${r.post.organiser_group_name ?? ""} ${r.post.suburb} ${r.post.venue} ${r.post.post_id}`}
         searchPlaceholder="Search title, organiser or suburb"
         filters={[
           {
@@ -130,6 +133,7 @@ function GamePostModeration() {
             options: [
               { value: "singles", label: "Singles" },
               { value: "doubles", label: "Doubles" },
+              { value: "mixed_doubles", label: "Mixed doubles" },
             ],
             getValue: (r) => r.post.format,
           },
@@ -164,16 +168,10 @@ function PostPanel({ postId, onClose }: { postId: string; onClose: () => void })
     };
   });
 
-  const closeButton = (
-    <Button size="sm" variant="ghost" icon={<X className="size-4" aria-hidden />} onClick={onClose}>
-      Close
-    </Button>
-  );
-
   const { post } = data;
   if (!post) {
     return (
-      <div className="mb-6">
+      <div className="mb-8">
         <Notice tone="warning" title="Game post not found">
           {data.deleted
             ? `"${data.deleted.label}" was permanently deleted ${formatDateTime(data.deleted.deleted_at)}.`
@@ -188,31 +186,21 @@ function PostPanel({ postId, onClose }: { postId: string; onClose: () => void })
 
   const isHidden = post.status === "hidden";
   const lastHide = data.activity.find((a) => a.action === "hide_post");
+  const spots = post.spots_total === null ? null : post.spots_filled === null ? `${post.spots_total} players` : `${post.spots_filled} of ${post.spots_total} filled`;
 
   return (
-    <section aria-label="Selected game post" className="mb-6 space-y-4 rounded-xl border border-line-strong bg-subtle p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-base font-semibold text-ink">Game post {post.post_id}</h2>
-        {closeButton}
-      </div>
-
-      {/* Screen 28: hidden and restorable */}
-      {isHidden && (
-        <Notice tone="danger" title="Hidden from players">
-          {post.hidden_by_account_suspension && !lastHide
-            ? "Hidden automatically when the organiser's account was suspended."
-            : lastHide
-              ? `Hidden ${formatDateTime(lastHide.created_at)}. ${lastHide.details.replace(/[.!?]?$/, ".")}`
-              : "This post isn't visible in Find Games."}{" "}
-          It can be restored, and will go back to {humanize(post.status_before_hidden ?? "open").toLowerCase()}.
-        </Notice>
-      )}
-
-      <GamePostSummary
-        post={post}
-        organiser={data.organiser}
-        actions={
-          <>
+    <section aria-label="Selected game post" className="mb-8 space-y-6 border-b border-line pb-8">
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <h2 className="text-base font-semibold text-ink">{post.title}</h2>
+              <StatusBadge status={post.status} />
+              {post.hidden_by_account_suspension && <StatusBadge status="suspended" label="Hidden by account suspension" tone="neutral" />}
+            </div>
+            <p className="mt-0.5 font-mono text-xs text-ink-faint">{post.post_id}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
             {isHidden ? (
               <Button size="sm" variant="primary" icon={<RotateCcw className="size-4" aria-hidden />} disabledReason={unavailableReason("admin_restore_post")} onClick={() => setDialog("restore")}>
                 Restore post
@@ -225,25 +213,60 @@ function PostPanel({ postId, onClose }: { postId: string; onClose: () => void })
             <Button size="sm" icon={<Trash2 className="size-4" aria-hidden />} disabledReason={unavailableReason("admin_delete_post")} onClick={() => setDialog("delete")}>
               Delete
             </Button>
-          </>
-        }
+            <Button size="sm" variant="ghost" icon={<X className="size-4" aria-hidden />} onClick={onClose}>
+              Close
+            </Button>
+          </div>
+        </div>
+
+        {/* Screen 28: hidden and restorable */}
+        {isHidden && (
+          <Notice tone="danger" title="Hidden from players">
+            {post.hidden_by_account_suspension && !lastHide
+              ? "Hidden automatically when the organiser's account was suspended."
+              : lastHide
+                ? `Hidden ${formatDateTime(lastHide.created_at)}. ${lastHide.details.replace(/[.!?]?$/, ".")}`
+                : "This post isn't visible in Find Games."}{" "}
+            It can be restored, and will go back to {humanize(post.status_before_hidden ?? "open").toLowerCase()}.
+          </Notice>
+        )}
+
+        {post.notes && <p className="max-w-3xl text-sm text-ink-muted">{post.notes}</p>}
+        {post.deleted_at && (
+          <p className="text-[13px] text-danger">
+            Deleted {formatDateTime(post.deleted_at)}
+            {post.deletion_reason ? `: ${post.deletion_reason}` : ""}
+          </p>
+        )}
+      </div>
+
+      <DetailList
+        columns={3}
+        items={[
+          { label: "When", value: formatDateTime(post.proposed_time) },
+          { label: "Where", value: [post.venue, post.suburb].filter(Boolean).join(", ") || "Location not set" },
+          {
+            label: "Organiser",
+            value: post.organiser_group_id ? post.organiser_group_name ?? "A group" : <PlayerLink player={data.organiser} fallbackId={post.organiser_id} />,
+          },
+          { label: "Format", value: [humanize(post.format), post.skill_band].filter(Boolean).join(" · ") },
+          { label: "Spots", value: spots ?? "Not set" },
+        ]}
       />
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader title={`Reports (${data.reports.length})`} description="Reports about this game post." />
+      <div className="grid gap-8 lg:grid-cols-2">
+        <div>
+          <SectionHeading title={`Reports (${data.reports.length})`} />
           {data.reports.length === 0 ? (
-            <CardBody>
-              <p className="text-sm text-ink-muted">No reports.</p>
-            </CardBody>
+            <p className="text-[13px] text-ink-muted">No reports.</p>
           ) : (
-            <ul className="divide-y divide-line">
+            <ul className="divide-y divide-line border-y border-line">
               {data.reports.map((r) => (
                 <li key={r.report_id}>
-                  <Link href={`/reports/${r.report_id}`} className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-subtle">
+                  <Link href={`/reports/${r.report_id}`} className="-mx-2 flex items-center justify-between gap-3 rounded-md px-2 py-2.5 hover:bg-subtle">
                     <div className="min-w-0">
                       <div className="truncate text-sm font-medium text-ink">{r.reason}</div>
-                      <div className="text-xs text-ink-muted">{formatDateTime(r.created_at)}</div>
+                      <div className="text-[13px] text-ink-muted">{formatDateTime(r.created_at)}</div>
                     </div>
                     <StatusBadge status={r.status} />
                   </Link>
@@ -251,13 +274,11 @@ function PostPanel({ postId, onClose }: { postId: string; onClose: () => void })
               ))}
             </ul>
           )}
-        </Card>
-        <Card>
-          <CardHeader title="Activity" description={<>Organiser: <PlayerLink player={data.organiser} fallbackId={post.organiser_id} /></>} />
-          <CardBody>
-            <ActivityTimeline entries={data.activity} empty="No admin actions on this post yet." />
-          </CardBody>
-        </Card>
+        </div>
+        <div>
+          <SectionHeading title="Activity" />
+          <ActivityTimeline entries={data.activity} empty="No admin actions on this post yet." />
+        </div>
       </div>
 
       <HidePostModal
@@ -276,6 +297,7 @@ function PostPanel({ postId, onClose }: { postId: string; onClose: () => void })
       <RestorePostModal
         open={dialog === "restore"}
         postTitle={post.title}
+        suspendedOrganiser={!post.organiser_group_id && data.organiser?.status === "suspended" ? data.organiser.display_name : null}
         onClose={close}
         onConfirm={({ reason }) =>
           run(() => admin_restore_post({ postId: post.post_id, note: reason }), {

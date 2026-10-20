@@ -128,7 +128,7 @@ These return the player's **own** real name. Other players only ever see the
 username. Full request and response shapes are in the API spec
 (`docs/badminton-social-connect-api_v1.2.yaml`, tag **Profile**).
 
-This integrated baseline includes preferred format (M1), blocking (M3), live reliability and email opt-out (M5). This feature document describes the player app. The separate Admin console uses the role checks in [admin-api.md](../admin-api.md); this frontend baseline has no additional 30-minute browser idle enforcement.
+This integrated baseline includes preferred format (M1), blocking (M3), live reliability and email opt-out (M5). This feature document describes the player app. The separate Admin console uses the role checks in [admin-api.md](../admin-api.md); the integrated Admin frontend enforces a separate 30-minute browser idle timeout. Hosted session settings still require separate verification.
 
 ## Security settings
 

@@ -1,8 +1,10 @@
 "use client";
 
+import { IS_API } from "@/lib/config";
+import { PlayerRating } from "@/components/monitoring/PlayerRating";
+
 import { BackendGapNotice } from "@/components/shared/BackendGapNotice";
-import { featureGap } from "@/lib/api/capabilities";
-import { unavailableReason } from "@/lib/api/capabilities";
+import { featureGap, unavailableReason } from "@/lib/api/capabilities";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Ban, CircleCheck, RotateCcw } from "lucide-react";
@@ -10,7 +12,7 @@ import { useState } from "react";
 import { RestoreAccountModal, SuspendAccountModal } from "@/components/modals/AccountModals";
 import { ActivityTimeline } from "@/components/shared/ActivityTimeline";
 import { Button } from "@/components/shared/Button";
-import { Card, CardBody, CardHeader, DetailList, Notice } from "@/components/shared/Card";
+import { DetailList, Notice, SectionHeading } from "@/components/shared/Card";
 import { LineChart } from "@/components/shared/Charts";
 import { RecordNotFound } from "@/components/shared/NotFound";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -19,8 +21,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Tabs } from "@/components/shared/Tabs";
 import { formatDate, formatDateTime, formatShortDate, TARGET_TYPE_LABEL } from "@/lib/format";
 import { useAdminAction } from "@/lib/hooks/useAdminAction";
-import { IS_API } from "@/lib/config";
-import { PlayerRating } from "@/components/monitoring/PlayerRating";
+import { MINI_LEAGUES_ENABLED } from "@/lib/features";
 import {
   admin_restore_account,
   admin_suspend_account,
@@ -56,17 +57,21 @@ export default function PlayerProfilePage() {
         reports: selectReportsAboutPlayer(db, playerId),
         activity: selectActivityFor(db, "player", playerId),
         posts: db.game_posts.filter((p) => p.organiser_id === playerId),
-        leagues: db.mini_leagues.filter((l) => l.organiser_id === playerId),
+        leagues: MINI_LEAGUES_ENABLED ? db.mini_leagues.filter((l) => l.organiser_id === playerId) : [],
         activeContent:
           db.game_posts.filter((p) => p.organiser_id === playerId && (p.status === "open" || p.status === "full")).length +
-          db.mini_leagues.filter((l) => l.organiser_id === playerId && l.status !== "suspended").length,
+          (MINI_LEAGUES_ENABLED ? db.mini_leagues.filter((l) => l.organiser_id === playerId && l.status !== "suspended").length : 0),
       };
     });
 
   if (!data) return <RecordNotFound what="Player" backHref="/users" backLabel="Back to users" />;
 
   const { player, profile, reports, activity } = data;
-  const lastSuspension = activity.find((a) => a.action === "suspend_account");
+  // The newest suspend/restore entry decides; a suspension already undone by a restore is stale.
+  const lastAccountChange = activity
+    .filter((a) => a.action === "suspend_account" || a.action === "restore_account")
+    .reduce<(typeof activity)[number] | undefined>((latest, a) => (!latest || a.created_at > latest.created_at ? a : latest), undefined);
+  const lastSuspension = lastAccountChange?.action === "suspend_account" ? lastAccountChange : undefined;
   const latest = activity[0];
   const recentlyRestored = player.status === "active" && latest?.action === "restore_account";
   const history = data.history[format];
@@ -74,63 +79,70 @@ export default function PlayerProfilePage() {
 
   const closeDialog = () => setDialog(null);
 
+  // One compact state notice at most; a deleted account outranks everything else.
+  const stateNotice =
+    player.registration_state === "deleted" ? (
+      <Notice tone="warning" title="Account deleted">
+        Deleted{player.deleted_at ? ` ${formatDate(player.deleted_at)}` : ""} and anonymised. Games, results and reports are kept for history.
+      </Notice>
+    ) : player.status === "suspended" ? (
+      // Screen 12: suspended state
+      <Notice tone="danger" title="Account suspended">
+        {lastSuspension ? (
+          <>
+            Suspended {formatDateTime(lastSuspension.created_at)}. {lastSuspension.details}
+          </>
+        ) : (
+          "This player can't sign in, post or join games until access is restored."
+        )}
+      </Notice>
+    ) : recentlyRestored ? (
+      // Screen 14: access restored state
+      <div className="flex gap-2 rounded-md bg-success-soft px-3 py-2 text-[13px] leading-5 text-ink" role="status">
+        <CircleCheck className="mt-0.5 size-3.5 shrink-0 text-success" aria-hidden />
+        <div className="min-w-0">
+          <div className="font-medium text-success">Account access restored</div>
+          <div>
+            Restored {formatDateTime(latest.created_at)}. {player.display_name} can sign in, post and join games again.
+          </div>
+        </div>
+      </div>
+    ) : player.registration_state === "registration_pending" ? (
+      <Notice title="Registration not finished">This account hasn&apos;t completed registration, so it can&apos;t post or join games yet.</Notice>
+    ) : null;
+
+  const contentCount = data.posts.length + data.leagues.length;
+
   return (
     <>
       <PageHeader
         breadcrumbs={[{ label: "Users", href: "/users" }, { label: player.display_name }]}
         title={player.display_name}
-        meta={<StatusBadge status={player.account_state === "deleted" ? "deleted" : player.status} />}
         description={`Player ID ${player.player_id}`}
       />
 
       <BackendGapNotice message={featureGap("suspension")} />
 
-      {/* Screen 12: suspended state */}
-      {player.status === "suspended" && (
-        <div className="mb-5">
-          <Notice tone="danger" title="Account suspended">
-            {lastSuspension ? (
-              <>
-                Suspended {formatDateTime(lastSuspension.created_at)}. {lastSuspension.details}
-              </>
-            ) : (
-              "This player can't sign in, post or join games until access is restored."
-            )}
-          </Notice>
-        </div>
-      )}
-
-      {/* Screen 14: access restored state */}
-      {recentlyRestored && (
-        <div className="mb-5 flex items-start gap-3 rounded-lg border border-success/30 bg-success-soft px-4 py-3 text-sm text-success" role="status">
-          <CircleCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
-          <div>
-            <div className="font-semibold">Account access restored</div>
-            <div>
-              Restored {formatDateTime(latest.created_at)}. {player.display_name} can sign in, post and join games again.
-            </div>
-          </div>
-        </div>
-      )}
+      {stateNotice && <div className="mb-5">{stateNotice}</div>}
 
       <PlayerProfileCard
         player={player}
         profile={profile}
         ranking={data.singles}
         actions={
-          player.status === "active" ? (
-            <Button variant="danger" icon={<Ban className="size-4" aria-hidden />} disabledReason={unavailableReason("admin_suspend_account")} onClick={() => setDialog("suspend")}>
+          player.registration_state === "deleted" ? null : player.status === "active" ? (
+            <Button variant="danger" icon={<Ban aria-hidden />} disabledReason={unavailableReason("admin_suspend_account")} onClick={() => setDialog("suspend")}>
               Suspend account
             </Button>
           ) : (
-            <Button variant="primary" icon={<RotateCcw className="size-4" aria-hidden />} disabledReason={unavailableReason("admin_restore_account")} onClick={() => setDialog("restore")}>
+            <Button variant="primary" icon={<RotateCcw aria-hidden />} disabledReason={unavailableReason("admin_restore_account")} onClick={() => setDialog("restore")}>
               Restore access
             </Button>
           )
         }
       />
 
-      <div className="mt-6">
+      <div className="mt-8">
         <Tabs
           label="Profile sections"
           active={tab}
@@ -144,23 +156,21 @@ export default function PlayerProfilePage() {
       </div>
 
       {tab === "overview" && (
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="space-y-6 lg:col-span-2">
+        <div className="grid gap-x-10 gap-y-8 pt-1 lg:grid-cols-3">
+          <div className="space-y-8 lg:col-span-2">
             {IS_API && <PlayerRating key={playerId} playerId={playerId} />}
-            <Card>
-              <CardHeader title={`Reports (${reports.length})`} description="Reports about this player or content they organise." />
+            <section>
+              <SectionHeading title={<Counted label="Reports" count={reports.length} />} description="About this player or content they organise." />
               {reports.length === 0 ? (
-                <CardBody>
-                  <p className="text-sm text-ink-muted">No reports.</p>
-                </CardBody>
+                <p className="text-[13px] text-ink-muted">No reports.</p>
               ) : (
-                <ul className="divide-y divide-line">
+                <ul className="divide-y divide-line border-y border-line">
                   {reports.map((r) => (
                     <li key={r.report_id}>
-                      <Link href={`/reports/${r.report_id}`} className="flex items-center justify-between gap-4 px-5 py-3 hover:bg-subtle">
+                      <Link href={`/reports/${r.report_id}`} className="-mx-2 flex items-center justify-between gap-4 rounded-md px-2 py-2.5 hover:bg-subtle">
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium text-ink">{r.reason}</div>
-                          <div className="text-xs text-ink-muted">
+                          <div className="text-[13px] text-ink-muted">
                             {TARGET_TYPE_LABEL[r.target_type]} · {formatDate(r.created_at)}
                           </div>
                         </div>
@@ -170,23 +180,21 @@ export default function PlayerProfilePage() {
                   ))}
                 </ul>
               )}
-            </Card>
+            </section>
 
-            <Card>
-              <CardHeader title="Organised content" />
-              {data.posts.length + data.leagues.length === 0 ? (
-                <CardBody>
-                  <p className="text-sm text-ink-muted">This player hasn&apos;t organised any games or leagues.</p>
-                </CardBody>
+            <section>
+              <SectionHeading title={<Counted label="Organised content" count={contentCount} />} />
+              {contentCount === 0 ? (
+                <p className="text-[13px] text-ink-muted">This player hasn&apos;t organised any {MINI_LEAGUES_ENABLED ? "games or leagues" : "games"}.</p>
               ) : (
-                <ul className="divide-y divide-line">
+                <ul className="divide-y divide-line border-y border-line">
                   {data.posts.map((p) => (
-                    <li key={p.post_id} className="flex items-center justify-between gap-4 px-5 py-3">
+                    <li key={p.post_id} className="flex items-center justify-between gap-4 py-2.5">
                       <div className="min-w-0">
-                        <Link href={`/moderation/game-posts?post=${p.post_id}`} className="truncate text-sm font-medium text-ink hover:text-brand hover:underline">
+                        <Link href={`/moderation/game-posts?post=${p.post_id}`} className="block truncate text-sm font-medium text-ink hover:text-brand">
                           {p.title}
                         </Link>
-                        <div className="text-xs text-ink-muted">
+                        <div className="text-[13px] text-ink-muted">
                           Game post · {p.suburb} · {formatDate(p.proposed_time)}
                         </div>
                       </div>
@@ -194,68 +202,62 @@ export default function PlayerProfilePage() {
                     </li>
                   ))}
                   {data.leagues.map((l) => (
-                    <li key={l.league_id} className="flex items-center justify-between gap-4 px-5 py-3">
+                    <li key={l.league_id} className="flex items-center justify-between gap-4 py-2.5">
                       <div className="min-w-0">
-                        <Link href={`/mini-leagues/${l.league_id}`} className="truncate text-sm font-medium text-ink hover:text-brand hover:underline">
+                        <Link href={`/mini-leagues/${l.league_id}`} className="block truncate text-sm font-medium text-ink hover:text-brand">
                           {l.name}
                         </Link>
-                        <div className="text-xs text-ink-muted">Mini League · {l.member_ids.length} members</div>
+                        <div className="text-[13px] text-ink-muted">Mini League · {l.member_ids.length} members</div>
                       </div>
                       <StatusBadge status={l.status} />
                     </li>
                   ))}
                 </ul>
               )}
-            </Card>
+            </section>
           </div>
 
-          <Card className="self-start">
-            <CardHeader title="Profile" />
-            <CardBody>
-              <DetailList
-                columns={1}
-                items={[
-                  { label: "Bio", value: profile?.bio || "—" },
-                  { label: "Location", value: profile ? `${profile.suburb}, ${profile.state}` : "—" },
-                  { label: "Discoverable", value: profile?.is_discoverable ? "Yes" : "No" },
-                  { label: "Identity verified", value: player.is_verified ? "Yes" : "No" },
-                  {
-                    label: "Rankings",
-                    value: (
-                      <>
-                        Singles {data.singles?.ranking_points ?? "—"} (Band {data.singles?.band ?? "—"}) · Doubles {data.doubles?.ranking_points ?? "—"} (Band{" "}
-                        {data.doubles?.band ?? "—"})
-                      </>
-                    ),
-                  },
-                ]}
-              />
-            </CardBody>
-          </Card>
+          <section className="lg:border-l lg:border-line lg:pl-8">
+            <SectionHeading title="Profile" />
+            <DetailList
+              columns={1}
+              items={[
+                { label: "Bio", value: profile?.bio || "—" },
+                { label: "Location", value: [profile?.suburb, profile?.state].filter(Boolean).join(", ") || "—" },
+                { label: "Discoverable", value: profile?.is_discoverable ? "Yes" : "No" },
+                { label: "Identity verified", value: player.is_verified ? "Yes" : "No" },
+                {
+                  label: "Singles ranking",
+                  value: data.singles ? <span className="tabular-nums">{data.singles.ranking_points} · Band {data.singles.band}</span> : "—",
+                },
+                {
+                  label: "Doubles ranking",
+                  value: data.doubles ? <span className="tabular-nums">{data.doubles.ranking_points} · Band {data.doubles.band}</span> : "—",
+                },
+              ]}
+            />
+          </section>
         </div>
       )}
 
       {/* Screen 11 */}
       {tab === "ranking" && IS_API && <PlayerRating key={playerId} playerId={playerId} history />}
       {tab === "ranking" && !IS_API && (
-        <Card>
-          {featureGap("rankingHistory") && (
-            <CardBody>
-              <BackendGapNotice message={featureGap("rankingHistory")} />
-            </CardBody>
-          )}
-          <CardHeader
+        <section className="pt-1">
+          <SectionHeading
             title="Ranking history"
-            description="Weekly snapshots of ranking points. Read-only: ratings can't be edited from the console."
+            description="Rating after each rated result. Read-only: ratings can't be edited from the console."
             actions={
-              <div className="inline-flex rounded-lg border border-line-strong p-0.5" role="group" aria-label="Format">
+              <div className="inline-flex rounded-md border border-line-strong bg-surface p-0.5" role="group" aria-label="Format">
                 {(["singles", "doubles"] as const).map((f) => (
                   <button
                     key={f}
                     type="button"
                     onClick={() => setFormat(f)}
                     aria-pressed={format === f}
-                    className={`rounded-md px-3 py-1 text-sm font-medium capitalize ${format === f ? "bg-brand text-white" : "text-ink-muted hover:text-ink"}`}
+                    className={`h-6 rounded px-2.5 text-[13px] font-medium capitalize transition-colors ${
+                      format === f ? "bg-neutral-soft text-ink" : "text-ink-muted hover:text-ink"
+                    }`}
                   >
                     {f}
                   </button>
@@ -263,24 +265,27 @@ export default function PlayerProfilePage() {
               </div>
             }
           />
-          <CardBody>
+          {featureGap("rankingHistory") && (
+            <div className="mb-4">
+              <Notice>{featureGap("rankingHistory")}</Notice>
+            </div>
+          )}
+          <div className="rounded-lg border border-line bg-surface p-4">
             <LineChart
               title={`${format === "singles" ? "Singles" : "Doubles"} ranking points`}
               summary={ranking ? `Now ${ranking.ranking_points} · Band ${ranking.band} · ${ranking.verified_games_count} verified games` : undefined}
               valueLabel="Points"
               points={history.map((h) => ({ label: formatShortDate(h.recorded_at), value: h.ranking_points }))}
             />
-          </CardBody>
-        </Card>
+          </div>
+        </section>
       )}
 
       {tab === "activity" && (
-        <Card>
-          <CardHeader title="Admin activity" description="Every administrator action taken on this account." />
-          <CardBody>
-            <ActivityTimeline entries={activity} />
-          </CardBody>
-        </Card>
+        <section className="max-w-3xl pt-1">
+          <SectionHeading title="Admin activity" description="Every administrator action taken on this account." />
+          <ActivityTimeline entries={activity} />
+        </section>
       )}
 
       <SuspendAccountModal
@@ -311,6 +316,14 @@ export default function PlayerProfilePage() {
           })
         }
       />
+    </>
+  );
+}
+
+function Counted({ label, count }: { label: string; count: number }) {
+  return (
+    <>
+      {label} <span className="ml-1 font-normal text-ink-faint tabular-nums">{count}</span>
     </>
   );
 }

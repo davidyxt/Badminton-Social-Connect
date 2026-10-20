@@ -1,11 +1,11 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
-import { Notice } from "@/components/shared/Card";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PlayerLink } from "@/components/shared/PlayerProfileCard";
 import { formatDateTime, TARGET_TYPE_LABEL } from "@/lib/format";
+import { MINI_LEAGUES_ENABLED, isVisibleTargetType } from "@/lib/features";
 import { useQuery } from "@/lib/mock-api";
 import type { DeletedRecord, Player } from "@/lib/types";
 
@@ -18,7 +18,7 @@ interface Row {
 export default function DeletedRecordsPage() {
   const rows = useQuery<Row[]>((db) => {
     const players = new Map(db.players.map((p) => [p.player_id, p]));
-    return db.deleted_records.map((record) => ({
+    return db.deleted_records.filter((record) => isVisibleTargetType(record.target_type)).map((record) => ({
       record,
       owner: players.get(record.owner_id) ?? null,
     }));
@@ -32,18 +32,19 @@ export default function DeletedRecordsPage() {
       cell: (r) => (
         <div className="min-w-0">
           <div className="font-medium text-ink">{r.record.label}</div>
-          <div className="font-mono text-xs text-ink-faint">{r.record.target_id}</div>
+          <div className="text-[13px] text-ink-muted">
+            {TARGET_TYPE_LABEL[r.record.target_type]} · <span className="font-mono text-xs text-ink-faint">{r.record.target_id}</span>
+          </div>
         </div>
       ),
     },
-    { id: "type", header: "Type", sortValue: (r) => r.record.target_type, cell: (r) => TARGET_TYPE_LABEL[r.record.target_type] },
     {
       id: "owner",
       header: "Owner",
       sortValue: (r) => r.owner?.display_name ?? r.record.owner_id,
       cell: (r) => <PlayerLink player={r.owner} fallbackId={r.record.owner_id} />,
     },
-    { id: "reason", header: "Reason", cell: (r) => <span className="line-clamp-2 max-w-sm">{r.record.reason}</span> },
+    { id: "reason", header: "Reason", cell: (r) => <span className="line-clamp-2 max-w-sm text-ink-muted">{r.record.reason}</span> },
     {
       id: "deleted",
       header: "Deleted",
@@ -55,11 +56,7 @@ export default function DeletedRecordsPage() {
 
   return (
     <>
-      <div className="mb-4">
-        <Notice title="Deletion is permanent">
-          These game posts and Mini Leagues were removed from the platform. This list is a record only: deleted content can&apos;t be restored.
-        </Notice>
-      </div>
+      <p className="mb-3 text-[13px] text-ink-muted">Read-only record of removed {MINI_LEAGUES_ENABLED ? "game posts and Mini Leagues" : "game posts"}. Deleted content can&apos;t be restored.</p>
       <DataTable
         caption="Deleted records"
         rows={rows}
@@ -73,13 +70,13 @@ export default function DeletedRecordsPage() {
             label: "Type",
             options: [
               { value: "game_post", label: "Game post" },
-              { value: "mini_league", label: "Mini League" },
+              ...(MINI_LEAGUES_ENABLED ? [{ value: "mini_league", label: "Mini League" }] : []),
             ],
             getValue: (r) => r.record.target_type,
           },
         ]}
         initialSort={{ columnId: "deleted", direction: "desc" }}
-        empty={<EmptyState icon={<Trash2 className="size-6" aria-hidden />} title="No deleted records" description="Nothing matches, or nothing has been deleted yet." />}
+        empty={<EmptyState icon={<Trash2 aria-hidden />} title="No deleted records" description="Nothing matches, or nothing has been deleted yet." />}
       />
     </>
   );

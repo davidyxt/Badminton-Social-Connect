@@ -1,7 +1,6 @@
 "use client";
 
-import { CalendarRange } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/shared/Button";
 import { clampDate, daysInRange, isWeekly, longLabel, PRESETS, presetRange, type DateRange } from "./range";
 
@@ -13,6 +12,31 @@ export function DateRangePicker({ value, onChange, min, max }: { value: DateRang
   const [customOpen, setCustomOpen] = useState(false);
   const [draft, setDraft] = useState({ from: value.from, to: value.to });
   const [error, setError] = useState<string | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const customRef = useRef<HTMLButtonElement>(null);
+
+  // Close on a click outside the picker or Escape anywhere, not only when focus is in the panel.
+  useEffect(() => {
+    if (!customOpen) return;
+    const onPointer = (e: PointerEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setCustomOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      const focusInside = wrapRef.current?.contains(document.activeElement);
+      setCustomOpen(false);
+      if (focusInside) customRef.current?.focus();
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [customOpen]);
+
+  // Typed dates outside the data window are pulled in on Apply; say so before then.
+  const outOfRange = [draft.from, draft.to].some((d) => d && (d < min || d > max));
 
   const openCustom = () => {
     setDraft({ from: value.from, to: value.to });
@@ -31,14 +55,16 @@ export function DateRangePicker({ value, onChange, min, max }: { value: DateRang
 
   const days = daysInRange(value.from, value.to);
   const segment = (active: boolean) =>
-    `rounded-md px-3 py-1 text-sm font-medium whitespace-nowrap ${active ? "bg-brand text-white" : "text-ink-muted hover:text-ink"}`;
+    `inline-flex h-full items-center rounded px-2.5 text-[13px] font-medium whitespace-nowrap transition-colors ${
+      active ? "bg-subtle text-ink ring-1 ring-line-strong" : "text-ink-muted hover:text-ink"
+    }`;
   const inputCls =
-    "h-9 rounded-lg border border-line-strong bg-surface px-2.5 text-sm text-ink focus:ring-2 focus:ring-brand/30 focus:outline-none";
+    "h-8 rounded-md border border-line-strong bg-surface px-2.5 text-sm text-ink focus:border-brand focus:ring-2 focus:ring-brand/20 focus:outline-none";
 
   return (
-    <div className="mb-5">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="inline-flex flex-wrap rounded-lg border border-line-strong bg-surface p-0.5" role="group" aria-label="Date range">
+    <div className="mb-6">
+      <div ref={wrapRef} className="relative flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="inline-flex h-8 items-center rounded-md border border-line-strong bg-surface p-0.5" role="group" aria-label="Date range">
           {PRESETS.map((d) => (
             <button
               key={d}
@@ -54,6 +80,7 @@ export function DateRangePicker({ value, onChange, min, max }: { value: DateRang
             </button>
           ))}
           <button
+            ref={customRef}
             type="button"
             className={segment(value.preset === "custom" || customOpen)}
             aria-pressed={value.preset === "custom" || customOpen}
@@ -64,66 +91,76 @@ export function DateRangePicker({ value, onChange, min, max }: { value: DateRang
             Custom
           </button>
         </div>
-        <span className="inline-flex items-center gap-1.5 text-sm text-ink-muted">
-          <CalendarRange className="size-4 text-ink-faint" aria-hidden />
-          {longLabel(value.from)} – {longLabel(value.to)} · {days} day{days === 1 ? "" : "s"}
-          {isWeekly(value.from, value.to) ? " · weekly totals" : " · daily"}
+        <span className="text-[13px] text-ink-muted tabular-nums">
+          {longLabel(value.from)} – {longLabel(value.to)}
+          <span className="text-ink-faint">
+            {" "}
+            · {days} day{days === 1 ? "" : "s"}
+            {isWeekly(value.from, value.to) ? " · weekly totals" : " · daily"}
+          </span>
         </span>
-      </div>
 
-      {customOpen && (
-        <div id="custom-range-panel" className="mt-3 rounded-xl border border-line bg-surface px-5 py-4">
-          <div className="flex flex-wrap items-end gap-4">
-            <label className="flex flex-col gap-1 text-sm text-ink-muted">
-              From
-              <input
-                type="date"
-                className={inputCls}
-                value={draft.from}
-                min={min}
-                max={max}
-                onChange={(e) => {
-                  setDraft((d) => ({ ...d, from: e.target.value }));
-                  setError(null);
-                }}
-                aria-invalid={!!error}
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-sm text-ink-muted">
-              To
-              <input
-                type="date"
-                className={inputCls}
-                value={draft.to}
-                min={min}
-                max={max}
-                onChange={(e) => {
-                  setDraft((d) => ({ ...d, to: e.target.value }));
-                  setError(null);
-                }}
-                aria-invalid={!!error}
-              />
-            </label>
-            <div className="flex gap-2">
-              <Button variant="primary" onClick={apply}>
-                Apply
-              </Button>
+        {customOpen && (
+          <div
+            id="custom-range-panel"
+            className="absolute top-full left-0 z-20 mt-2 w-[min(400px,calc(100vw-2rem))] rounded-lg border border-line bg-surface p-4 shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
+          >
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="flex flex-col gap-1 text-[13px] text-ink-muted">
+                From
+                <input
+                  type="date"
+                  className={inputCls}
+                  value={draft.from}
+                  min={min}
+                  max={max}
+                  onChange={(e) => {
+                    setDraft((d) => ({ ...d, from: e.target.value }));
+                    setError(null);
+                  }}
+                  aria-invalid={!!error}
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-[13px] text-ink-muted">
+                To
+                <input
+                  type="date"
+                  className={inputCls}
+                  value={draft.to}
+                  min={min}
+                  max={max}
+                  onChange={(e) => {
+                    setDraft((d) => ({ ...d, to: e.target.value }));
+                    setError(null);
+                  }}
+                  aria-invalid={!!error}
+                />
+              </label>
+            </div>
+            {error ? (
+              <p className="mt-2 text-[13px] text-danger" role="alert">
+                {error}
+              </p>
+            ) : outOfRange ? (
+              <p className="mt-2 text-[13px] text-warning" role="status">
+                Data is available from {longLabel(min)} to {longLabel(max)}. Dates outside that are moved to fit when you apply.
+              </p>
+            ) : (
+              <p className="mt-2 text-xs text-ink-faint">
+                Available {longLabel(min)} to {longLabel(max)}. Ranges over 31 days show weekly totals.
+              </p>
+            )}
+            <div className="mt-3 flex justify-end gap-2">
               <Button variant="ghost" onClick={() => setCustomOpen(false)}>
                 Cancel
               </Button>
+              <Button variant="primary" onClick={apply}>
+                Apply
+              </Button>
             </div>
           </div>
-          {error ? (
-            <p className="mt-2 text-sm text-danger" role="alert">
-              {error}
-            </p>
-          ) : (
-            <p className="mt-2 text-xs text-ink-faint">
-              Data is available from {longLabel(min)} to {longLabel(max)}. Ranges over 31 days are shown as weekly totals.
-            </p>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

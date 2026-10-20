@@ -1,20 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import type { ReactNode } from "react";
 import { KpiTile, NotTracked, SampleDataNotice } from "@/components/analytics/AnalyticsParts";
 import { DateRangePicker } from "@/components/analytics/DateRangePicker";
-import { Card, CardBody, CardHeader } from "@/components/shared/Card";
+import { Card, CardBody, SectionHeading, StatGroup } from "@/components/shared/Card";
 import { ColumnChart } from "@/components/shared/Charts";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { useMetric, useRangeControl } from "./useMetric";
+import { MINI_LEAGUES_ENABLED } from "@/lib/features";
 
 function BreakdownLink({ href }: { href: string }) {
   return (
-    <Link href={href} className="inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline">
+    <Link href={href} className="text-[13px] text-brand hover:underline">
       View breakdown
-      <ArrowRight className="size-3.5" aria-hidden />
     </Link>
+  );
+}
+
+/** A heading with a breakdown link above one lightly framed chart. */
+function ChartSection({ title, href, children }: { title: string; href: string; children: ReactNode }) {
+  return (
+    <section className="min-w-0">
+      <SectionHeading title={title} actions={<BreakdownLink href={href} />} />
+      <Card>
+        <CardBody>{children}</CardBody>
+      </Card>
+    </section>
   );
 }
 
@@ -36,48 +48,44 @@ export default function AnalyticsPage() {
       <SampleDataNotice />
       <DateRangePicker {...control} />
 
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiTile label="New users" value={newUsers.total} previous={newUsers.previous} days={days} unavailable={newUsers.unavailable} />
-        <KpiTile label="Reports received" value={reports.total} previous={reports.previous} days={days} unavailable={reports.unavailable} />
-        <KpiTile label="League joins" value={leagueJoins.total} previous={leagueJoins.previous} days={days} unavailable={leagueJoins.unavailable} />
-        <KpiTile label="League matches" value={leagueMatches.total} previous={leagueMatches.previous} days={days} unavailable={leagueMatches.unavailable} />
-        <KpiTile label="Games published" value={published.total} previous={published.previous} days={days} unavailable={published.unavailable} />
-        <KpiTile label="Games filled" value={filled.total} previous={filled.previous} days={days} unavailable={filled.unavailable} />
-      </div>
+      <div className="space-y-8">
+        <StatGroup>
+          <KpiTile label="New users" value={newUsers.total} previous={newUsers.previous} days={days} unavailable={newUsers.unavailable} />
+          <KpiTile label="Reports received" value={reports.total} previous={reports.previous} days={days} unavailable={reports.unavailable} />
+          {MINI_LEAGUES_ENABLED && (
+            <>
+              <KpiTile label="League joins" value={leagueJoins.total} previous={leagueJoins.previous} days={days} unavailable={leagueJoins.unavailable} />
+              <KpiTile label="League matches" value={leagueMatches.total} previous={leagueMatches.previous} days={days} unavailable={leagueMatches.unavailable} />
+            </>
+          )}
+          <KpiTile label="Games published" value={published.total} previous={published.previous} days={days} unavailable={published.unavailable} />
+          <KpiTile label="Games filled" value={filled.total} previous={filled.previous} days={days} unavailable={filled.unavailable} />
+        </StatGroup>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader title="New users" actions={<BreakdownLink href="/analytics/new-users" />} />
-          <CardBody>
+        <div className="grid gap-x-6 gap-y-8 lg:grid-cols-2">
+          <ChartSection title="New users" href="/analytics/new-users">
             <ColumnChart title={`${unit} sign-ups`} points={newUsers.points} valueLabel="New users" />
-          </CardBody>
-        </Card>
-        <Card>
-          <CardHeader title="Reports received" actions={<BreakdownLink href="/analytics/reports-received" />} />
-          <CardBody>
+          </ChartSection>
+          <ChartSection title="Reports received" href="/analytics/reports-received">
             <ColumnChart title={`${unit} reports`} points={reports.points} valueLabel="Reports" />
-          </CardBody>
-        </Card>
-        <Card>
-          <CardHeader title="Mini League activity" actions={<BreakdownLink href="/analytics/mini-league-activity" />} />
-          <CardBody>
-            {leagueJoins.unavailable ? (
-              <NotTracked label="Mini League activity" />
-            ) : (
-              <ColumnChart title={`${unit} league joins`} summary={`${leagueMatches.total.toLocaleString("en-AU")} league matches`} points={leagueJoins.points} valueLabel="Joins" />
-            )}
-          </CardBody>
-        </Card>
-        <Card>
-          <CardHeader title="Games published" actions={<BreakdownLink href="/analytics/games-published" />} />
-          <CardBody>
+          </ChartSection>
+          {MINI_LEAGUES_ENABLED && (
+            <ChartSection title="Mini League activity" href="/analytics/mini-league-activity">
+              {leagueJoins.unavailable ? (
+                <NotTracked label="Mini League activity" />
+              ) : (
+                <ColumnChart title={`${unit} league joins`} summary={`${leagueMatches.total.toLocaleString("en-AU")} league matches`} points={leagueJoins.points} valueLabel="Joins" />
+              )}
+            </ChartSection>
+          )}
+          <ChartSection title="Games published" href="/analytics/games-published">
             {published.unavailable ? (
               <NotTracked label="Games published" />
             ) : (
               <ColumnChart title={`${unit} games published`} summary={`${filled.total.toLocaleString("en-AU")} filled`} points={published.points} valueLabel="Games" />
             )}
-          </CardBody>
-        </Card>
+          </ChartSection>
+        </div>
       </div>
     </>
   );

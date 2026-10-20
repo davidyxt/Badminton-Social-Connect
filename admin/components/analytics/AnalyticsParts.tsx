@@ -5,14 +5,12 @@ import { featureGap } from "@/lib/api/capabilities";
 import { IS_API } from "@/lib/config";
 import { changeVsPrevious } from "./range";
 
+/** API mode only: which metrics the backend can't report yet. */
 export function SampleDataNotice() {
+  if (!IS_API) return null;
   return (
-    <div className="mb-5">
-      {IS_API ? (
-        <Notice title="Partly tracked">{featureGap("analytics")} Days are complete Australia/Melbourne days, up to yesterday.</Notice>
-      ) : (
-        <Notice title="Sample data">App-event tracking isn&apos;t built yet, so these figures are sample data, not real usage.</Notice>
-      )}
+    <div className="mb-6">
+      <Notice>{featureGap("analytics")} Days are complete Melbourne days, up to yesterday.</Notice>
     </div>
   );
 }
@@ -20,8 +18,9 @@ export function SampleDataNotice() {
 /** Stands in for a chart when the backend doesn't track the metric yet. */
 export function NotTracked({ label }: { label: string }) {
   return (
-    <div className="flex h-[220px] items-center justify-center rounded-lg border border-dashed border-line-strong px-6 text-center text-sm text-ink-muted">
-      {label} isn&apos;t tracked yet. It needs usage events on the backend.
+    <div className="flex h-[220px] flex-col items-center justify-center gap-0.5 rounded-md bg-subtle px-6 text-center">
+      <span className="text-[13px] font-medium text-ink-muted">Not tracked yet</span>
+      <span className="text-xs text-ink-faint">{label} needs usage events on the backend.</span>
     </div>
   );
 }

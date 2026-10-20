@@ -40,7 +40,11 @@ export const longLabel = (iso: string) => longFmt.format(new Date(toTime(iso)));
 
 export const isWeekly = (from: string, to: string) => daysInRange(from, to) > 31;
 
-/** Daily points, or 7-day buckets starting at `from` when the range is longer than 31 days. */
+/**
+ * Daily points, or 7-day buckets starting at `from` when the range is longer than 31 days.
+ * The last bucket can be short (the range rarely divides into whole weeks); its label
+ * says how many days it covers so a smaller total doesn't read as a drop.
+ */
 export function toChartPoints(points: { date: string; value: number }[], from: string, to: string): ChartPoint[] {
   if (!isWeekly(from, to)) return points.map((p) => ({ label: shortLabel(p.date), value: p.value }));
   const buckets = new Map<number, number>();
@@ -51,15 +55,20 @@ export function toChartPoints(points: { date: string; value: number }[], from: s
   }
   return [...buckets.entries()]
     .sort((a, b) => a[0] - b[0])
-    .map(([i, value]) => ({ label: `w/c ${shortLabel(toIso(start + i * 7 * DAY))}`, value }));
+    .map(([i, value]) => {
+      const weekStart = toIso(start + i * 7 * DAY);
+      const days = Math.min(7, daysInRange(weekStart, to));
+      const axisLabel = `w/c ${shortLabel(weekStart)}`;
+      return { label: `${axisLabel}${days < 7 ? ` (${days} day${days === 1 ? "" : "s"})` : ""}`, axisLabel, partial: days < 7, value };
+    });
 }
 
 export const sum = (points: { value: number }[]) => points.reduce((t, p) => t + p.value, 0);
 
-/** "+12% vs previous 30 days", or null when there's no comparable earlier data. */
+/** "+12% vs prior 30d", or null when there's no comparable earlier data. Kept short to fit a stat strip. */
 export function changeVsPrevious(current: number, previous: number | null, days: number): { text: string; direction: "up" | "down" | "flat" } | null {
   if (previous === null) return null;
-  const period = `previous ${days} day${days === 1 ? "" : "s"}`;
+  const period = `prior ${days}d`;
   if (previous === 0) return current === 0 ? { text: `No change vs ${period}`, direction: "flat" } : { text: `Up from 0 in ${period}`, direction: "up" };
   const pct = Math.round(((current - previous) / previous) * 100);
   if (pct === 0) return { text: `No change vs ${period}`, direction: "flat" };

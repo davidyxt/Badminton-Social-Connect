@@ -1,27 +1,30 @@
 "use client";
 
+import { IS_API } from "@/lib/config";
+import { ReportEvidence } from "@/components/monitoring/ReportEvidence";
+
+import { EvidenceSnapshot } from "@/components/shared/EvidenceSnapshot";
 import { BackendGapNotice } from "@/components/shared/BackendGapNotice";
 import { unavailableReason } from "@/lib/api/capabilities";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Ban, CircleCheck, CircleX, EyeOff, PauseCircle, PlayCircle, RotateCcw } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { RestoreAccountModal, SuspendAccountModal } from "@/components/modals/AccountModals";
 import { ResumeLeagueModal, SuspendLeagueModal } from "@/components/modals/LeagueModals";
 import { HidePostModal, RestorePostModal } from "@/components/modals/PostModals";
 import { ReviewReportModal } from "@/components/modals/ReviewModals";
 import { ActivityTimeline } from "@/components/shared/ActivityTimeline";
 import { Button, ButtonLink } from "@/components/shared/Button";
-import { Card, CardBody, CardHeader, DetailList, Notice } from "@/components/shared/Card";
+import { DetailList, Notice, SectionHeading } from "@/components/shared/Card";
 import { GamePostSummary, MiniLeagueSummary } from "@/components/shared/ContentSummaries";
 import { RecordNotFound } from "@/components/shared/NotFound";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PlayerLink, PlayerProfileCard } from "@/components/shared/PlayerProfileCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { formatDateTime, humanize, TARGET_TYPE_LABEL } from "@/lib/format";
+import { CATEGORY_LABEL, formatDateTime, humanize, TARGET_TYPE_LABEL } from "@/lib/format";
 import { useAdminAction } from "@/lib/hooks/useAdminAction";
-import { IS_API } from "@/lib/config";
-import { ReportEvidence } from "@/components/monitoring/ReportEvidence";
+import { MINI_LEAGUES_ENABLED, isVisibleTargetType } from "@/lib/features";
 import {
   admin_hide_post,
   admin_restore_account,
@@ -55,7 +58,8 @@ export default function ReportDetailPage() {
   const data = useQuery(
     (db) => {
       const report = db.reports.find((r) => r.report_id === reportId);
-      if (!report) return null;
+      // Reports about out-of-scope features (Mini Leagues) are hidden, so they read as not found.
+      if (!report || !isVisibleTargetType(report.target_type)) return null;
       const targetPlayer = report.target_type === "player" ? selectPlayer(db, report.target_id) : null;
       const post = report.target_type === "game_post" ? selectGamePost(db, report.target_id) : null;
       const league = report.target_type === "mini_league" ? selectMiniLeague(db, report.target_id) : null;
@@ -71,7 +75,7 @@ export default function ReportDetailPage() {
         targetRanking: targetPlayer ? selectRanking(db, targetPlayer.player_id, "singles") : null,
         targetContentCount: targetPlayer
           ? db.game_posts.filter((p) => p.organiser_id === targetPlayer.player_id && (p.status === "open" || p.status === "full")).length +
-            db.mini_leagues.filter((l) => l.organiser_id === targetPlayer.player_id && l.status !== "suspended").length
+            (MINI_LEAGUES_ENABLED ? db.mini_leagues.filter((l) => l.organiser_id === targetPlayer.player_id && l.status !== "suspended").length : 0)
           : 0,
         post,
         league,
@@ -79,6 +83,7 @@ export default function ReportDetailPage() {
         match,
         matchSides: match ? [match.side_a, match.side_b].map((ids) => ids.map((id) => names.get(id)?.display_name ?? id).join(" & ")) : null,
         adminPost,
+        group: report.target_type === "group" ? (db.groups.find((g) => g.group_id === report.target_id) ?? null) : null,
         deleted: !targetPlayer && !post && !league && !match && !adminPost ? selectDeletedRecord(db, report.target_id) : null,
         related: selectReportsForTarget(db, report.target_type, report.target_id).filter((r) => r.report_id !== report.report_id),
         activity: selectActivityFor(db, "report", report.report_id),
@@ -86,8 +91,12 @@ export default function ReportDetailPage() {
     });
 
   if (!data) return <RecordNotFound what="Report" backHref="/reports" backLabel="Back to reports" />;
-  const { report, targetPlayer, post, league, match, adminPost } = data;
+  const { report, targetPlayer, post, league, match, adminPost, group } = data;
   const pending = report.status === "pending";
+  // Reviewed elsewhere (another tab or admin) while a review dialog was open: there's nothing left to review.
+  if (!pending && (dialog === "resolve" || dialog === "dismiss")) setDialog(null);
+  // "Mini League" is a product name, so it keeps its capitals mid-sentence.
+  const targetNoun = report.target_type === "mini_league" ? TARGET_TYPE_LABEL.mini_league : TARGET_TYPE_LABEL[report.target_type].toLowerCase();
 
   const opts = (success: string) => ({ success, onSuccess: close, onConflict: close });
 
@@ -97,7 +106,7 @@ export default function ReportDetailPage() {
         breadcrumbs={[{ label: "Reports", href: "/reports" }, { label: report.report_id }]}
         title={report.reason}
         meta={<StatusBadge status={report.status} />}
-        description={`${TARGET_TYPE_LABEL[report.target_type]} report · received ${formatDateTime(report.created_at)}`}
+        description={`${TARGET_TYPE_LABEL[report.target_type]} report`}
         actions={
           pending && (
             <>
@@ -115,7 +124,7 @@ export default function ReportDetailPage() {
       <BackendGapNotice
         message={
           pending && unavailableReason("admin_review_report")
-            ? "Resolving and dismissing aren't available yet: the database can't store the required review note (DB05). Account, post and league actions are disabled until DB02–DB04."
+            ? `Resolving and dismissing aren't available yet: the database can't store the required private review note (DB05). Account and post actions are disabled until ${MINI_LEAGUES_ENABLED ? "DB02–DB04" : "DB02 and DB03"}.`
             : null
         }
       />
@@ -123,18 +132,16 @@ export default function ReportDetailPage() {
       {/* Screens 22 / 23: outcome states */}
       {!pending && (
         <div
-          className={`mb-6 flex items-start gap-3 rounded-xl border px-5 py-4 text-sm ${
-            report.status === "resolved" ? "border-success/30 bg-success-soft" : "border-line-strong bg-neutral-soft"
-          }`}
+          className={`mb-8 flex items-start gap-2.5 rounded-md px-3 py-2.5 text-[13px] ${report.status === "resolved" ? "bg-success-soft" : "bg-subtle"}`}
           role="status"
         >
           {report.status === "resolved" ? (
-            <CircleCheck className="mt-0.5 size-5 shrink-0 text-success" aria-hidden />
+            <CircleCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
           ) : (
-            <CircleX className="mt-0.5 size-5 shrink-0 text-ink-muted" aria-hidden />
+            <CircleX className="mt-0.5 size-4 shrink-0 text-ink-faint" aria-hidden />
           )}
-          <div>
-            <div className={`font-semibold ${report.status === "resolved" ? "text-success" : "text-ink"}`}>
+          <div className="min-w-0">
+            <div className={`font-medium ${report.status === "resolved" ? "text-success" : "text-ink"}`}>
               {report.status === "resolved" ? "Report resolved" : "Report dismissed"}
               {report.reviewed_at && <span className="font-normal text-ink-muted"> · {formatDateTime(report.reviewed_at)}</span>}
             </div>
@@ -143,33 +150,27 @@ export default function ReportDetailPage() {
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          {IS_API && <ReportEvidence key={reportId} reportId={reportId} showCurrentTarget />}
-          <Card>
-            <CardHeader title="Report" />
-            <CardBody>
-              <DetailList
-                items={[
-                  { label: "Reason", value: report.reason },
-                  { label: "Reported by", value: <PlayerLink player={data.reporter} fallbackId={report.reported_by_player_id} /> },
-                  { label: "Received", value: formatDateTime(report.created_at) },
-                  { label: "Report ID", value: <span className="font-mono text-xs">{report.report_id}</span> },
-                ]}
-              />
-              {report.details && (
-                <div className="mt-4">
-                  <div className="text-xs font-medium tracking-wide text-ink-faint uppercase">Reporter&apos;s description</div>
-                  <blockquote className="mt-1 rounded-lg border-l-4 border-line-strong bg-subtle px-4 py-3 text-sm text-ink">{report.details}</blockquote>
-                </div>
-              )}
-            </CardBody>
-          </Card>
+      <div className="grid gap-x-10 gap-y-8 lg:grid-cols-[minmax(0,1fr)_272px]">
+        <div className="min-w-0 space-y-8">
+          <section aria-labelledby="description-heading">
+            <SectionHeading title={<span id="description-heading">Reporter&apos;s description</span>} />
+            {report.details ? (
+              <blockquote className="border-l-2 border-line-strong pl-4 text-sm leading-6 whitespace-pre-line text-ink">{report.details}</blockquote>
+            ) : (
+              <p className="text-[13px] text-ink-muted">No description given.</p>
+            )}
+          </section>
+
+          <section aria-labelledby="evidence-heading">
+            <SectionHeading title={<span id="evidence-heading">Evidence</span>} />
+            {IS_API ? <ReportEvidence key={reportId} reportId={reportId} /> : <EvidenceSnapshot evidence={report.evidence} />}
+          </section>
 
           <section aria-labelledby="target-heading">
-            <h2 id="target-heading" className="mb-3 text-base font-semibold text-ink">
-              Reported {TARGET_TYPE_LABEL[report.target_type].toLowerCase()}
-            </h2>
+            <SectionHeading
+              title={<span id="target-heading">Reported {targetNoun}</span>}
+              description={pending ? "Taking action here doesn't close the report. Resolve it once you're done." : undefined}
+            />
 
             {targetPlayer && (
               <PlayerProfileCard
@@ -230,76 +231,74 @@ export default function ReportDetailPage() {
             )}
 
             {match && data.matchSides && (
-              <Card>
-                <CardBody>
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <div className="font-semibold text-ink">{data.matchSides.join(" vs ")}</div>
-                      <div className="text-sm text-ink-muted">
-                        {humanize(match.format)} · {match.venue}
-                        {match.suburb ? `, ${match.suburb}` : ""} · {formatDateTime(match.proposed_time)}
-                      </div>
-                    </div>
-                    <ButtonLink href={`/games/${match.match_id}`} size="sm">
-                      View game
-                    </ButtonLink>
-                  </div>
-                </CardBody>
-              </Card>
+              <TargetRow
+                title={data.matchSides.join(" vs ")}
+                meta={`${humanize(match.format)} · ${match.venue}${match.suburb ? `, ${match.suburb}` : ""} · ${formatDateTime(match.proposed_time)}`}
+                action={
+                  <ButtonLink href={`/games/${match.match_id}`} size="sm">
+                    View game
+                  </ButtonLink>
+                }
+              />
             )}
 
             {adminPost && (
-              <Card>
-                <CardBody>
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <div className="font-semibold text-ink">{adminPost.title}</div>
-                      <div className="text-sm text-ink-muted">Home carousel card · {humanize(adminPost.status)}</div>
-                    </div>
-                    <ButtonLink href="/content" size="sm">
-                      Open content
-                    </ButtonLink>
-                  </div>
-                </CardBody>
-              </Card>
+              <TargetRow
+                title={adminPost.title}
+                meta={`Home carousel card · ${humanize(adminPost.status)}`}
+                action={
+                  <ButtonLink href="/content" size="sm">
+                    Open content
+                  </ButtonLink>
+                }
+              />
             )}
 
-            {!IS_API && report.target_type === "club" && (
-              <Notice title={`Club ${report.target_id}`}>Club details aren&apos;t available from the admin API yet.</Notice>
-            )}
+            {group && <TargetRow title={group.name} meta={<span className="font-mono text-xs">{group.group_id}</span>} />}
 
-            {!targetPlayer && !post && !league && !match && !adminPost && report.target_type !== "club" && report.target_type !== "group" && (
+            {!targetPlayer && !post && !league && !match && !adminPost && !group && (
               <Notice tone="warning" title="Content no longer exists">
                 {data.deleted
                   ? `"${data.deleted.label}" was deleted ${formatDateTime(data.deleted.deleted_at)}. Reason: ${data.deleted.reason}`
                   : `${TARGET_TYPE_LABEL[report.target_type]} ${report.target_id} could not be found.`}
               </Notice>
             )}
-
-            {pending && (
-              <p className="mt-3 text-xs text-ink-muted">
-                Actions on the reported {TARGET_TYPE_LABEL[report.target_type].toLowerCase()} are separate from the report outcome. Resolve the
-                report once you&apos;ve taken any action needed.
-              </p>
-            )}
           </section>
+
         </div>
 
-        <div className="space-y-6">
-          <Card>
-            <CardHeader title={`Other reports (${data.related.length})`} description="About the same target." />
+        <aside className="min-w-0 space-y-8 lg:border-l lg:border-line lg:pl-8">
+          <section aria-labelledby="details-heading">
+            <SectionHeading title={<span id="details-heading">Details</span>} />
+            <DetailList
+              columns={1}
+              items={[
+                { label: "Category", value: CATEGORY_LABEL[report.category] ?? report.category },
+                { label: "Reported by", value: <PlayerLink player={data.reporter} fallbackId={report.reported_by_player_id} /> },
+                { label: "Received", value: formatDateTime(report.created_at) },
+                { label: "Report ID", value: <span className="font-mono text-xs">{report.report_id}</span> },
+              ]}
+            />
+          </section>
+
+          <section aria-labelledby="related-heading">
+            <SectionHeading
+              title={
+                <span id="related-heading">
+                  Other reports <span className="font-normal text-ink-faint tabular-nums">{data.related.length}</span>
+                </span>
+              }
+            />
             {data.related.length === 0 ? (
-              <CardBody>
-                <p className="text-sm text-ink-muted">This is the only report.</p>
-              </CardBody>
+              <p className="text-[13px] text-ink-muted">None about this {targetNoun}.</p>
             ) : (
-              <ul className="divide-y divide-line">
+              <ul className="-mx-2">
                 {data.related.map((r) => (
                   <li key={r.report_id}>
-                    <Link href={`/reports/${r.report_id}`} className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-subtle">
+                    <Link href={`/reports/${r.report_id}`} className="flex items-start justify-between gap-3 rounded-md px-2 py-2 hover:bg-subtle">
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-ink">{r.reason}</div>
-                        <div className="text-xs text-ink-muted">{formatDateTime(r.created_at)}</div>
+                        <div className="truncate text-sm text-ink">{r.reason}</div>
+                        <div className="text-xs text-ink-faint">{formatDateTime(r.created_at)}</div>
                       </div>
                       <StatusBadge status={r.status} />
                     </Link>
@@ -307,14 +306,13 @@ export default function ReportDetailPage() {
                 ))}
               </ul>
             )}
-          </Card>
-          <Card>
-            <CardHeader title="Activity" />
-            <CardBody>
-              <ActivityTimeline entries={data.activity} empty="No action taken on this report yet." />
-            </CardBody>
-          </Card>
-        </div>
+          </section>
+
+          <section aria-labelledby="activity-heading">
+            <SectionHeading title={<span id="activity-heading">Activity</span>} />
+            <ActivityTimeline entries={data.activity} empty="No action taken on this report yet." />
+          </section>
+        </aside>
       </div>
 
       <ReviewReportModal
@@ -354,6 +352,7 @@ export default function ReportDetailPage() {
           <RestorePostModal
             open={dialog === "restore-post"}
             postTitle={post.title}
+            suspendedOrganiser={!post.organiser_group_id && data.owner?.status === "suspended" ? data.owner.display_name : null}
             onClose={close}
             onConfirm={({ reason }) => run(() => admin_restore_post({ postId: post.post_id, note: reason }), opts("Game post restored"))}
           />
@@ -376,5 +375,18 @@ export default function ReportDetailPage() {
         </>
       )}
     </>
+  );
+}
+
+/** Compact record row for target types without a shared summary component (match, carousel card, group). */
+function TargetRow({ title, meta, action }: { title: ReactNode; meta: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-surface px-4 py-3">
+      <div className="min-w-0">
+        <div className="text-sm font-semibold text-ink">{title}</div>
+        <div className="mt-0.5 text-[13px] text-ink-muted">{meta}</div>
+      </div>
+      {action}
+    </div>
   );
 }

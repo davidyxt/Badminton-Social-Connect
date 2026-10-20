@@ -577,12 +577,22 @@ export async function handleContract(request, route, { db, user }, send) {
   }
   if (request.method === "PATCH") {
     const representation = preference(request);
-    const patch = announcement(await jsonBody(request), false);
+    const { expectedUpdatedAt, ...editable } = await jsonBody(request);
+    if (expectedUpdatedAt !== undefined &&
+      (typeof expectedUpdatedAt !== "string" || expectedUpdatedAt.length > 64 ||
+        !/^\d{4}-\d{2}-\d{2}T/.test(expectedUpdatedAt) ||
+        !Number.isFinite(Date.parse(expectedUpdatedAt)))) {
+      invalid("expectedUpdatedAt must be the timestamp returned by GET.");
+    }
+    const patch = announcement(editable, false);
     const current = result(
       await filter(url, resource, db.from(resource).select("*"), true)
         .maybeSingle(),
     ).data;
     if (!current) fail(404, "not_found", "Record not found.");
+    if (expectedUpdatedAt !== undefined && current.updated_at !== expectedUpdatedAt) {
+      fail(409, "record_changed", "Reload the record before applying this change.");
+    }
     const next = { ...current, ...patch };
     if (next.status === "published" && !image(next.image_url)) {
       invalid("imageUrl is required to publish.");

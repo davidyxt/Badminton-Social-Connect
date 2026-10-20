@@ -37,7 +37,11 @@ const seeds: Seed[] = [
   ["plr-1018", "Daniel Kim", "Advanced", true, "2026-01-30T19:10:00Z", "active", "Burwood", "NSW", 94, 69, 1, true, "Singles focused. Training for state open."],
   ["plr-1019", "Hannah Scott", "Beginner", true, "2026-08-14T11:25:00Z", "active", "Preston", "VIC", 90, 8, 0, true, "Learning the ropes, all welcome."],
   ["plr-1020", "Ryan Mitchell", "Intermediate", false, "2026-07-05T15:40:00Z", "active", "Newtown", "NSW", 76, 21, 4, true, "Casual player, mostly doubles."],
+  ["plr-1021", "Deleted player", "Beginner", false, "2026-05-02T10:00:00Z", "active", "", "", 100, 3, 0, false, ""],
 ];
+
+/** Henry signed up but hasn't finished registering; plr-1021 deleted their account (anonymised, history kept). */
+const REGISTRATION: Record<string, Player["registration_state"]> = { "plr-1014": "registration_pending", "plr-1021": "deleted" };
 
 export const players: Player[] = seeds.map(([player_id, display_name, self_rating_band, is_verified, joined_at, status]) => ({
   player_id,
@@ -46,7 +50,9 @@ export const players: Player[] = seeds.map(([player_id, display_name, self_ratin
   is_verified,
   joined_at,
   status,
-  email: `${display_name.toLowerCase().replace(/[^a-z]+/g, ".")}@example.com`,
+  email: REGISTRATION[player_id] === "deleted" ? "" : `${display_name.toLowerCase().replace(/[^a-z]+/g, ".")}@example.com`,
+  registration_state: REGISTRATION[player_id] ?? "registered",
+  deleted_at: REGISTRATION[player_id] === "deleted" ? "2026-09-30T04:00:00Z" : null,
 }));
 
 export const playerProfiles: PlayerProfile[] = seeds.map(

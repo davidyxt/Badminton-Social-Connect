@@ -2,7 +2,7 @@
 
 Badminton Social Connect player application, Supabase backend and integrated Admin web console.
 
-This branch connects the Admin console to the Admin API on the Player BE-2 0.4 database baseline (50 migrations), including the existing shared singles rating engine. Local verification does not establish hosted deployment.
+This local branch combines main `e42beb7`, our Admin integration and frontend `admin-console-frontend` at `5b204e7`. It connects the Admin console to the Admin API on the Player BE-2 0.4 database baseline (50 migrations), including the existing shared singles rating engine. Local verification does not establish hosted deployment.
 
 ## Structure
 

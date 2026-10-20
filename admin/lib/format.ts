@@ -24,10 +24,26 @@ export const TARGET_TYPE_LABEL: Record<string, string> = {
   mini_league: "Mini League",
   report: "Report",
   match: "Match",
-  club: "Club",
   group: "Group",
   dispute: "Dispute",
   admin_post: "Carousel card",
+};
+
+/** Report categories as the player app offers them. */
+export const CATEGORY_LABEL: Record<string, string> = {
+  harassment: "Harassment",
+  inappropriate_content: "Inappropriate content",
+  fake_account: "Fake account",
+  spam: "Spam",
+  safety_concern: "Safety concern",
+  underage: "Underage player",
+  other: "Other",
+};
+
+export const RESULT_FLAG_LABEL: Record<string, string> = {
+  repeat_pairing: "Repeat pairing",
+  unusual_win_pattern: "Unusual win pattern",
+  rating_swing: "Large rating swing",
 };
 
 export const ACTION_LABEL: Record<string, string> = {
@@ -70,6 +86,32 @@ export const ACTION_FEATURE: Record<string, string> = {
   reorder_admin_post: "Content",
   delete_admin_post: "Content",
 };
+
+/**
+ * The target's status after each action (DB01's "new state"), used when a log entry
+ * doesn't record one itself. Actions that don't change status (edits, reorders) are absent.
+ * Report reviews and restores record their actual outcome instead.
+ */
+export const ACTION_RESULT_STATUS: Record<string, string> = {
+  suspend_account: "suspended",
+  restore_account: "active",
+  hide_post: "hidden",
+  restore_post: "open",
+  delete_post: "deleted",
+  suspend_league: "suspended",
+  resume_league: "active",
+  close_league_registration: "registration_closed",
+  delete_league: "deleted",
+  create_admin_post: "draft",
+  publish_admin_post: "published",
+  unpublish_admin_post: "draft",
+  delete_admin_post: "deleted",
+};
+
+/** Status an action left its target in, for log entries that don't record one (seed data, older saved entries). */
+export function resultStatusOf(action: string, details: string): string | null {
+  return /^Outcome: (\w+)/.exec(details)?.[1] ?? ACTION_RESULT_STATUS[action] ?? null;
+}
 
 export function toCsv(rows: Record<string, string | number | null>[]): string {
   if (rows.length === 0) return "";

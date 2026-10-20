@@ -265,6 +265,29 @@ test("ordinary content edits retain publication time, reverting to draft clears 
   });
   assert.equal(f.calls.at(-1).body.published_at, null);
 });
+test("announcement caller version is checked before writing and retained in the atomic guard", async () => {
+  const stale = announcements({ updated_at: "2026-10-20T12:00:00.000Z" });
+  const refused = await stale.request(`admin_post?adminPostId=eq.${id}`, {
+    method: "PATCH", body: { title: "Stale form", expectedUpdatedAt: stamp },
+  });
+  assert.equal(refused.response.status, 409);
+  assert.equal(stale.calls.some((call) => call.method === "PATCH"), false);
+  const current = announcements();
+  const saved = await current.request(`admin_post?adminPostId=eq.${id}`, {
+    method: "PATCH", body: { title: "Current form", expectedUpdatedAt: stamp },
+  });
+  assert.equal(saved.response.status, 200);
+  assert.equal(current.calls.at(-1).url.searchParams.get("updated_at"), `eq.${stamp}`);
+  assert.equal("expectedUpdatedAt" in current.calls.at(-1).body, false);
+});
+test("announcement caller version rejects malformed input", async () => {
+  const f = announcements();
+  const reply = await f.request(`admin_post?adminPostId=eq.${id}`, {
+    method: "PATCH", body: { title: "Invalid", expectedUpdatedAt: "not-a-version" },
+  });
+  assert.equal(reply.response.status, 422);
+  assert.equal(f.calls.some((call) => call.method === "PATCH"), false);
+});
 test("a published announcement cannot lose its picture", async () => {
   const f = announcements({ status: "published", published_at: stamp });
   assert.equal(

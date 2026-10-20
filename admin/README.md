@@ -3,7 +3,7 @@
 Administrator web console (Next.js App Router, TypeScript, Tailwind CSS). It runs in one of two modes:
 
 - **mock** (default): every screen and action works against an in-memory mock data layer. No backend needed.
-- **api**: reads and writes the integrated `admin-api` Supabase Edge Function (Player BE-2 0.4, all 50 team migrations). Only supported actions work; the rest is disabled with an explanation.
+- **api**: reads and writes the real `admin-api` Supabase Edge Function (branch `admin-api/player-be2-integration`, which needs the team's 50 database migrations). Only what the backend supports today works; the rest is disabled with an explanation.
 
 This is a separate app from the player app in `../frontend` (Vite + React).
 
@@ -11,28 +11,33 @@ This is a separate app from the player app in `../frontend` (Vite + React).
 
 ```bash
 cd admin
-npm ci
+npm install
 npm run dev        # http://localhost:3000
 ```
 
-In **mock mode**, sign in with any email and password. An email starting with `player` signs in as a non-admin and shows the access-restricted screen. In **API mode**, use an actual Supabase account with `app_metadata.role = admin`.
+In mock mode, sign in with any email and password. An email starting with `player` signs in as a non-admin and shows the access-restricted screen.
 
-Other scripts: `npm run build`, `npm run lint`, `npm test`. Run `npm run setup:local` after starting local Supabase to configure API mode and create a local administrator demo account. This helper refuses hosted projects, writes only public client settings to `.env.local`, and stores demo credentials in Git-ignored `.local/access.txt`. If using an isolated stack, set `SUPABASE_WORKDIR` to its configuration directory first. See [local integration notes](../docs/admin-local-integration.md).
+Other scripts: `npm run build`, `npm run lint`, `npm test`, `npm run setup:local` (local Supabase only; credentials stay in ignored `.local/`).
+
+Visual conventions (tokens, spacing, components to reuse) are in [DESIGN.md](DESIGN.md).
+
+## Scope: Mini Leagues are hidden
+
+Mini Leagues are out of scope, so the console hides them: the Mini Leagues screens, the moderation and rankings tabs, league analytics, reports about leagues, and league entries in the activity log and deleted records. The old league URLs redirect to the nearest screen (see `next.config.ts`). Only the UI is hidden: the types, mock data, data layer and database schema are unchanged. Set `NEXT_PUBLIC_ENABLE_MINI_LEAGUES=true` and restart the dev server to bring everything back. The switch lives in `lib/features.ts`.
 
 ## Running against the real admin API
 
-1. From the repository root (not `admin/`), start Supabase with all 50 migrations and serve the function, allowing the console's origin (the function only allows `http://localhost:5173` by default):
+1. From this integrated checkout (which includes the Admin function and the existing 50 migrations), start Supabase locally and serve the function, allowing the console's origin (the function only allows `http://localhost:5173` by default):
 
    ```bash
    npx supabase start
-   # Create supabase/functions/.env from its example and add:
-   # ADMIN_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
-   npx supabase functions serve admin-api --env-file supabase/functions/.env
+   echo "ADMIN_ALLOWED_ORIGINS=http://localhost:3000" > /tmp/admin-api.env
+   npx supabase functions serve admin-api --env-file /tmp/admin-api.env
    ```
 
-2. In another terminal, run `npm run setup:local` from `admin/`. It creates or verifies a local admin account and writes `.env.local`; credentials are in `.local/access.txt`. Alternatively, use an existing account with `app_metadata.role = "admin"`, assigned through a trusted Auth admin tool. Ordinary signup metadata cannot grant this role.
+2. Give your account the admin role. There is no admin registration endpoint: set `app_metadata.role = "admin"` on the user in Supabase Studio (Authentication → Users) or through the Auth admin API, then sign in again. The team's dev seed already has one: `admin@example.com` / `Passw0rd!`.
 
-3. For manual setup instead of the helper, copy `.env.example` to `.env.local` and set:
+3. Copy `.env.example` to `.env.local` and set:
 
    ```
    NEXT_PUBLIC_ADMIN_DATA_SOURCE=api
@@ -40,35 +45,28 @@ Other scripts: `npm run build`, `npm run lint`, `npm test`. Run `npm run setup:l
    NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key from `npx supabase status`>
    ```
 
-4. `npm run dev` and sign in with that account. A "Live API" badge shows in the header.
-
-The URL and public key must belong to the project hosting the Admin function. API mode starts with an empty cache and reads database records; it never imports mock fixtures or browser mock storage into Supabase. Local development seeds are dummy database records. Keep `.env.local` and `.local/` out of Git. Restart after changing settings, and rebuild before `npm run start`: `NEXT_PUBLIC_` settings are bundled at build time.
-
-For isolated stacks, Windows commands and hosted configuration, see the [integration guide](../docs/admin-local-integration.md).
+4. `npm run dev` and sign in with that account. The header shows "Live". For the verified isolated local stack and safe setup helper, see [the integration guide](../docs/admin-local-integration.md).
 
 What works in API mode today:
 
 | Area | API mode |
 | --- | --- |
-| Sign in / access restricted / session expired | Real Supabase Auth; `app_metadata.role = admin` required |
-| Overview, Users, Reports, Games & results, Rankings, Mini Leagues, Disputes | Read-only, real data, refreshed every 20s. Overview uses server registration and non-deleted game counts. User directory distinguishes registered, pending and deleted accounts. |
-| User rating | Shared rating card, 30-day singles trend and paginated actual rating changes. Not weekly leaderboard snapshots; doubles history is unavailable. |
-| Report evidence | Original stored submission snapshot, kept separate from the current reported content. Group targets are supported. Missing legacy evidence is labelled. |
-| Match monitoring | Structured game scores, stored opposing confirmation and paginated informational anomaly flags. Full per-player decision history is unavailable. |
-| Shared leaderboard | State/Nearby established-player board alongside the broader stored admin ratings. Nearby uses the signed-in administrator's suburb. |
-| Home carousel (`/content`) | Create, edit, publish/unpublish, reorder, remove. Images must be absolute HTTP(S) URLs; uploading is unavailable. Edits guard changes during the server request, but do not yet send the version originally opened by the editor. Reordering uses multiple requests and can partially succeed. |
-| Analytics | New users and reports received only; other metrics show "Not tracked yet" |
-| Suspend/restore account, hide/restore post, suspend/resume league, resolve/dismiss report | Disabled: seven moderation actions return 501 until DB02–DB05 and transactional audit support exist. |
-| Close league registration, delete league/game listing | Disabled. Close/delete league actions have no supported endpoint; upstream game deletion is 405 because it changes ranking eligibility. Listing-only deletion needs DB06. |
-| Activity log | Unavailable with a notice (DB01) |
-| Deleted records | Retained game-post deletions are shown separately; full league/deletion audit is unavailable. No deletion writes enabled. |
+| Sign in / access restricted / session expired | Real Supabase Auth; `app_metadata.role = admin` required. Admins are signed out after 30 idle minutes |
+| Overview, Users, Reports, Games & results, Rankings, Disputes (plus Mini Leagues when enabled) | Read-only, real data, refreshed every 20s. Includes registration/deleted state, report categories and evidence snapshots, per-game scores, confirmations and result flags |
+| Ranking history | Shared singles rating card, placement/grade, 30-day trend, paginated before/after rating and RD history; State/Nearby leaderboard reads |
+| Deleted records | Deleted game posts (kept for history); deleted Mini Leagues aren't stored yet |
+| Home carousel (`/content`) | Create, edit, publish/unpublish, reorder, remove. Images must be absolute `http(s)://` URLs; image upload works only in mock mode (no upload endpoint yet). Saving a card that changed in another session since you opened it is refused as a conflict. Removing asks for a reason and a typed DELETE; `DELETE /admin_post` has no reason field, so the reason isn't sent yet (it belongs in the DB01 log) |
+| Analytics | New registrations and reports received only; other metrics show "Not tracked yet" |
+| Suspend/restore account, hide/restore post, suspend/resume/close/delete league, resolve/dismiss report | Disabled: the backend returns 501 until the database changes in its `docs/admin-database-handoff.md` (DB02–DB06) land |
+| Delete game post | Disabled: the backend blocks it (405) because its deletion would remove the game's results from rankings, which Final v6 doesn't allow |
+| Activity log | Empty with a notice (DB01) |
 | Disputes | Read-only in both modes: Final v6 lets admins review disputes but not resolve them (the API returns 405) |
 
-When the backend adds a capability, verify its input/output contract and Final v6 restrictions before enabling it in `lib/api/capabilities.ts`. Status-only report/dispute compatibility writes are not a complete moderation decision, so Resolve/Dismiss actions remain disabled.
+When the backend adds a capability, remove it from `lib/api/capabilities.ts` and the existing UI starts calling it.
 
 ## Mock controls
 
-In mock mode, the **Mock controls** button (bottom left) is demo tooling for states a real backend would produce:
+In mock mode, the **Mock controls** button (bottom left) is testing tooling for states a real backend would produce. The console never says it's showing mock data, so the button is hidden by default: open any page with `?devtools=1` to show it in that browser (`?devtools=0` hides it again), or set `NEXT_PUBLIC_SHOW_DEV_TOOLS=true`. It offers:
 
 | Control | What it shows |
 | --- | --- |
@@ -86,11 +84,11 @@ Mock data and the mock session persist in `localStorage`, so a reload keeps your
 
 ```
 app/(auth)/            sign-in, session-expired, access-restricted
-app/(admin)/           every admin route; layout.tsx is the auth guard + shell
+app/(admin)/           every admin route; layout.tsx is the auth guard, data loader (API sync) and idle-timeout host around the shell
 components/layout/     shell, sidebar, mock controls, providers
 components/shared/     DataTable, ConfirmDialog, FeedbackToast, StatusBadge, EmptyState, PlayerProfileCard, charts…
 components/modals/     one confirmation component per flow
-lib/types/             console display types, mapped from supported API contracts
+lib/types/             entity types (snake_case, from the v1.2 API spec)
 lib/mock-data/         fixtures
 lib/mock-api/          RPCs (same names and arguments as the spec), selectors, store; each RPC delegates to lib/api in API mode
 lib/api/               real admin-api client, table sync + field mapping, capabilities (what the backend supports today)
@@ -101,11 +99,15 @@ lib/auth/              session: mock, or Supabase Auth in API mode (the real sec
 
 ## How the real API is wired
 
-Existing list pages use `@/lib/mock-api` selectors over the active store. Native monitoring components additionally call console read endpoints in API mode. API mode does not fall back to mock data after a backend error.
+Pages only import from `@/lib/mock-api`, so they don't know which backend is active.
 
-- `lib/api/sync.ts` loads compatibility table routes plus native user registration/account and overview endpoints into the read cache. It re-reads on sign-in, every 20 seconds and after each write. Signing out, switching accounts or losing administrator access clears the cache and invalidates old in-flight loads. Refresh failures are shown explicitly.
-- `lib/hooks/useConsoleRead.ts` and `components/monitoring/` load native rating/history, report evidence, result context/flags and leaderboard endpoints on demand, with error/retry states and pagination.
+- `lib/api/sync.ts` loads the backend's camelCase table routes (`/player`, `/player_profile`, `/report`, `/dispute`, `/mini_league`, `/match`, `/match_result`, `/rating_history`, `/result_flag`, …, with fields like `username`, `organiserGroupId`, report category and evidence) plus the console routes `/games` (game posts, including deleted ones), `/users` (emails and registration state) and `/analytics`, into the same store the mock uses, mapping them to the console's snake_case types. It re-reads on sign-in, every 20 seconds and after each write (in place of Realtime channels).
 - `lib/api/actions.ts` holds the write side: the spec RPCs plus PostgREST-style `/admin_post` CRUD for the carousel.
 - `lib/api/capabilities.ts` lists the actions and screens the backend can't support yet; the UI disables or annotates them.
 
-Fields the database doesn't have are left empty or labelled. Suspension remains unavailable, while deleted accounts and registration states come from real data. Game posts use the actual title where present and a format/suburb label otherwise. Deleted game posts are excluded from active moderation lists. Private report decisions and administrator activity history still require database support.
+Fields the database doesn't have are left empty or labelled, never invented. Every player shows as active because the database has no suspension state yet. Players who haven't chosen a username show as "No username yet", and deleted accounts as "Deleted player".
+
+## Known limitations
+
+- API mode re-reads whole tables every 20 seconds, including one Auth lookup per player to get emails. That's fine at current data sizes, but should move to per-page, server-side queries (filtering, paging) before launch.
+- Dialogs move focus in and close on Escape, but don't trap focus yet.

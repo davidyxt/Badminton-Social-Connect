@@ -1,24 +1,91 @@
 "use client";
 
-import { LogOut, Menu, X } from "lucide-react";
+import { LogOut, Menu, RefreshCw, TriangleAlert, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { syncNow, useSyncStatus } from "@/lib/api/sync";
 import { IS_API } from "@/lib/config";
 import type { Admin } from "@/lib/types";
 import { Avatar } from "@/components/shared/PlayerProfileCard";
 import { Sidebar } from "./Sidebar";
 
+/** Small monogram mark, shared with the auth screens. */
+export function BrandMark({ className = "" }: { className?: string }) {
+  return (
+    <span
+      className={`flex size-6 shrink-0 items-center justify-center rounded-md bg-ink text-[10px] font-semibold tracking-tight text-white ${className}`}
+      aria-hidden
+    >
+      BC
+    </span>
+  );
+}
+
 function Brand() {
   return (
-    <div className="flex items-center gap-2.5 px-5 py-5">
-      <span className="flex size-8 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white" aria-hidden>
-        BC
+    <div className="flex h-12 min-w-0 items-center gap-2 pr-2 pl-[18px]">
+      <BrandMark />
+      <span className="flex min-w-0 items-baseline gap-1.5">
+        <span className="truncate text-sm font-semibold tracking-tight text-ink">Badminton Connect</span>
+        <span className="text-sm text-ink-faint">Admin</span>
       </span>
-      <div className="leading-tight">
-        <div className="text-sm font-semibold text-white">Badminton Connect</div>
-        <div className="text-xs text-sidebar-text">Admin console</div>
-      </div>
     </div>
+  );
+}
+
+const timeFmt = new Intl.DateTimeFormat("en-AU", { hour: "numeric", minute: "2-digit" });
+
+function updatedAgo(at: number, now: number): string {
+  const minutes = Math.floor(Math.max(0, now - at) / 60_000);
+  if (minutes < 1) return "Updated just now";
+  if (minutes < 60) return `Updated ${minutes} min ago`;
+  return `Updated at ${timeFmt.format(at)}`;
+}
+
+/**
+ * API mode: when the data was last refreshed, and a warning with Retry when
+ * the latest refresh failed or couldn't load everything. The data on screen
+ * stays put either way.
+ */
+function SyncIndicator() {
+  const sync = useSyncStatus();
+  const [now, setNow] = useState(() => Date.now());
+  const [retrying, setRetrying] = useState(false);
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  if (!sync.lastSyncedAt) return null;
+
+  const retry = () => {
+    setRetrying(true);
+    void syncNow().finally(() => setRetrying(false));
+  };
+
+  if (!sync.lastError) {
+    return (
+      <span className="hidden text-xs text-ink-faint md:inline" role="status">
+        {updatedAgo(sync.lastSyncedAt, Math.max(now, sync.lastSyncedAt))}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1.5 text-xs text-warning" role="status" title={sync.lastError}>
+      <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
+      <span className="hidden truncate sm:inline">
+        {sync.lastSyncFailed ? `Couldn't refresh, showing data from ${timeFmt.format(sync.lastSyncedAt)}` : "Some data couldn't be loaded"}
+      </span>
+      <span className="sr-only">{sync.lastError}</span>
+      <button
+        type="button"
+        onClick={retry}
+        disabled={retrying}
+        className="inline-flex h-6 items-center gap-1 rounded-md px-1.5 font-medium hover:bg-warning-soft disabled:opacity-60"
+      >
+        <RefreshCw className={`size-3.5 ${retrying ? "animate-spin" : ""}`} aria-hidden />
+        Retry
+      </button>
+    </span>
   );
 }
 
@@ -43,13 +110,41 @@ export function AdminShell({
     setMobileOpen(false);
   }
 
+  // Mobile drawer as a modal dialog: focus moves in on open and back to "Open menu" on close,
+  // Escape closes it, and it closes if the window grows past the lg breakpoint (where it's hidden).
+  const openButtonRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (!mobileOpen) {
+      if (wasOpen.current) openButtonRef.current?.focus();
+      wasOpen.current = false;
+      return;
+    }
+    wasOpen.current = true;
+    closeButtonRef.current?.focus();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileOpen(false);
+    };
+    const wide = window.matchMedia("(min-width: 1024px)");
+    const onWide = () => {
+      if (wide.matches) setMobileOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    wide.addEventListener("change", onWide);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      wide.removeEventListener("change", onWide);
+    };
+  }, [mobileOpen]);
+
   return (
-    <div className="flex min-h-screen">
-      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded focus:bg-surface focus:px-3 focus:py-2">
+    <div className="flex min-h-screen bg-canvas">
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2 focus:text-[13px]">
         Skip to content
       </a>
 
-      <div className="hidden w-64 shrink-0 bg-sidebar lg:block">
+      <div className="hidden w-60 shrink-0 border-r border-line bg-sidebar lg:block">
         <aside className="sticky top-0 flex h-screen flex-col">
           <Brand />
           <Sidebar badges={badges} />
@@ -58,12 +153,22 @@ export function AdminShell({
 
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="absolute inset-0 bg-ink/50" onClick={() => setMobileOpen(false)} aria-hidden />
-          <aside className="relative flex h-full w-72 flex-col bg-sidebar">
-            <div className="flex items-center justify-between pr-3">
+          <div className="absolute inset-0 bg-black/20" onClick={() => setMobileOpen(false)} aria-hidden />
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation menu"
+            className="relative flex h-full w-[280px] max-w-[85vw] flex-col border-r border-line bg-sidebar shadow-[0_8px_30px_rgba(0,0,0,0.08)]">
+            <div className="flex items-center justify-between pr-2">
               <Brand />
-              <button type="button" onClick={() => setMobileOpen(false)} className="rounded p-1.5 text-sidebar-text hover:text-white" aria-label="Close menu">
-                <X className="size-5" />
+              <button
+                ref={closeButtonRef}
+                type="button"
+                onClick={() => setMobileOpen(false)}
+                className="rounded-md p-1.5 text-ink-faint hover:bg-sidebar-hover hover:text-ink"
+                aria-label="Close menu"
+              >
+                <X className="size-4" />
               </button>
             </div>
             <Sidebar badges={badges} onNavigate={() => setMobileOpen(false)} />
@@ -71,35 +176,44 @@ export function AdminShell({
         </div>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-surface/95 px-4 backdrop-blur sm:px-6">
-          <button type="button" onClick={() => setMobileOpen(true)} className="rounded-md p-1.5 text-ink-muted hover:bg-neutral-soft lg:hidden" aria-label="Open menu">
-            <Menu className="size-5" />
-          </button>
-          <div className="flex-1" />
-          <span
-            className={`hidden rounded-full px-2.5 py-0.5 text-xs font-medium sm:inline ${IS_API ? "bg-success-soft text-success" : "bg-warning-soft text-warning"}`}
-            title={IS_API ? "Reading and writing the admin-api Edge Function" : "In-memory sample data; nothing is saved to a server"}
+      {/* Inert behind the open drawer, so Tab stays inside it. */}
+      <div className="flex min-w-0 flex-1 flex-col" inert={mobileOpen}>
+        <header className="sticky top-0 z-30 flex h-12 items-center gap-3 border-b border-line bg-surface px-4 sm:px-6">
+          <button
+            ref={openButtonRef}
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            className="-ml-1.5 rounded-md p-1.5 text-ink-muted hover:bg-subtle hover:text-ink lg:hidden"
+            aria-label="Open menu"
           >
-            {IS_API ? "Live API" : "Mock data"}
-          </span>
-          <div className="flex items-center gap-2.5">
+            <Menu className="size-4" />
+          </button>
+          <BrandMark className="lg:hidden" />
+          <div className="flex-1" />
+          {IS_API && (
+            <>
+              <SyncIndicator />
+              <span className="hidden h-4 w-px bg-line sm:block" aria-hidden />
+            </>
+          )}
+          <div className="flex min-w-0 items-center gap-2">
             <Avatar name={admin.display_name} size="sm" />
-            <div className="hidden leading-tight sm:block">
-              <div className="text-sm font-medium text-ink">{admin.display_name}</div>
-              <div className="text-xs text-ink-faint">{admin.email}</div>
+            <div className="hidden min-w-0 leading-tight sm:block">
+              <div className="truncate text-[13px] font-medium text-ink">{admin.display_name}</div>
+              <div className="truncate text-xs text-ink-faint">{admin.email}</div>
             </div>
           </div>
           <button
             type="button"
             onClick={onSignOut}
-            className="ml-1 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-ink-muted hover:bg-neutral-soft hover:text-ink"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[13px] font-medium text-ink-muted hover:bg-subtle hover:text-ink"
+            aria-label="Sign out"
           >
             <LogOut className="size-4" aria-hidden />
             <span className="hidden sm:inline">Sign out</span>
           </button>
         </header>
-        <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
           {children}
         </main>
       </div>

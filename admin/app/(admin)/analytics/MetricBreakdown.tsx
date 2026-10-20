@@ -3,7 +3,7 @@
 import { KpiTile, NotTracked, SampleDataNotice } from "@/components/analytics/AnalyticsParts";
 import { DateRangePicker } from "@/components/analytics/DateRangePicker";
 import { isWeekly } from "@/components/analytics/range";
-import { Card, CardBody, CardHeader, StatTile } from "@/components/shared/Card";
+import { Card, CardBody, SectionHeading, StatGroup, StatTile } from "@/components/shared/Card";
 import { ColumnChart } from "@/components/shared/Charts";
 import { PageHeader } from "@/components/shared/PageHeader";
 import type { AnalyticsMetric } from "@/lib/mock-api";
@@ -18,15 +18,18 @@ export interface MetricSpec {
   description: string;
 }
 
-function MetricSection({ spec, unit }: { spec: MetricSpec; unit: string }) {
+/** `heading` is off when the page shows one metric, since the page title already names it. */
+function MetricSection({ spec, unit, heading }: { spec: MetricSpec; unit: string; heading: boolean }) {
   const m = useMetric(spec.metric);
   return (
-    <Card>
-      <CardHeader title={spec.label} description={spec.description} />
-      <CardBody>
-        {m.unavailable ? <NotTracked label={spec.label} /> : <ColumnChart title={`${spec.label}, ${unit}`} points={m.points} valueLabel={spec.valueLabel} />}
-      </CardBody>
-    </Card>
+    <section className="min-w-0">
+      {heading && <SectionHeading title={spec.label} description={spec.description} />}
+      <Card>
+        <CardBody>
+          {m.unavailable ? <NotTracked label={spec.label} /> : <ColumnChart title={`${spec.label}, ${unit}`} points={m.points} valueLabel={spec.valueLabel} />}
+        </CardBody>
+      </Card>
+    </section>
   );
 }
 
@@ -55,15 +58,17 @@ export function MetricBreakdown({ title, description, metrics }: { title: string
       <PageHeader breadcrumbs={[{ label: "Usage & Analytics", href: "/analytics" }, { label: title }]} title={title} description={description} />
       <SampleDataNotice />
       <DateRangePicker {...control} />
-      <div className={`mb-6 grid grid-cols-2 gap-4 ${metrics.length > 1 ? "lg:grid-cols-4" : "lg:grid-cols-2"}`}>
-        {metrics.map((spec) => (
-          <MetricTiles key={spec.metric} spec={spec} />
-        ))}
-      </div>
-      <div className={`grid gap-6 ${metrics.length > 1 ? "lg:grid-cols-2" : ""}`}>
-        {metrics.map((spec) => (
-          <MetricSection key={spec.metric} spec={spec} unit={unit} />
-        ))}
+      <div className="space-y-8">
+        <StatGroup className={metrics.length > 1 ? "" : "lg:max-w-md"}>
+          {metrics.map((spec) => (
+            <MetricTiles key={spec.metric} spec={spec} />
+          ))}
+        </StatGroup>
+        <div className={`grid gap-x-6 gap-y-8 ${metrics.length > 1 ? "lg:grid-cols-2" : ""}`}>
+          {metrics.map((spec) => (
+            <MetricSection key={spec.metric} spec={spec} unit={unit} heading={metrics.length > 1} />
+          ))}
+        </div>
       </div>
     </>
   );
