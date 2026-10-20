@@ -261,6 +261,33 @@
         #cbd7ea
       );
   }
+
+  /* Games have no photo yet, so the cards take turns with five
+     placeholder photos (960x320, the banner's shape at 2x). */
+  .game-card .game-image-empty {
+    background-position: center;
+    background-size: cover;
+  }
+
+  .game-card:nth-of-type(5n + 1) .game-image-empty {
+    background-image: url("../assets/images/game-placeholder-1.webp");
+  }
+
+  .game-card:nth-of-type(5n + 2) .game-image-empty {
+    background-image: url("../assets/images/game-placeholder-2.webp");
+  }
+
+  .game-card:nth-of-type(5n + 3) .game-image-empty {
+    background-image: url("../assets/images/game-placeholder-3.webp");
+  }
+
+  .game-card:nth-of-type(5n + 4) .game-image-empty {
+    background-image: url("../assets/images/game-placeholder-4.webp");
+  }
+
+  .game-card:nth-of-type(5n + 5) .game-image-empty {
+    background-image: url("../assets/images/game-placeholder-5.webp");
+  }
   
   .game-image-placeholder {
     position: absolute;

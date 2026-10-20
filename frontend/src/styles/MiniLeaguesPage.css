@@ -253,6 +253,37 @@
         #cbd7ea
       );
   }
+
+  /* Leagues have no photo yet, so the cards take turns with the five
+     placeholder photos also used on Find Games (960x320, 2x). */
+  .mini-league-card .league-card-image-empty {
+    background-position: center;
+    background-size: cover;
+  }
+
+  .mini-league-card .league-card-image-empty .league-image-placeholder {
+    display: none;
+  }
+
+  .mini-league-card:nth-of-type(5n + 1) .league-card-image-empty {
+    background-image: url("../assets/images/game-placeholder-1.webp");
+  }
+
+  .mini-league-card:nth-of-type(5n + 2) .league-card-image-empty {
+    background-image: url("../assets/images/game-placeholder-2.webp");
+  }
+
+  .mini-league-card:nth-of-type(5n + 3) .league-card-image-empty {
+    background-image: url("../assets/images/game-placeholder-3.webp");
+  }
+
+  .mini-league-card:nth-of-type(5n + 4) .league-card-image-empty {
+    background-image: url("../assets/images/game-placeholder-4.webp");
+  }
+
+  .mini-league-card:nth-of-type(5n + 5) .league-card-image-empty {
+    background-image: url("../assets/images/game-placeholder-5.webp");
+  }
   
   .league-image-placeholder {
     position: absolute;

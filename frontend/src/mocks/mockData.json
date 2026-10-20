@@ -1,0 +1,2013 @@
+{
+  "_about": "Mock data for the frontend while services/badmintonApi.js is missing. Captured from the local database as alice@example.com (dev seed) on 2026-10-20, except ratings, leaderboards, rating trend and mini leagues, which are hand-written in the real response shapes. Upcoming games are moved into the coming week when loaded.",
+  "currentUserId": "00000000-0000-0000-0000-00000000a001",
+  "home": {
+    "id": "00000000-0000-0000-0000-00000000a001",
+    "level": "Intermediate",
+    "initials": "AN",
+    "lastName": "Nguyen",
+    "username": "alice",
+    "firstName": "Alice",
+    "nextGames": [
+      "00000000-0000-0000-0000-00000000b001",
+      "00000000-0000-0000-0000-00000000b004"
+    ],
+    "ratingCard": {
+      "band": "Intermediate",
+      "wins": 2,
+      "grade": "C",
+      "rating": 1240,
+      "status": "Established",
+      "matches": 4,
+      "winRate": 50,
+      "placement": {
+        "played": 0,
+        "required": 10,
+        "opponents": 0,
+        "opponentsRequired": 5
+      },
+      "rankState": "VIC",
+      "stateRank": 3,
+      "ratingFormat": "singles",
+      "ratingsUpdatedAt": null,
+      "ratingChangeThisMonth": 35
+    },
+    "registered": true,
+    "greetingName": "Alice Nguyen",
+    "profileImageUrl": null,
+    "unreadNotifications": 4
+  },
+  "profile": {
+    "id": "00000000-0000-0000-0000-00000000a001",
+    "bio": "Social doubles most weeknights.",
+    "name": "Alice Nguyen",
+    "level": "Intermediate",
+    "state": "VIC",
+    "suburb": "Carlton",
+    "noShows": 0,
+    "initials": "AN",
+    "joinedAt": "2026-07-10T10:54:08.45014+00:00",
+    "lastName": "Nguyen",
+    "location": "Carlton area · VIC",
+    "username": "alice",
+    "firstName": "Alice",
+    "stateName": "Victoria",
+    "isVerified": true,
+    "ratingCard": {
+      "band": "Intermediate",
+      "wins": 2,
+      "grade": "C",
+      "rating": 1240,
+      "status": "Established",
+      "matches": 4,
+      "winRate": 50,
+      "rankState": "VIC",
+      "stateRank": 3,
+      "ratingFormat": "singles",
+      "ratingChangeThisMonth": 35
+    },
+    "gamesPlayed": 6,
+    "reliability": 100,
+    "availability": [
+      "mon_evening",
+      "wed_evening",
+      "sat_morning"
+    ],
+    "isDiscoverable": true,
+    "selfRatingBand": "intermediate",
+    "lateWithdrawals": 0,
+    "preferredFormat": "doubles",
+    "profileImageUrl": null,
+    "availabilityNote": "Most weeknights after 6",
+    "lateCancellations": 0,
+    "emailNotifications": true,
+    "unreadNotifications": 4
+  },
+  "games": {
+    "00000000-0000-0000-0000-00000000b001": {
+      "id": "00000000-0000-0000-0000-00000000b001",
+      "date": "Sat, 10 Oct",
+      "host": {
+        "id": "00000000-0000-0000-0000-00000000a001",
+        "name": "Alice Nguyen",
+        "rating": 1240,
+        "isGroup": false,
+        "initials": "AN",
+        "isBlocked": false,
+        "isDeleted": false,
+        "reliability": 100,
+        "profileImageUrl": null,
+        "verifiedMatches": 4
+      },
+      "rank": "Intermediate",
+      "time": "6:00 PM – 7:30 PM",
+      "notes": "Bring your own racquet. Shuttles provided.",
+      "style": "Social",
+      "title": "Friday Night Doubles",
+      "venue": "Melbourne Sports and Aquatic Centre@ MSAC",
+      "endsAt": "2026-10-10T08:30:00+00:00",
+      "format": "Doubles",
+      "invite": null,
+      "status": "open",
+      "suburb": "Albert Park",
+      "address": "30 Aughtie Dr, Albert Park",
+      "mapsUrl": "https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000",
+      "matches": [],
+      "players": [
+        {
+          "id": "00000000-0000-0000-0000-00000000a001",
+          "host": true,
+          "name": "Alice Nguyen",
+          "noShow": false,
+          "initials": "AN",
+          "isBlocked": false,
+          "isDeleted": false,
+          "profileImageUrl": null
+        },
+        {
+          "id": "00000000-0000-0000-0000-00000000a003",
+          "host": false,
+          "name": "Carol Chen",
+          "noShow": false,
+          "initials": "CC",
+          "isBlocked": false,
+          "isDeleted": false,
+          "profileImageUrl": null
+        },
+        {
+          "id": "00000000-0000-0000-0000-00000000a005",
+          "host": false,
+          "name": "Erin Walsh",
+          "noShow": false,
+          "initials": "EW",
+          "isBlocked": false,
+          "isDeleted": false,
+          "profileImageUrl": null
+        }
+      ],
+      "venueId": "3fefbd57-5378-4458-95b5-6eb338c8ad7c",
+      "duration": "90 mins",
+      "imageUrl": null,
+      "isInvite": false,
+      "location": "Melbourne Sports and Aquatic Centre@ MSAC",
+      "myStatus": "accepted",
+      "startsAt": "2026-10-10T07:00:00+00:00",
+      "canManage": true,
+      "maxPlayers": 4,
+      "hostActions": {
+        "canCancel": false,
+        "canDelete": false,
+        "noShowsOpenAt": "2026-10-10T07:00:00+00:00",
+        "canMarkNoShows": false,
+        "cancelClosesAt": "2026-10-10T03:00:00+00:00",
+        "noShowsCloseAt": "2026-10-12T08:30:00+00:00",
+        "cancelIsLateFrom": "2026-10-09T07:00:00+00:00"
+      },
+      "playerCount": 3,
+      "abilityLevel": "intermediate",
+      "locationDetail": "Albert Park",
+      "durationMinutes": 90,
+      "canRecordResult": false
+    },
+    "00000000-0000-0000-0000-00000000b002": {
+      "id": "00000000-0000-0000-0000-00000000b002",
+      "date": "Sun, 11 Oct",
+      "host": {
+        "id": "00000000-0000-0000-0000-00000000a002",
+        "name": "Bob Smith",
+        "rating": 980,
+        "isGroup": false,
+        "initials": "BS",
+        "isBlocked": false,
+        "isDeleted": false,
+        "reliability": 92,
+        "profileImageUrl": null,
+        "verifiedMatches": 1
+      },
+      "rank": "Any Rank",
+      "time": "10:00 AM – 11:00 AM",
+      "notes": null,
+      "style": "Social",
+      "title": "Badminton game",
+      "venue": "Melbourne Badminton Centre",
+      "endsAt": "2026-10-11T00:00:00+00:00",
+      "format": "Singles",
+      "invite": null,
+      "status": "open",
+      "suburb": "Blackburn North",
+      "address": "16 Joseph Street",
+      "mapsUrl": "https://www.google.com/maps/search/?api=1&query=-37.799510,145.144072",
+      "matches": [],
+      "players": [
+        {
+          "id": "00000000-0000-0000-0000-00000000a002",
+          "host": true,
+          "name": "Bob Smith",
+          "noShow": false,
+          "initials": "BS",
+          "isBlocked": false,
+          "isDeleted": false,
+          "profileImageUrl": null
+        }
+      ],
+      "venueId": "17e9bfb1-c039-46ff-b42c-13fd97113e8f",
+      "duration": "60 mins",
+      "imageUrl": null,
+      "isInvite": false,
+      "location": "Melbourne Badminton Centre",
+      "myStatus": null,
+      "startsAt": "2026-10-10T23:00:00+00:00",
+      "canManage": false,
+      "maxPlayers": 2,
+      "hostActions": null,
+      "playerCount": 1,
+      "abilityLevel": "any",
+      "locationDetail": "Blackburn North",
+      "canRecordResult": false,
+      "durationMinutes": 60
+    },
+    "00000000-0000-0000-0000-00000000b003": {
+      "id": "00000000-0000-0000-0000-00000000b003",
+      "date": "Tue, 13 Oct",
+      "host": {
+        "id": "00000000-0000-0000-0000-00000000a003",
+        "name": "Carol Chen",
+        "rating": 1310,
+        "isGroup": false,
+        "initials": "CC",
+        "isBlocked": false,
+        "isDeleted": false,
+        "reliability": 100,
+        "profileImageUrl": null,
+        "verifiedMatches": 2
+      },
+      "rank": "Upper Intermediate",
+      "time": "7:00 PM – 8:00 PM",
+      "notes": "School hall on Station St. Text me on arrival.",
+      "style": "Competitive",
+      "title": "Competitive singles",
+      "venue": null,
+      "endsAt": "2026-10-13T09:00:00+00:00",
+      "format": "Singles",
+      "invite": null,
+      "status": "open",
+      "suburb": "Box Hill South",
+      "address": null,
+      "mapsUrl": null,
+      "matches": [],
+      "players": [
+        {
+          "id": "00000000-0000-0000-0000-00000000a003",
+          "host": true,
+          "name": "Carol Chen",
+          "noShow": false,
+          "initials": "CC",
+          "isBlocked": false,
+          "isDeleted": false,
+          "profileImageUrl": null
+        }
+      ],
+      "venueId": null,
+      "duration": "60 mins",
+      "imageUrl": null,
+      "isInvite": false,
+      "location": "Box Hill South",
+      "myStatus": null,
+      "startsAt": "2026-10-13T08:00:00+00:00",
+      "canManage": false,
+      "maxPlayers": 2,
+      "hostActions": null,
+      "playerCount": 1,
+      "abilityLevel": "upper_intermediate",
+      "locationDetail": "Box Hill South",
+      "durationMinutes": 60,
+      "canRecordResult": false
+    },
+    "00000000-0000-0000-0000-00000000b004": {
+      "id": "00000000-0000-0000-0000-00000000b004",
+      "date": "Wed, 14 Oct",
+      "host": {
+        "id": "00000000-0000-0000-0000-00000000c001",
+        "name": "Smash Group",
+        "isGroup": true,
+        "initials": "SG",
+        "isActive": true,
+        "isVerified": true
+      },
+      "rank": "Any Rank",
+      "time": "7:00 PM – 9:00 PM",
+      "notes": "All levels welcome.",
+      "style": "Social",
+      "title": "Smash Group social night",
+      "venue": "Melbourne University Badminton Club",
+      "endsAt": "2026-10-14T10:00:00+00:00",
+      "format": "Doubles",
+      "invite": null,
+      "status": "open",
+      "suburb": "Parkville",
+      "address": "103 Tin Alley, Parkville VIC 3010",
+      "mapsUrl": "https://www.google.com/maps/search/?api=1&query=-37.796360,144.960652",
+      "matches": [],
+      "players": [
+        {
+          "id": "00000000-0000-0000-0000-00000000a001",
+          "host": false,
+          "name": "Alice Nguyen",
+          "noShow": false,
+          "initials": "AN",
+          "isBlocked": false,
+          "isDeleted": false,
+          "profileImageUrl": null
+        },
+        {
+          "id": "00000000-0000-0000-0000-00000000a005",
+          "host": false,
+          "name": "Erin Walsh",
+          "noShow": false,
+          "initials": "EW",
+          "isBlocked": false,
+          "isDeleted": false,
+          "profileImageUrl": null
+        }
+      ],
+      "venueId": "157e5368-e534-42d1-bfa5-c08d53136960",
+      "duration": "120 mins",
+      "imageUrl": null,
+      "isInvite": false,
+      "location": "Melbourne University Badminton Club",
+      "myStatus": "accepted",
+      "startsAt": "2026-10-14T08:00:00+00:00",
+      "canManage": true,
+      "maxPlayers": 8,
+      "hostActions": {
+        "canCancel": false,
+        "canDelete": false,
+        "noShowsOpenAt": "2026-10-14T08:00:00+00:00",
+        "canMarkNoShows": false,
+        "cancelClosesAt": "2026-10-14T04:00:00+00:00",
+        "noShowsCloseAt": "2026-10-16T10:00:00+00:00",
+        "cancelIsLateFrom": "2026-10-13T08:00:00+00:00"
+      },
+      "playerCount": 2,
+      "abilityLevel": "any",
+      "locationDetail": "Parkville",
+      "canRecordResult": true,
+      "durationMinutes": 120
+    },
+    "00000000-0000-0000-0000-00000000b007": {
+      "id": "00000000-0000-0000-0000-00000000b007",
+      "date": "Mon, 12 Oct",
+      "host": {
+        "id": "00000000-0000-0000-0000-00000000a006",
+        "name": "Frank Moore",
+        "rating": null,
+        "isGroup": false,
+        "initials": "FM",
+        "isBlocked": true,
+        "isDeleted": false,
+        "reliability": 100,
+        "profileImageUrl": null,
+        "verifiedMatches": 0
+      },
+      "rank": "Intermediate",
+      "time": "12:00 PM – 12:45 PM",
+      "notes": null,
+      "style": "Social",
+      "title": "Lunchtime singles",
+      "venue": "Melbourne Unique Badminton Centre",
+      "endsAt": "2026-10-12T01:45:00+00:00",
+      "format": "Singles",
+      "invite": null,
+      "status": "open",
+      "suburb": "Mount Waverley",
+      "address": "Suite 1, Building 2/88 Ricketts Rd, Mount Waverley VIC 3149",
+      "mapsUrl": "https://www.google.com/maps/search/?api=1&query=-37.896937,145.140831",
+      "matches": [],
+      "players": [
+        {
+          "id": "00000000-0000-0000-0000-00000000a006",
+          "host": true,
+          "name": "Frank Moore",
+          "noShow": false,
+          "initials": "FM",
+          "isBlocked": true,
+          "isDeleted": false,
+          "profileImageUrl": null
+        }
+      ],
+      "venueId": "08806943-9033-43a9-94ed-f6f688cfcd83",
+      "duration": "45 mins",
+      "imageUrl": null,
+      "isInvite": false,
+      "location": "Melbourne Unique Badminton Centre",
+      "myStatus": null,
+      "startsAt": "2026-10-12T01:00:00+00:00",
+      "canManage": false,
+      "maxPlayers": 2,
+      "hostActions": null,
+      "playerCount": 1,
+      "abilityLevel": "intermediate",
+      "locationDetail": "Mount Waverley",
+      "canRecordResult": false,
+      "durationMinutes": 45
+    },
+    "00000000-0000-0000-0000-00000000c101": {
+      "id": "00000000-0000-0000-0000-00000000c101",
+      "date": "Thu, 24 Sep",
+      "host": {
+        "id": "00000000-0000-0000-0000-00000000a001",
+        "name": "Alice Nguyen",
+        "rating": 1240,
+        "isGroup": false,
+        "initials": "AN",
+        "isBlocked": false,
+        "isDeleted": false,
+        "reliability": 100,
+        "profileImageUrl": null,
+        "verifiedMatches": 4
+      },
+      "rank": "Intermediate",
+      "time": "6:00 PM – 7:00 PM",
+      "notes": null,
+      "style": "Competitive",
+      "title": "Spring ladder: round 1",
+      "venue": "Melbourne Sports and Aquatic Centre@ MSAC",
+      "endsAt": "2026-09-24T09:00:00+00:00",
+      "format": "Singles",
+      "invite": null,
+      "status": "completed",
+      "suburb": "Albert Park",
+      "address": "30 Aughtie Dr, Albert Park",
+      "mapsUrl": "https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000",
+      "matches": [],
+      "players": [
+        {
+          "id": "00000000-0000-0000-0000-00000000a001",
+          "host": true,
+          "name": "Alice Nguyen",
+          "noShow": false,
+          "initials": "AN",
+          "isBlocked": false,
+          "isDeleted": false,
+          "profileImageUrl": null
+        },
+        {
+          "id": "00000000-0000-0000-0000-00000000a003",
+          "host": false,
+          "name": "Carol Chen",
+          "noShow": false,
+          "initials": "CC",
+          "isBlocked": false,
+          "isDeleted": false,
+          "profileImageUrl": null
+        }
+      ],
+      "venueId": "3fefbd57-5378-4458-95b5-6eb338c8ad7c",
+      "duration": "60 mins",
+      "imageUrl": null,
+      "isInvite": false,
+      "location": "Melbourne Sports and Aquatic Centre@ MSAC",
+      "myStatus": "accepted",
+      "startsAt": "2026-09-24T08:00:00+00:00",
+      "canManage": true,
+      "maxPlayers": 2,
+      "hostActions": {
+        "canCancel": false,
+        "canDelete": false,
+        "noShowsOpenAt": "2026-09-24T08:00:00+00:00",
+        "canMarkNoShows": false,
+        "cancelClosesAt": "2026-09-24T04:00:00+00:00",
+        "noShowsCloseAt": "2026-09-26T09:00:00+00:00",
+        "cancelIsLateFrom": "2026-09-23T08:00:00+00:00"
+      },
+      "playerCount": 2,
+      "abilityLevel": "intermediate",
+      "locationDetail": "Albert Park",
+      "durationMinutes": 60,
+      "canRecordResult": false
+    },
+    "00000000-0000-0000-0000-00000000c102": {
+      "id": "00000000-0000-0000-0000-00000000c102",
+      "date": "Mon, 28 Sep",
+      "host": {
+        "id": "00000000-0000-0000-0000-00000000a002",
+        "name": "Bob Smith",
+        "rating": 980,
+        "isGroup": false,
+        "initials": "BS",
+        "isBlocked": false,
+        "isDeleted": false,
+        "reliability": 92,
+        "profileImageUrl": null,
+        "verifiedMatches": 1
+      },
+      "rank": "Any Rank",
+      "time": "7:00 PM – 8:30 PM",
+      "notes": null,
+      "style": "Social",
+      "title": "Clayton doubles",
+      "venue": "Melbourne Badminton Centre",
+      "endsAt": "2026-09-28T10:30:00+00:00",
+      "format": "Doubles",
+      "invite": null,
+      "status": "completed",
+      "suburb": "Blackburn North",
+      "address": "16 Joseph Street",
+      "mapsUrl": "https://www.google.com/maps/search/?api=1&query=-37.799510,145.144072",
+      "matches": [
+        {
+          "sides": {
+            "a": [
+              {
+                "id": "00000000-0000-0000-0000-00000000a001",
+                "isMe": true,
+                "name": "Alice Nguyen",
+                "noShow": false,
+                "initials": "AN",
+                "isBlocked": false,
+                "isDeleted": false,
+                "profileImageUrl": null
+              },
+              {
+                "id": "00000000-0000-0000-0000-00000000a002",
+                "isMe": false,
+                "name": "Bob Smith",
+                "noShow": false,
+                "initials": "BS",
+                "isBlocked": false,
+                "isDeleted": false,
+                "profileImageUrl": null
+              }
+            ],
+            "b": [
+              {
+                "id": "00000000-0000-0000-0000-00000000a003",
+                "isMe": false,
+                "name": "Carol Chen",
+                "noShow": false,
+                "initials": "CC",
+                "isBlocked": false,
+                "isDeleted": false,
+                "profileImageUrl": null
+              },
+              {
+                "id": "00000000-0000-0000-0000-00000000a005",
+                "isMe": false,
+                "name": "Erin Walsh",
+                "noShow": false,
+                "initials": "EW",
+                "isBlocked": false,
+                "isDeleted": false,
+                "profileImageUrl": null
+              }
+            ]
+          },
+          "format": "Doubles",
+          "gameId": "00000000-0000-0000-0000-00000000c102",
+          "mySide": "a",
+          "result": {
+            "id": "54e26c56-e7ee-470c-b4a5-b8719f110317",
+            "iWon": false,
+            "games": [],
+            "score": "21-18 19-21 21-16",
+            "status": "confirmed",
+            "dispute": null,
+            "expiresAt": null,
+            "canConfirm": false,
+            "canDispute": false,
+            "confirmedAt": null,
+            "submittedAt": "2026-09-28T10:54:08.552388+00:00",
+            "submittedBy": {
+              "id": "00000000-0000-0000-0000-00000000a003",
+              "name": "Carol Chen",
+              "initials": "CC"
+            },
+            "winningSide": "b",
+            "ratingChange": null,
+            "ratingPending": false,
+            "verificationStatus": "verified"
+          },
+          "matchId": "00000000-0000-0000-0000-00000000d102",
+          "location": "Melbourne Badminton Centre",
+          "playedAt": "2026-09-28T09:00:00+00:00",
+          "formatValue": "doubles"
+        }
+      ],
+      "players": [
+        {
+          "id": "00000000-0000-0000-0000-00000000a002",
+          "host": true,
+          "name": "Bob Smith",
+          "noShow": false,
+          "initials": "BS",
+          "isBlocked": false,
+          "isDeleted": false,
+          "profileImageUrl": null
+        },
+        {
+          "id": "00000000-0000-0000-0000-00000000a001",
+          "host": false,
+          "name": "Alice Nguyen",
+          "noShow": false,
+          "initials": "AN",
+          "isBlocked": false,
+          "isDeleted": false,
+          "profileImageUrl": null
+        },
+        {
+          "id": "00000000-0000-0000-0000-00000000a003",
+          "host": false,
+          "name": "Carol Chen",
+          "noShow": false,
+          "initials": "CC",
+          "isBlocked": false,
+          "isDeleted": false,
+          "profileImageUrl": null
+        },
+        {
+          "id": "00000000-0000-0000-0000-00000000a005",
+          "host": false,
+          "name": "Erin Walsh",
+          "noShow": false,
+          "initials": "EW",
+          "isBlocked": false,
+          "isDeleted": false,
+          "profileImageUrl": null
+        }
+      ],
+      "venueId": "17e9bfb1-c039-46ff-b42c-13fd97113e8f",
+      "duration": "90 mins",
+      "imageUrl": null,
+      "isInvite": false,
+      "location": "Melbourne Badminton Centre",
+      "myStatus": "accepted",
+      "startsAt": "2026-09-28T09:00:00+00:00",
+      "canManage": false,
+      "maxPlayers": 6,
+      "hostActions": null,
+      "playerCount": 4,
+      "abilityLevel": "any",
+      "locationDetail": "Blackburn North",
+      "canRecordResult": true,
+      "durationMinutes": 90
+    },
+    "00000000-0000-0000-0000-00000000c104": {
+      "id": "00000000-0000-0000-0000-00000000c104",
+      "date": "Fri, 18 Sep",
+      "host": {
+        "id": "00000000-0000-0000-0000-00000000a008",
+        "name": "Deleted User",
+        "rating": 1100,
+        "isGroup": false,
+        "initials": "DU",
+        "isBlocked": false,
+        "isDeleted": true,
+        "reliability": 100,
+        "profileImageUrl": null,
+        "verifiedMatches": 1
+      },
+      "rank": "Any Rank",
+      "time": "6:00 PM – 7:00 PM",
+      "notes": null,
+      "style": "Social",
+      "title": "Badminton game",
+      "venue": null,
+      "endsAt": "2026-09-18T09:00:00+00:00",
+      "format": "Singles",
+      "invite": null,
+      "status": "completed",
+      "suburb": "Richmond",
+      "address": null,
+      "mapsUrl": null,
+      "matches": [
+        {
+          "sides": {
+            "a": [
+              {
+                "id": "00000000-0000-0000-0000-00000000a008",
+                "isMe": false,
+                "name": "Deleted User",
+                "noShow": false,
+                "initials": "DU",
+                "isBlocked": false,
+                "isDeleted": true,
+                "profileImageUrl": null
+              }
+            ],
+            "b": [
+              {
+                "id": "00000000-0000-0000-0000-00000000a001",
+                "isMe": true,
+                "name": "Alice Nguyen",
+                "noShow": false,
+                "initials": "AN",
+                "isBlocked": false,
+                "isDeleted": false,
+                "profileImageUrl": null
+              }
+            ]
+          },
+          "format": "Singles",
+          "gameId": "00000000-0000-0000-0000-00000000c104",
+          "mySide": "b",
+          "result": {
+            "id": "6f6fefed-b8be-40fc-9215-3ef8c6a4f711",
+            "iWon": true,
+            "games": [],
+            "score": "15-21 18-21",
+            "status": "confirmed",
+            "dispute": null,
+            "expiresAt": null,
+            "canConfirm": false,
+            "canDispute": false,
+            "confirmedAt": null,
+            "submittedAt": "2026-09-18T10:54:08.552388+00:00",
+            "submittedBy": {
+              "id": "00000000-0000-0000-0000-00000000a001",
+              "name": "Alice Nguyen",
+              "initials": "AN"
+            },
+            "winningSide": "b",
+            "ratingChange": null,
+            "ratingPending": true,
+            "verificationStatus": "verified"
+          },
+          "matchId": "00000000-0000-0000-0000-00000000d104",
+          "location": "Richmond",
+          "playedAt": "2026-09-18T08:00:00+00:00",
+          "formatValue": "singles"
+        }
+      ],
+      "players": [
+        {
+          "id": "00000000-0000-0000-0000-00000000a008",
+          "host": true,
+          "name": "Deleted User",
+          "noShow": false,
+          "initials": "DU",
+          "isBlocked": false,
+          "isDeleted": true,
+          "profileImageUrl": null
+        },
+        {
+          "id": "00000000-0000-0000-0000-00000000a001",
+          "host": false,
+          "name": "Alice Nguyen",
+          "noShow": false,
+          "initials": "AN",
+          "isBlocked": false,
+          "isDeleted": false,
+          "profileImageUrl": null
+        }
+      ],
+      "venueId": null,
+      "duration": "60 mins",
+      "imageUrl": null,
+      "isInvite": false,
+      "location": "Richmond",
+      "myStatus": "accepted",
+      "startsAt": "2026-09-18T08:00:00+00:00",
+      "canManage": false,
+      "maxPlayers": 2,
+      "hostActions": null,
+      "playerCount": 2,
+      "abilityLevel": "any",
+      "locationDetail": "Richmond",
+      "canRecordResult": true,
+      "durationMinutes": 60
+    },
+    "00000000-0000-0000-0000-00000000c106": {
+      "id": "00000000-0000-0000-0000-00000000c106",
+      "date": "Sat, 3 Oct",
+      "host": {
+        "id": "00000000-0000-0000-0000-00000000a001",
+        "name": "Alice Nguyen",
+        "rating": 1240,
+        "isGroup": false,
+        "initials": "AN",
+        "isBlocked": false,
+        "isDeleted": false,
+        "reliability": 100,
+        "profileImageUrl": null,
+        "verifiedMatches": 4
+      },
+      "rank": "Any Rank",
+      "time": "6:00 PM – 7:00 PM",
+      "notes": null,
+      "style": "Competitive",
+      "title": "Spring ladder: round 3",
+      "venue": "Melbourne Sports and Aquatic Centre@ MSAC",
+      "endsAt": "2026-10-03T09:00:00+00:00",
+      "format": "Singles",
+      "invite": null,
+      "status": "completed",
+      "suburb": "Albert Park",
+      "address": "30 Aughtie Dr, Albert Park",
+      "mapsUrl": "https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000",
+      "matches": [
+        {
+          "sides": {
+            "a": [
+              {
+                "id": "00000000-0000-0000-0000-00000000a001",
+                "isMe": true,
+                "name": "Alice Nguyen",
+                "noShow": false,
+                "initials": "AN",
+                "isBlocked": false,
+                "isDeleted": false,
+                "profileImageUrl": null
+              }
+            ],
+            "b": [
+              {
+                "id": "00000000-0000-0000-0000-00000000a004",
+                "isMe": false,
+                "name": "Dan Kowalski",
+                "noShow": false,
+                "initials": "DK",
+                "isBlocked": false,
+                "isDeleted": false,
+                "profileImageUrl": null
+              }
+            ]
+          },
+          "format": "Singles",
+          "gameId": "00000000-0000-0000-0000-00000000c106",
+          "mySide": "a",
+          "result": {
+            "id": "8ecc7b10-cc9c-43e6-90b1-4f8cac563b73",
+            "iWon": false,
+            "games": [],
+            "score": "17-21 21-23",
+            "status": "confirmed",
+            "dispute": null,
+            "expiresAt": null,
+            "canConfirm": false,
+            "canDispute": false,
+            "confirmedAt": null,
+            "submittedAt": "2026-10-03T10:54:08.552388+00:00",
+            "submittedBy": {
+              "id": "00000000-0000-0000-0000-00000000a004",
+              "name": "Dan Kowalski",
+              "initials": "DK"
+            },
+            "winningSide": "b",
+            "ratingChange": null,
+            "ratingPending": true,
+            "verificationStatus": "verified"
+          },
+          "matchId": "00000000-0000-0000-0000-00000000d106",
+          "location": "Melbourne Sports and Aquatic Centre@ MSAC",
+          "playedAt": "2026-10-03T08:00:00+00:00",
+          "formatValue": "singles"
+        }
+      ],
+      "players": [
+        {
+          "id": "00000000-0000-0000-0000-00000000a001",
+          "host": true,
+          "name": "Alice Nguyen",
+          "noShow": false,
+          "initials": "AN",
+          "isBlocked": false,
+          "isDeleted": false,
+          "profileImageUrl": null
+        },
+        {
+          "id": "00000000-0000-0000-0000-00000000a004",
+          "host": false,
+          "name": "Dan Kowalski",
+          "noShow": false,
+          "initials": "DK",
+          "isBlocked": false,
+          "isDeleted": false,
+          "profileImageUrl": null
+        }
+      ],
+      "venueId": "3fefbd57-5378-4458-95b5-6eb338c8ad7c",
+      "duration": "60 mins",
+      "imageUrl": null,
+      "isInvite": false,
+      "location": "Melbourne Sports and Aquatic Centre@ MSAC",
+      "myStatus": "accepted",
+      "startsAt": "2026-10-03T08:00:00+00:00",
+      "canManage": true,
+      "maxPlayers": 2,
+      "hostActions": {
+        "canCancel": false,
+        "canDelete": false,
+        "noShowsOpenAt": "2026-10-03T08:00:00+00:00",
+        "canMarkNoShows": false,
+        "cancelClosesAt": "2026-10-03T04:00:00+00:00",
+        "noShowsCloseAt": "2026-10-05T09:00:00+00:00",
+        "cancelIsLateFrom": "2026-10-02T08:00:00+00:00"
+      },
+      "playerCount": 2,
+      "abilityLevel": "any",
+      "locationDetail": "Albert Park",
+      "canRecordResult": true,
+      "durationMinutes": 60
+    }
+  },
+  "joinRequests": {
+    "00000000-0000-0000-0000-00000000b001": [
+      {
+        "id": "00000000-0000-0000-0000-00000000b001:00000000-0000-0000-0000-00000000a003",
+        "game": {
+          "id": "00000000-0000-0000-0000-00000000b001",
+          "date": "Sat, 10 Oct",
+          "host": {
+            "id": "00000000-0000-0000-0000-00000000a001",
+            "name": "Alice Nguyen",
+            "isGroup": false,
+            "initials": "AN",
+            "isBlocked": false,
+            "isDeleted": false,
+            "profileImageUrl": null
+          },
+          "rank": "Intermediate",
+          "time": "6:00 PM – 7:30 PM",
+          "style": "Social",
+          "title": "Friday Night Doubles",
+          "venue": "Melbourne Sports and Aquatic Centre@ MSAC",
+          "endsAt": "2026-10-10T08:30:00+00:00",
+          "format": "Doubles",
+          "status": "open",
+          "suburb": "Albert Park",
+          "mapsUrl": "https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000",
+          "duration": "90 mins",
+          "imageUrl": null,
+          "isInvite": false,
+          "location": "Melbourne Sports and Aquatic Centre@ MSAC, Albert Park",
+          "myStatus": "accepted",
+          "startsAt": "2026-10-10T07:00:00+00:00",
+          "maxPlayers": 4,
+          "playerCount": 3,
+          "durationMinutes": 90
+        },
+        "host": {
+          "id": "00000000-0000-0000-0000-00000000a001",
+          "name": "Alice Nguyen",
+          "isGroup": false,
+          "initials": "AN",
+          "isBlocked": false,
+          "isDeleted": false,
+          "profileImageUrl": null
+        },
+        "status": "accepted",
+        "requester": {
+          "id": "00000000-0000-0000-0000-00000000a003",
+          "name": "Carol Chen",
+          "level": "Upper Intermediate",
+          "rating": 1310,
+          "message": null,
+          "noShows": 0,
+          "initials": "CC",
+          "reliability": 100,
+          "lateWithdrawals": 0,
+          "preferredFormat": "Singles",
+          "profileImageUrl": null,
+          "verifiedMatches": 2
+        },
+        "requestedAt": "2026-10-05T10:54:08.514826+00:00"
+      },
+      {
+        "id": "00000000-0000-0000-0000-00000000b001:00000000-0000-0000-0000-00000000a005",
+        "game": {
+          "id": "00000000-0000-0000-0000-00000000b001",
+          "date": "Sat, 10 Oct",
+          "host": {
+            "id": "00000000-0000-0000-0000-00000000a001",
+            "name": "Alice Nguyen",
+            "isGroup": false,
+            "initials": "AN",
+            "isBlocked": false,
+            "isDeleted": false,
+            "profileImageUrl": null
+          },
+          "rank": "Intermediate",
+          "time": "6:00 PM – 7:30 PM",
+          "style": "Social",
+          "title": "Friday Night Doubles",
+          "venue": "Melbourne Sports and Aquatic Centre@ MSAC",
+          "endsAt": "2026-10-10T08:30:00+00:00",
+          "format": "Doubles",
+          "status": "open",
+          "suburb": "Albert Park",
+          "mapsUrl": "https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000",
+          "duration": "90 mins",
+          "imageUrl": null,
+          "isInvite": false,
+          "location": "Melbourne Sports and Aquatic Centre@ MSAC, Albert Park",
+          "myStatus": "accepted",
+          "startsAt": "2026-10-10T07:00:00+00:00",
+          "maxPlayers": 4,
+          "playerCount": 3,
+          "durationMinutes": 90
+        },
+        "host": {
+          "id": "00000000-0000-0000-0000-00000000a001",
+          "name": "Alice Nguyen",
+          "isGroup": false,
+          "initials": "AN",
+          "isBlocked": false,
+          "isDeleted": false,
+          "profileImageUrl": null
+        },
+        "status": "accepted",
+        "requester": {
+          "id": "00000000-0000-0000-0000-00000000a005",
+          "name": "Erin Walsh",
+          "level": "Lower Intermediate",
+          "rating": 1050,
+          "message": null,
+          "noShows": 0,
+          "initials": "EW",
+          "reliability": 92,
+          "lateWithdrawals": 1,
+          "preferredFormat": "Mixed Doubles",
+          "profileImageUrl": null,
+          "verifiedMatches": 1
+        },
+        "requestedAt": "2026-10-06T10:54:08.514826+00:00"
+      },
+      {
+        "id": "00000000-0000-0000-0000-00000000b001:00000000-0000-0000-0000-00000000a002",
+        "game": {
+          "id": "00000000-0000-0000-0000-00000000b001",
+          "date": "Sat, 10 Oct",
+          "host": {
+            "id": "00000000-0000-0000-0000-00000000a001",
+            "name": "Alice Nguyen",
+            "isGroup": false,
+            "initials": "AN",
+            "isBlocked": false,
+            "isDeleted": false,
+            "profileImageUrl": null
+          },
+          "rank": "Intermediate",
+          "time": "6:00 PM – 7:30 PM",
+          "style": "Social",
+          "title": "Friday Night Doubles",
+          "venue": "Melbourne Sports and Aquatic Centre@ MSAC",
+          "endsAt": "2026-10-10T08:30:00+00:00",
+          "format": "Doubles",
+          "status": "open",
+          "suburb": "Albert Park",
+          "mapsUrl": "https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000",
+          "duration": "90 mins",
+          "imageUrl": null,
+          "isInvite": false,
+          "location": "Melbourne Sports and Aquatic Centre@ MSAC, Albert Park",
+          "myStatus": "accepted",
+          "startsAt": "2026-10-10T07:00:00+00:00",
+          "maxPlayers": 4,
+          "playerCount": 3,
+          "durationMinutes": 90
+        },
+        "host": {
+          "id": "00000000-0000-0000-0000-00000000a001",
+          "name": "Alice Nguyen",
+          "isGroup": false,
+          "initials": "AN",
+          "isBlocked": false,
+          "isDeleted": false,
+          "profileImageUrl": null
+        },
+        "status": "pending",
+        "requester": {
+          "id": "00000000-0000-0000-0000-00000000a002",
+          "name": "Bob Smith",
+          "level": "Beginner",
+          "rating": 980,
+          "message": "Hi! New to doubles but keen to learn. Happy to bring shuttles.",
+          "noShows": 0,
+          "initials": "BS",
+          "reliability": 92,
+          "lateWithdrawals": 0,
+          "preferredFormat": "Any",
+          "profileImageUrl": null,
+          "verifiedMatches": 1
+        },
+        "requestedAt": "2026-10-07T14:54:08.514826+00:00"
+      },
+      {
+        "id": "00000000-0000-0000-0000-00000000b001:00000000-0000-0000-0000-00000000a009",
+        "game": {
+          "id": "00000000-0000-0000-0000-00000000b001",
+          "date": "Sat, 10 Oct",
+          "host": {
+            "id": "00000000-0000-0000-0000-00000000a001",
+            "name": "Alice Nguyen",
+            "isGroup": false,
+            "initials": "AN",
+            "isBlocked": false,
+            "isDeleted": false,
+            "profileImageUrl": null
+          },
+          "rank": "Intermediate",
+          "time": "6:00 PM – 7:30 PM",
+          "style": "Social",
+          "title": "Friday Night Doubles",
+          "venue": "Melbourne Sports and Aquatic Centre@ MSAC",
+          "endsAt": "2026-10-10T08:30:00+00:00",
+          "format": "Doubles",
+          "status": "open",
+          "suburb": "Albert Park",
+          "mapsUrl": "https://www.google.com/maps/search/?api=1&query=-37.842100,144.962000",
+          "duration": "90 mins",
+          "imageUrl": null,
+          "isInvite": false,
+          "location": "Melbourne Sports and Aquatic Centre@ MSAC, Albert Park",
+          "myStatus": "accepted",
+          "startsAt": "2026-10-10T07:00:00+00:00",
+          "maxPlayers": 4,
+          "playerCount": 3,
+          "durationMinutes": 90
+        },
+        "host": {
+          "id": "00000000-0000-0000-0000-00000000a001",
+          "name": "Alice Nguyen",
+          "isGroup": false,
+          "initials": "AN",
+          "isBlocked": false,
+          "isDeleted": false,
+          "profileImageUrl": null
+        },
+        "status": "pending",
+        "requester": {
+          "id": "00000000-0000-0000-0000-00000000a009",
+          "name": "Ivy Patel",
+          "level": "Beginner",
+          "rating": null,
+          "message": null,
+          "noShows": 0,
+          "initials": "IP",
+          "reliability": 100,
+          "lateWithdrawals": 0,
+          "preferredFormat": "Any",
+          "profileImageUrl": null,
+          "verifiedMatches": 0
+        },
+        "requestedAt": "2026-10-08T08:54:08.514826+00:00"
+      }
+    ]
+  },
+  "matches": {
+    "00000000-0000-0000-0000-00000000d101": {
+      "sides": {
+        "a": [
+          {
+            "id": "00000000-0000-0000-0000-00000000a001",
+            "isMe": true,
+            "name": "Alice Nguyen",
+            "noShow": false,
+            "initials": "AN",
+            "isBlocked": false,
+            "isDeleted": false,
+            "profileImageUrl": null
+          }
+        ],
+        "b": [
+          {
+            "id": "00000000-0000-0000-0000-00000000a003",
+            "isMe": false,
+            "name": "Carol Chen",
+            "noShow": false,
+            "initials": "CC",
+            "isBlocked": false,
+            "isDeleted": false,
+            "profileImageUrl": null
+          }
+        ]
+      },
+      "format": "Singles",
+      "gameId": "00000000-0000-0000-0000-00000000c101",
+      "mySide": "a",
+      "result": {
+        "id": "1606135e-bef4-44ac-b719-f8d402057244",
+        "iWon": true,
+        "games": [],
+        "score": "21-15 21-17",
+        "status": "confirmed",
+        "dispute": null,
+        "expiresAt": null,
+        "canConfirm": false,
+        "canDispute": false,
+        "confirmedAt": null,
+        "submittedAt": "2026-09-24T10:54:08.552388+00:00",
+        "submittedBy": {
+          "id": "00000000-0000-0000-0000-00000000a001",
+          "name": "Alice Nguyen",
+          "initials": "AN"
+        },
+        "winningSide": "a",
+        "ratingChange": null,
+        "ratingPending": true,
+        "verificationStatus": "verified"
+      },
+      "matchId": "00000000-0000-0000-0000-00000000d101",
+      "location": "Melbourne Sports and Aquatic Centre@ MSAC",
+      "playedAt": "2026-09-24T08:00:00+00:00",
+      "formatValue": "singles"
+    },
+    "00000000-0000-0000-0000-00000000d102": {
+      "sides": {
+        "a": [
+          {
+            "id": "00000000-0000-0000-0000-00000000a001",
+            "isMe": true,
+            "name": "Alice Nguyen",
+            "noShow": false,
+            "initials": "AN",
+            "isBlocked": false,
+            "isDeleted": false,
+            "profileImageUrl": null
+          },
+          {
+            "id": "00000000-0000-0000-0000-00000000a002",
+            "isMe": false,
+            "name": "Bob Smith",
+            "noShow": false,
+            "initials": "BS",
+            "isBlocked": false,
+            "isDeleted": false,
+            "profileImageUrl": null
+          }
+        ],
+        "b": [
+          {
+            "id": "00000000-0000-0000-0000-00000000a003",
+            "isMe": false,
+            "name": "Carol Chen",
+            "noShow": false,
+            "initials": "CC",
+            "isBlocked": false,
+            "isDeleted": false,
+            "profileImageUrl": null
+          },
+          {
+            "id": "00000000-0000-0000-0000-00000000a005",
+            "isMe": false,
+            "name": "Erin Walsh",
+            "noShow": false,
+            "initials": "EW",
+            "isBlocked": false,
+            "isDeleted": false,
+            "profileImageUrl": null
+          }
+        ]
+      },
+      "format": "Doubles",
+      "gameId": "00000000-0000-0000-0000-00000000c102",
+      "mySide": "a",
+      "result": {
+        "id": "54e26c56-e7ee-470c-b4a5-b8719f110317",
+        "iWon": false,
+        "games": [],
+        "score": "21-18 19-21 21-16",
+        "status": "confirmed",
+        "dispute": null,
+        "expiresAt": null,
+        "canConfirm": false,
+        "canDispute": false,
+        "confirmedAt": null,
+        "submittedAt": "2026-09-28T10:54:08.552388+00:00",
+        "submittedBy": {
+          "id": "00000000-0000-0000-0000-00000000a003",
+          "name": "Carol Chen",
+          "initials": "CC"
+        },
+        "winningSide": "b",
+        "ratingChange": null,
+        "ratingPending": false,
+        "verificationStatus": "verified"
+      },
+      "matchId": "00000000-0000-0000-0000-00000000d102",
+      "location": "Melbourne Badminton Centre",
+      "playedAt": "2026-09-28T09:00:00+00:00",
+      "formatValue": "doubles"
+    },
+    "00000000-0000-0000-0000-00000000d104": {
+      "sides": {
+        "a": [
+          {
+            "id": "00000000-0000-0000-0000-00000000a008",
+            "isMe": false,
+            "name": "Deleted User",
+            "noShow": false,
+            "initials": "DU",
+            "isBlocked": false,
+            "isDeleted": true,
+            "profileImageUrl": null
+          }
+        ],
+        "b": [
+          {
+            "id": "00000000-0000-0000-0000-00000000a001",
+            "isMe": true,
+            "name": "Alice Nguyen",
+            "noShow": false,
+            "initials": "AN",
+            "isBlocked": false,
+            "isDeleted": false,
+            "profileImageUrl": null
+          }
+        ]
+      },
+      "format": "Singles",
+      "gameId": "00000000-0000-0000-0000-00000000c104",
+      "mySide": "b",
+      "result": {
+        "id": "6f6fefed-b8be-40fc-9215-3ef8c6a4f711",
+        "iWon": true,
+        "games": [],
+        "score": "15-21 18-21",
+        "status": "confirmed",
+        "dispute": null,
+        "expiresAt": null,
+        "canConfirm": false,
+        "canDispute": false,
+        "confirmedAt": null,
+        "submittedAt": "2026-09-18T10:54:08.552388+00:00",
+        "submittedBy": {
+          "id": "00000000-0000-0000-0000-00000000a001",
+          "name": "Alice Nguyen",
+          "initials": "AN"
+        },
+        "winningSide": "b",
+        "ratingChange": null,
+        "ratingPending": true,
+        "verificationStatus": "verified"
+      },
+      "matchId": "00000000-0000-0000-0000-00000000d104",
+      "location": "Richmond",
+      "playedAt": "2026-09-18T08:00:00+00:00",
+      "formatValue": "singles"
+    },
+    "00000000-0000-0000-0000-00000000d106": {
+      "sides": {
+        "a": [
+          {
+            "id": "00000000-0000-0000-0000-00000000a001",
+            "isMe": true,
+            "name": "Alice Nguyen",
+            "noShow": false,
+            "initials": "AN",
+            "isBlocked": false,
+            "isDeleted": false,
+            "profileImageUrl": null
+          }
+        ],
+        "b": [
+          {
+            "id": "00000000-0000-0000-0000-00000000a004",
+            "isMe": false,
+            "name": "Dan Kowalski",
+            "noShow": false,
+            "initials": "DK",
+            "isBlocked": false,
+            "isDeleted": false,
+            "profileImageUrl": null
+          }
+        ]
+      },
+      "format": "Singles",
+      "gameId": "00000000-0000-0000-0000-00000000c106",
+      "mySide": "a",
+      "result": {
+        "id": "8ecc7b10-cc9c-43e6-90b1-4f8cac563b73",
+        "iWon": false,
+        "games": [],
+        "score": "17-21 21-23",
+        "status": "confirmed",
+        "dispute": null,
+        "expiresAt": null,
+        "canConfirm": false,
+        "canDispute": false,
+        "confirmedAt": null,
+        "submittedAt": "2026-10-03T10:54:08.552388+00:00",
+        "submittedBy": {
+          "id": "00000000-0000-0000-0000-00000000a004",
+          "name": "Dan Kowalski",
+          "initials": "DK"
+        },
+        "winningSide": "b",
+        "ratingChange": null,
+        "ratingPending": true,
+        "verificationStatus": "verified"
+      },
+      "matchId": "00000000-0000-0000-0000-00000000d106",
+      "location": "Melbourne Sports and Aquatic Centre@ MSAC",
+      "playedAt": "2026-10-03T08:00:00+00:00",
+      "formatValue": "singles"
+    },
+    "00000000-0000-0000-0000-00000000d900": {
+      "sides": {
+        "a": [
+          {
+            "id": "00000000-0000-0000-0000-00000000a001",
+            "isMe": true,
+            "name": "Alice Nguyen",
+            "noShow": false,
+            "initials": "AN",
+            "isBlocked": false,
+            "isDeleted": false,
+            "profileImageUrl": null
+          }
+        ],
+        "b": [
+          {
+            "id": "00000000-0000-0000-0000-00000000a004",
+            "isMe": false,
+            "name": "Dan Kowalski",
+            "noShow": false,
+            "initials": "DK",
+            "isBlocked": false,
+            "isDeleted": false,
+            "profileImageUrl": null
+          }
+        ]
+      },
+      "format": "Singles",
+      "gameId": "00000000-0000-0000-0000-00000000c106",
+      "mySide": "a",
+      "result": {
+        "id": "00000000-0000-0000-0000-00000000f900",
+        "iWon": false,
+        "games": [],
+        "score": "19-21 21-18 18-21",
+        "status": "pending",
+        "dispute": null,
+        "expiresAt": null,
+        "canConfirm": true,
+        "canDispute": true,
+        "confirmedAt": null,
+        "submittedAt": "2026-10-03T10:54:08.552388+00:00",
+        "submittedBy": {
+          "id": "00000000-0000-0000-0000-00000000a004",
+          "isMe": false,
+          "name": "Dan Kowalski",
+          "noShow": false,
+          "initials": "DK",
+          "isBlocked": false,
+          "isDeleted": false,
+          "profileImageUrl": null
+        },
+        "winningSide": "b",
+        "ratingChange": null,
+        "ratingPending": true,
+        "verificationStatus": "pending"
+      },
+      "matchId": "00000000-0000-0000-0000-00000000d900",
+      "location": "Melbourne Sports and Aquatic Centre@ MSAC",
+      "playedAt": "2026-10-03T08:00:00+00:00",
+      "formatValue": "singles"
+    }
+  },
+  "players": {
+    "00000000-0000-0000-0000-00000000a003": {
+      "id": "00000000-0000-0000-0000-00000000a003",
+      "bio": "Looking for competitive singles.",
+      "area": "Box Hill",
+      "name": "Carol Chen",
+      "wins": 1,
+      "level": "Upper Intermediate",
+      "league": {
+        "id": "00000000-0000-0000-0000-00000000e001",
+        "name": "Spring Singles Ladder",
+        "position": 2
+      },
+      "losses": 1,
+      "rating": 1310,
+      "status": "Provisional",
+      "matches": 2,
+      "noShows": 0,
+      "initials": "CC",
+      "isBlocked": false,
+      "isVerified": true,
+      "recentForm": [
+        "W",
+        "L"
+      ],
+      "gamesPlayed": 6,
+      "reliability": 100,
+      "availability": [
+        "tue_evening",
+        "thu_evening"
+      ],
+      "lateWithdrawals": 0,
+      "preferredFormat": "Singles",
+      "profileImageUrl": null,
+      "availabilityNote": "Competitive singles only",
+      "lateCancellations": 0
+    },
+    "00000000-0000-0000-0000-00000000a002": {
+      "id": "00000000-0000-0000-0000-00000000a002",
+      "bio": "New to badminton, keen to improve.",
+      "area": "Clayton",
+      "name": "Bob Smith",
+      "wins": 0,
+      "grade": null,
+      "level": "Beginner",
+      "league": {
+        "id": "00000000-0000-0000-0000-00000000e001",
+        "name": "Spring Singles Ladder",
+        "position": 3
+      },
+      "losses": 1,
+      "rating": 980,
+      "status": "Provisional",
+      "matches": 1,
+      "noShows": 0,
+      "initials": "BS",
+      "isBlocked": false,
+      "isVerified": false,
+      "recentForm": [
+        "L"
+      ],
+      "gamesPlayed": 4,
+      "reliability": 92,
+      "availability": [
+        "sat_morning",
+        "sun_morning",
+        "sun_afternoon"
+      ],
+      "lateWithdrawals": 0,
+      "preferredFormat": "Any",
+      "profileImageUrl": null,
+      "availabilityNote": null,
+      "lateCancellations": 1
+    },
+    "00000000-0000-0000-0000-00000000a004": {
+      "id": "00000000-0000-0000-0000-00000000a004",
+      "bio": null,
+      "area": "Albert Park",
+      "name": "Dan Kowalski",
+      "wins": 1,
+      "grade": null,
+      "level": "Advanced",
+      "league": null,
+      "losses": 0,
+      "rating": 1405,
+      "status": "Provisional",
+      "matches": 1,
+      "noShows": 1,
+      "initials": "DK",
+      "isBlocked": false,
+      "isVerified": false,
+      "recentForm": [
+        "W"
+      ],
+      "gamesPlayed": 2,
+      "reliability": 80,
+      "availability": [],
+      "lateWithdrawals": 0,
+      "preferredFormat": "Singles",
+      "profileImageUrl": null,
+      "availabilityNote": null,
+      "lateCancellations": 0
+    },
+    "00000000-0000-0000-0000-00000000a005": {
+      "id": "00000000-0000-0000-0000-00000000a005",
+      "bio": "Group player, happy to make up numbers.",
+      "area": "Brunswick",
+      "name": "Erin Walsh",
+      "wins": 1,
+      "grade": null,
+      "level": "Lower Intermediate",
+      "league": null,
+      "losses": 0,
+      "rating": 1050,
+      "status": "Provisional",
+      "matches": 1,
+      "noShows": 0,
+      "initials": "EW",
+      "isBlocked": false,
+      "isVerified": false,
+      "recentForm": [
+        "W"
+      ],
+      "gamesPlayed": 4,
+      "reliability": 92,
+      "availability": [],
+      "lateWithdrawals": 1,
+      "preferredFormat": "Mixed Doubles",
+      "profileImageUrl": null,
+      "availabilityNote": null,
+      "lateCancellations": 0
+    },
+    "00000000-0000-0000-0000-00000000a006": {
+      "id": "00000000-0000-0000-0000-00000000a006",
+      "bio": "Visiting Melbourne for work.",
+      "area": "Parramatta",
+      "name": "Frank Moore",
+      "wins": 0,
+      "grade": null,
+      "level": "Intermediate",
+      "league": null,
+      "losses": 0,
+      "rating": null,
+      "status": "Provisional",
+      "matches": 0,
+      "noShows": 0,
+      "initials": "FM",
+      "isBlocked": true,
+      "isVerified": false,
+      "recentForm": [],
+      "gamesPlayed": 1,
+      "reliability": 100,
+      "availability": [],
+      "lateWithdrawals": 0,
+      "preferredFormat": "Any",
+      "profileImageUrl": null,
+      "availabilityNote": null,
+      "lateCancellations": 0
+    },
+    "00000000-0000-0000-0000-00000000a009": {
+      "id": "00000000-0000-0000-0000-00000000a009",
+      "bio": "Just moved here, looking for games.",
+      "area": "Southbank",
+      "name": "Ivy Patel",
+      "wins": 0,
+      "grade": null,
+      "level": "Beginner",
+      "league": null,
+      "losses": 0,
+      "rating": null,
+      "status": "Provisional",
+      "matches": 0,
+      "noShows": 0,
+      "initials": "IP",
+      "isBlocked": false,
+      "isVerified": false,
+      "recentForm": [],
+      "gamesPlayed": 0,
+      "reliability": 100,
+      "availability": [],
+      "lateWithdrawals": 0,
+      "preferredFormat": "Any",
+      "profileImageUrl": null,
+      "availabilityNote": null,
+      "lateCancellations": 0
+    }
+  },
+  "notifications": [
+    {
+      "id": "bafba1de-cdf5-4b83-b712-67c94ec50642",
+      "type": "join_request",
+      "title": "Bob Smith asked to join your Doubles game on Sat 10 Oct, 6:00 PM in Albert Park.",
+      "postId": "00000000-0000-0000-0000-00000000b001",
+      "unread": true,
+      "matchId": null,
+      "message": "Tap to review the request",
+      "createdAt": "2026-10-08T10:54:08.514826+00:00"
+    },
+    {
+      "id": "968340dc-2f9e-4811-aebf-fb65b8af38c6",
+      "type": "join_request",
+      "title": "Ivy Patel asked to join your Doubles game on Sat 10 Oct, 6:00 PM in Albert Park.",
+      "postId": "00000000-0000-0000-0000-00000000b001",
+      "unread": true,
+      "matchId": null,
+      "message": "Tap to review the request",
+      "createdAt": "2026-10-08T10:54:08.514826+00:00"
+    },
+    {
+      "id": "bb8e32f5-bf97-4e71-9201-c1938a09d83f",
+      "type": "game_cancelled",
+      "title": "Doubles game on Fri 16 Oct, 10:00 AM in Albert Park was cancelled by the organiser.",
+      "postId": "00000000-0000-0000-0000-00000000b005",
+      "unread": true,
+      "matchId": null,
+      "message": "Find another game or post your own",
+      "createdAt": "2026-10-08T10:54:08.514826+00:00"
+    },
+    {
+      "id": "90705412-feae-4018-999b-d31cef927a4a",
+      "type": "league_update",
+      "title": "You are top of the Spring Singles Ladder.",
+      "postId": null,
+      "unread": true,
+      "matchId": null,
+      "message": null,
+      "createdAt": "2026-10-03T10:54:08.568594+00:00"
+    },
+    {
+      "id": "00000000-0000-0000-0000-00000000f901",
+      "type": "result_submitted",
+      "title": "Dan Kowalski recorded a result for your Singles match.",
+      "postId": null,
+      "unread": true,
+      "matchId": "00000000-0000-0000-0000-00000000d900",
+      "message": "Confirm or dispute it within 48 hours",
+      "createdAt": "2026-10-19T09:30:00+00:00"
+    }
+  ],
+  "ratingSummaries": {
+    "00000000-0000-0000-0000-00000000a001": {
+      "rd": 78,
+      "grade": "C",
+      "state": "VIC",
+      "rating": 1240,
+      "status": "Established",
+      "suburb": "Carlton",
+      "playerId": "00000000-0000-0000-0000-00000000a001",
+      "placement": {
+        "played": 10,
+        "required": 10,
+        "opponents": 5,
+        "opponentsRequired": 5
+      },
+      "stateRank": 3,
+      "nearbyRank": 1,
+      "stateTotal": 23,
+      "nearbyTotal": 9,
+      "change30Days": 35,
+      "isStartingRating": false,
+      "ratingsUpdatedAt": "2026-10-19T16:00:00+00:00"
+    },
+    "00000000-0000-0000-0000-00000000a003": {
+      "rd": 82,
+      "grade": "C",
+      "state": "VIC",
+      "rating": 1310,
+      "status": "Established",
+      "suburb": "Box Hill",
+      "playerId": "00000000-0000-0000-0000-00000000a003",
+      "placement": {
+        "played": 10,
+        "required": 10,
+        "opponents": 5,
+        "opponentsRequired": 5
+      },
+      "stateRank": 2,
+      "nearbyRank": null,
+      "stateTotal": 23,
+      "nearbyTotal": null,
+      "change30Days": null,
+      "isStartingRating": false,
+      "ratingsUpdatedAt": null
+    }
+  },
+  "ratingTrend": {
+    "days": 30,
+    "points": [
+      {
+        "date": "2026-09-20",
+        "rating": 1205
+      },
+      {
+        "date": "2026-09-24",
+        "rating": 1218
+      },
+      {
+        "date": "2026-09-28",
+        "rating": 1211
+      },
+      {
+        "date": "2026-10-01",
+        "rating": 1226
+      },
+      {
+        "date": "2026-10-03",
+        "rating": 1219
+      },
+      {
+        "date": "2026-10-08",
+        "rating": 1232
+      },
+      {
+        "date": "2026-10-13",
+        "rating": 1236
+      },
+      {
+        "date": "2026-10-19",
+        "rating": 1240
+      }
+    ]
+  },
+  "leaderboards": {
+    "state": {
+      "me": {
+        "id": "00000000-0000-0000-0000-00000000a001",
+        "rank": 3,
+        "name": "Alice Nguyen",
+        "initials": "AN",
+        "grade": "C",
+        "suburb": "Carlton",
+        "rating": 1240,
+        "isMe": true,
+        "profileImageUrl": null,
+        "blockRelation": null
+      },
+      "scope": "state",
+      "state": "VIC",
+      "total": 23,
+      "suburb": null,
+      "entries": [
+        {
+          "id": "00000000-0000-0000-0000-00000000a004",
+          "rank": 1,
+          "name": "Dan Kowalski",
+          "initials": "DK",
+          "grade": "B",
+          "suburb": "Albert Park",
+          "rating": 1402,
+          "isMe": false,
+          "profileImageUrl": null,
+          "blockRelation": null
+        },
+        {
+          "id": "00000000-0000-0000-0000-00000000a003",
+          "rank": 2,
+          "name": "Carol Chen",
+          "initials": "CC",
+          "grade": "C",
+          "suburb": "Box Hill",
+          "rating": 1310,
+          "isMe": false,
+          "profileImageUrl": null,
+          "blockRelation": null
+        },
+        {
+          "id": "00000000-0000-0000-0000-00000000a001",
+          "rank": 3,
+          "name": "Alice Nguyen",
+          "initials": "AN",
+          "grade": "C",
+          "suburb": "Carlton",
+          "rating": 1240,
+          "isMe": true,
+          "profileImageUrl": null,
+          "blockRelation": null
+        },
+        {
+          "id": "00000000-0000-0000-0000-00000000a005",
+          "rank": 4,
+          "name": "Erin Walsh",
+          "initials": "EW",
+          "grade": "C",
+          "suburb": "Brunswick",
+          "rating": 1198,
+          "isMe": false,
+          "profileImageUrl": null,
+          "blockRelation": null
+        },
+        {
+          "id": "00000000-0000-0000-0000-00000000a002",
+          "rank": 5,
+          "name": "Bob Smith",
+          "initials": "BS",
+          "grade": "D",
+          "suburb": "Clayton",
+          "rating": 1105,
+          "isMe": false,
+          "profileImageUrl": null,
+          "blockRelation": null
+        }
+      ],
+      "ratingsUpdatedAt": "2026-10-19T16:00:00+00:00"
+    },
+    "nearby": {
+      "me": {
+        "id": "00000000-0000-0000-0000-00000000a001",
+        "rank": 1,
+        "name": "Alice Nguyen",
+        "initials": "AN",
+        "grade": "C",
+        "suburb": "Carlton",
+        "rating": 1240,
+        "isMe": true,
+        "profileImageUrl": null,
+        "blockRelation": null
+      },
+      "scope": "nearby",
+      "state": "VIC",
+      "total": 9,
+      "suburb": "Carlton",
+      "entries": [
+        {
+          "id": "00000000-0000-0000-0000-00000000a001",
+          "rank": 1,
+          "name": "Alice Nguyen",
+          "initials": "AN",
+          "grade": "C",
+          "suburb": "Carlton",
+          "rating": 1240,
+          "isMe": true,
+          "profileImageUrl": null,
+          "blockRelation": null
+        },
+        {
+          "id": "00000000-0000-0000-0000-00000000a005",
+          "rank": 2,
+          "name": "Erin Walsh",
+          "initials": "EW",
+          "grade": "C",
+          "suburb": "Brunswick",
+          "rating": 1198,
+          "isMe": false,
+          "profileImageUrl": null,
+          "blockRelation": null
+        }
+      ],
+      "ratingsUpdatedAt": "2026-10-19T16:00:00+00:00"
+    }
+  },
+  "leagues": [
+    {
+      "leagueId": "00000000-0000-0000-0000-00000000e001",
+      "organiserId": "00000000-0000-0000-0000-00000000a001",
+      "name": "Spring Singles Ladder",
+      "status": "active",
+      "startDate": "2026-09-20T00:00:00+10:00",
+      "endDate": "2026-11-30T23:59:59+11:00"
+    },
+    {
+      "leagueId": "00000000-0000-0000-0000-00000000e002",
+      "organiserId": "00000000-0000-0000-0000-00000000a003",
+      "name": "Northside Summer Social",
+      "status": "active",
+      "startDate": "2026-11-01T00:00:00+11:00",
+      "endDate": "2027-01-31T23:59:59+11:00"
+    },
+    {
+      "leagueId": "00000000-0000-0000-0000-00000000e003",
+      "organiserId": "00000000-0000-0000-0000-00000000a005",
+      "name": "Winter Doubles Cup",
+      "status": "completed",
+      "startDate": "2026-06-01T00:00:00+10:00",
+      "endDate": "2026-08-31T23:59:59+10:00"
+    }
+  ],
+  "standings": [
+    {
+      "leagueId": "00000000-0000-0000-0000-00000000e001",
+      "playerId": "00000000-0000-0000-0000-00000000a001",
+      "wins": 2,
+      "losses": 0,
+      "points": 6,
+      "position": 1
+    },
+    {
+      "leagueId": "00000000-0000-0000-0000-00000000e001",
+      "playerId": "00000000-0000-0000-0000-00000000a003",
+      "wins": 1,
+      "losses": 1,
+      "points": 3,
+      "position": 2
+    },
+    {
+      "leagueId": "00000000-0000-0000-0000-00000000e001",
+      "playerId": "00000000-0000-0000-0000-00000000a002",
+      "wins": 0,
+      "losses": 1,
+      "points": 0,
+      "position": 3
+    },
+    {
+      "leagueId": "00000000-0000-0000-0000-00000000e002",
+      "playerId": "00000000-0000-0000-0000-00000000a003",
+      "wins": 0,
+      "losses": 0,
+      "points": 0,
+      "position": 1
+    },
+    {
+      "leagueId": "00000000-0000-0000-0000-00000000e003",
+      "playerId": "00000000-0000-0000-0000-00000000a005",
+      "wins": 4,
+      "losses": 1,
+      "points": 12,
+      "position": 1
+    },
+    {
+      "leagueId": "00000000-0000-0000-0000-00000000e003",
+      "playerId": "00000000-0000-0000-0000-00000000a006",
+      "wins": 1,
+      "losses": 4,
+      "points": 3,
+      "position": 2
+    }
+  ],
+  "leagueMatches": {
+    "00000000-0000-0000-0000-00000000e001": [
+      {
+        "matchId": "00000000-0000-0000-0000-00000000d101",
+        "status": "confirmed",
+        "playedAt": "2026-09-24T08:00:00+00:00",
+        "format": "Singles",
+        "suburb": "Albert Park"
+      },
+      {
+        "matchId": "00000000-0000-0000-0000-00000000d106",
+        "status": "confirmed",
+        "playedAt": "2026-10-03T08:00:00+00:00",
+        "format": "Singles",
+        "suburb": "Albert Park"
+      }
+    ]
+  }
+}
