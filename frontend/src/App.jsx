@@ -51,6 +51,7 @@ function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/find" element={<FindGamesPage />} />
             <Route path="/games/:gameId" element={<GameDetailsPage />} />
+            <Route path="/games/:gameId/record-result" element={<RecordResultPage />} />
             <Route path="/games/:gameId/request-confirmation" element={<GameRequestConfirmationPage />} />
             <Route path="/post-game/confirmation/:gameId" element={<PostGameConfirmationPage />} />
             <Route path="/rankings" element={<RankingsPage />} />

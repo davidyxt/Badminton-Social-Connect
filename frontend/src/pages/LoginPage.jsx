@@ -55,9 +55,9 @@ function LoginPage() {
 
     try {
       await signIn(formData.email, formData.password, captcha.token);
-      await completePlayerRegistration();
+      const registered = await completePlayerRegistration();
 
-      navigate("/dashboard");
+      navigate(registered ? "/dashboard" : "/profile");
     } catch (err) {
       if (err.code === "email_not_confirmed") {
         setNeedsVerification(true);

@@ -27,6 +27,9 @@ export const signUp = async ({
   selfRatingBand,
   dateOfBirth,
   state,
+  username,
+  ageDeclared,
+  termsAccepted,
 }) => {
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -36,10 +39,14 @@ export const signUp = async ({
       data: {
         first_name: firstName,
         last_name: lastName,
-        display_name: `${firstName} ${lastName}`.trim(),
-        self_rating_band: selfRatingBand,
+        username: username.trim(),
+        self_rating_band: selfRatingBand.toLowerCase().replace(/\s+/g, "_"),
         date_of_birth: dateOfBirth,
         playing_state: state,
+        state,
+        age_declared: !!ageDeclared,
+        terms_version: termsAccepted ? (import.meta.env.VITE_TERMS_VERSION || (import.meta.env.DEV ? "local-dev-v1" : "")) : "",
+        privacy_version: termsAccepted ? (import.meta.env.VITE_PRIVACY_VERSION || (import.meta.env.DEV ? "local-dev-v1" : "")) : "",
       },
       // Where the email verification link sends the user
       emailRedirectTo: emailConfirmedUrl,
@@ -112,18 +119,26 @@ export const signOut = async () => {
   if (error) throw error;
 };
 
-// Auth users with email verification need registration after their first session.
-// This RPC is explicitly defined in the API; it enforces the minimum age.
+// Registration is handled by the server sign-up trigger when consent metadata
+// was submitted. Never assert age/terms acceptance on a user's behalf.
 export const completePlayerRegistration = async () => {
   const {data:{user},error:userError}=await supabase.auth.getUser();
-  if(userError) throw userError;
-  if(!user) return false;
-  const {data:existing,error:lookupError}=await supabase.from('player').select('playerId').eq('playerId',user.id).maybeSingle();
-  if(lookupError) throw lookupError;
-  if(existing) return true;
-  const m=user.user_metadata||{};
-  if(!m.display_name||!m.self_rating_band||!m.date_of_birth||!m.playing_state)return false;
-  const {error}=await supabase.rpc('register_player',{displayName:m.display_name,selfRatingBand:m.self_rating_band,dateOfBirth:m.date_of_birth,state:m.playing_state});
+  if(userError)throw userError;
+  if(!user)return false;
+  const {data,error}=await supabase.from('player_private').select('registered_at').eq('player_id',user.id).maybeSingle();
   if(error)throw error;
-  return true;
+  const registered=!!data?.registered_at;
+  const meta=user.user_metadata||{};
+  if(registered&&!meta.bsc_profile_synced&&meta.self_rating_band){
+    const band=String(meta.self_rating_band).toLowerCase().replace(/\s+/g,'_');
+    // This optional preference sync must not turn a successful login into a
+    // reported authentication failure.
+    try {
+      const {error:profileError}=await supabase.rpc('update_my_profile',{p_self_rating_band:band});
+      if(profileError)throw profileError;
+      const {error:metaError}=await supabase.auth.updateUser({data:{bsc_profile_synced:true}});
+      if(metaError)throw metaError;
+    } catch (syncError) { console.warn('Initial playing level could not be synced:',syncError); }
+  }
+  return registered;
 };

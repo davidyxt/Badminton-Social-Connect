@@ -22,7 +22,7 @@ function LeagueDetailsPage(){
  {!standings.length&&<p>No standings yet.</p>}</section>}
  {tab==='matches'&&<section className="league-matches-list">{matches.map(m=><article key={m.matchId} className="league-match-card"><div className="league-match-top"><span className="match-status">{m.status||'Status unknown'}</span><span className="league-match-date">{m.playedAt?new Date(m.playedAt).toLocaleString('en-AU'):'Date TBC'}</span></div><p>{m.format||'Badminton'} · {m.suburb||'Area TBC'}</p><button type="button" onClick={()=>navigate(`/matches/${m.matchId}`)}>View Match</button></article>)}{!matches.length&&<p>No league matches yet.</p>}</section>}
  {tab==='players'&&<section className="league-player-list">{standings.map(p=><article key={p.playerId} className="league-player-card"><div className="league-player-avatar"><UserRound size={21}/></div><div className="league-player-details"><strong>{p.name}</strong><span>{p.points??0} league points</span></div><button type="button" onClick={()=>navigate(`/players/${p.playerId}`)}>View</button></article>)}</section>}
- </main>{!joined&&league.availability==='active'&&<div className="join-league-area"><button type="button" className="join-league-button" disabled={busy} onClick={join}>{busy?'Joining...':'Join League'}</button></div>}</>}
+ </main>{!joined&&league.availability==='active'&&<div className="join-league-area"><p>Joining requires the league organiser to add you. Self-joining is not available in this database version.</p></div>}</>}
  </div>;
 }
 export default LeagueDetailsPage;

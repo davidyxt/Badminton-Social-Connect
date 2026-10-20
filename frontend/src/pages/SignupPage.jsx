@@ -12,6 +12,9 @@ function SignupPage() {
 
   const [formData, setFormData] = useState({
     firstName: "",
+    username: "",
+    ageDeclared: false,
+    termsAccepted: false,
     lastName: "",
     email: "",
     password: "",
@@ -26,11 +29,11 @@ function SignupPage() {
   const [loading, setLoading] = useState(false);
 
   const handleChange = (event) => {
-    const { name, value } = event.target;
+    const { name, value, type, checked } = event.target;
 
     setFormData((previous) => ({
       ...previous,
-      [name]: value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
@@ -51,6 +54,18 @@ function SignupPage() {
       return;
     }
 
+    if (!/^[A-Za-z0-9_.]{3,20}$/.test(formData.username.trim())) {
+      setError("Choose a username of 3–20 letters, numbers, underscores or periods.");
+      return;
+    }
+    if (!formData.ageDeclared || !formData.termsAccepted) {
+      setError("Confirm you are 18+ and accept the terms and privacy notice.");
+      return;
+    }
+    if (!import.meta.env.DEV && (!import.meta.env.VITE_TERMS_VERSION || !import.meta.env.VITE_PRIVACY_VERSION)) {
+      setError("Terms/privacy versions must be configured before registration is available.");
+      return;
+    }
     setLoading(true);
 
     try {
@@ -63,11 +78,14 @@ function SignupPage() {
         dateOfBirth: formData.dateOfBirth,
         selfRatingBand: formData.selfRatingBand,
         state: formData.state,
+        username: formData.username,
+        ageDeclared: formData.ageDeclared,
+        termsAccepted: formData.termsAccepted,
       });
 
       if (session) {
-        await completePlayerRegistration();
-        navigate("/dashboard");
+        const registered = await completePlayerRegistration();
+        navigate(registered ? "/dashboard" : "/profile");
       } else {
         // Email verification is on: no session until the link is clicked.
         setMessage(
@@ -163,6 +181,12 @@ function SignupPage() {
               </div>
             </div>
 
+            <div className="form-group">
+              <label htmlFor="username">Public username</label>
+              <input id="username" name="username" value={formData.username} onChange={handleChange}
+                placeholder="e.g. badminton_amy" autoComplete="username" maxLength={20} required />
+              <span className="form-hint">3–20 letters, numbers, underscores or periods. Visible to other players.</span>
+            </div>
             <div className="form-row">
               <div className="form-group">
                 <label htmlFor="dateOfBirth">Date of birth</label>
@@ -244,6 +268,14 @@ function SignupPage() {
               </div>
             )}
 
+            <label className="auth-consent-row">
+              <input type="checkbox" name="ageDeclared" checked={formData.ageDeclared} onChange={handleChange} required />
+              I confirm I am at least 18 years old.
+            </label>
+            <label className="auth-consent-row">
+              <input type="checkbox" name="termsAccepted" checked={formData.termsAccepted} onChange={handleChange} required />
+              I have read and agree to the platform's terms and privacy notice.
+            </label>
             <Captcha captcha={captcha} />
 
             <button

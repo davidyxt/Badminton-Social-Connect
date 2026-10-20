@@ -8,15 +8,15 @@ function FindGamesPage(){
  const [tab,setTab]=useState('matches'),[search,setSearch]=useState(''),[format,setFormat]=useState('all');
  const [error,setError]=useState(''),[loading,setLoading]=useState(true);
  useEffect(()=>{let active=true;(async()=>{try{
-  const [posts,people]=await Promise.all([api.listGames(),api.listPlayers()]);
-  if(active){setGames(posts.filter(p=>p.status==='open').map(api.mapGame));setPlayers(people.map(p=>api.mapPlayer(p)));}
- }catch(e){if(active)setError(e.message);}finally{if(active)setLoading(false);}})();return()=>{active=false;};},[]);
- const foundGames=useMemo(()=>games.filter(g=>(format==='all'||g.format.toLowerCase()===format)&&`${g.title} ${g.location} ${g.date}`.toLowerCase().includes(search.toLowerCase())),[games,format,search]);
- const foundPlayers=useMemo(()=>players.filter(p=>`${p.name} ${p.location} ${p.rank}`.toLowerCase().includes(search.toLowerCase())),[players,search]);
+  const found=tab==='matches'?await api.searchGames(search,format):await api.searchPlayers(search);
+  if(active){if(tab==='matches')setGames(found.map(api.mapGame));else setPlayers(found.map(api.mapPlayer));}
+ }catch(e){if(active)setError(e.message);}finally{if(active)setLoading(false);}})();return()=>{active=false;};},[tab,search,format]);
+ const foundGames=useMemo(()=>games,[games,format,search]);
+ const foundPlayers=useMemo(()=>players,[players,search]);
  return <div className="find-games-page">
   <section className="find-games-header"><h1>Find Games</h1>
    <div className="find-search-wrapper"><Search size={18}/><input type="search" placeholder={tab==='matches'?'Search games or suburbs':'Search players or suburbs'} value={search} onChange={e=>setSearch(e.target.value)} /></div>
-   <div className="find-tabs"><button type="button" className={tab==='matches'?'active':''} onClick={()=>setTab('matches')}>Find Games</button><button type="button" className={tab==='players'?'active':''} onClick={()=>setTab('players')}>Find Players</button></div>
+   <div className="find-tab-switcher"><button type="button" className={tab==='matches'?'active':''} onClick={()=>setTab('matches')}>Find Games</button><button type="button" className={tab==='players'?'active':''} onClick={()=>setTab('players')}>Find Players</button></div>
    {tab==='matches'&&<div className="find-filter-row"><select value={format} onChange={e=>setFormat(e.target.value)}><option value="all">All Formats</option><option value="singles">Singles</option><option value="doubles">Doubles</option></select></div>}
   </section>
   {error&&<p role="alert" className="find-error">{error}</p>}

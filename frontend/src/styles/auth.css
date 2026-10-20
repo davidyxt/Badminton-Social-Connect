@@ -925,3 +925,7 @@
   .auth-captcha {
     min-height: 65px;
   }
+
+/* BSC-202: explicit registration consent */
+.auth-consent-row { display:flex; align-items:flex-start; gap:10px; margin:10px 0; font-size:13px; line-height:1.5; }
+.auth-consent-row input { width:17px; height:17px; flex-shrink:0; margin-top:2px; }

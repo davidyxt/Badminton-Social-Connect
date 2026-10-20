@@ -18,7 +18,7 @@ function AuthCallbackPage() {
   useEffect(() => {
     if (error || loading) return;
 
-    if(session){completePlayerRegistration().catch(console.error).finally(()=>navigate("/dashboard",{replace:true}));}
+    if(session){completePlayerRegistration().then(registered=>navigate(registered?"/dashboard":"/profile",{replace:true})).catch(()=>navigate("/profile",{replace:true}));}
     else navigate("/login",{replace:true});
   }, [error, loading, session, navigate]);
 
