@@ -1,0 +1,248 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsUpDown, ChevronUp, Search } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+
+export interface Column<T> {
+  id: string;
+  header: string;
+  cell: (row: T) => ReactNode;
+  /** Provide to make the column sortable. */
+  sortValue?: (row: T) => string | number;
+  align?: "left" | "right";
+  className?: string;
+}
+
+export interface FilterDef<T> {
+  id: string;
+  label: string;
+  options: { value: string; label: string }[];
+  getValue: (row: T) => string;
+}
+
+export interface DataTableProps<T> {
+  rows: T[];
+  columns: Column<T>[];
+  getRowId: (row: T) => string;
+  /** Free-text search over whatever text this returns. */
+  getSearchText?: (row: T) => string;
+  searchPlaceholder?: string;
+  filters?: FilterDef<T>[];
+  /** Initial values for filters, by filter id. */
+  initialFilters?: Record<string, string>;
+  initialSort?: { columnId: string; direction: "asc" | "desc" };
+  pageSize?: number;
+  rowHref?: (row: T) => string;
+  /** Shown when there are no rows after filtering. */
+  empty: ReactNode;
+  /** Extra controls in the toolbar; receives the filtered (pre-pagination) rows, e.g. for CSV export. */
+  toolbarExtra?: (filteredRows: T[]) => ReactNode;
+  caption?: string;
+}
+
+/** Sortable, filterable, paginated table shared by every list screen. */
+export function DataTable<T>({
+  rows,
+  columns,
+  getRowId,
+  getSearchText,
+  searchPlaceholder = "Search",
+  filters = [],
+  initialFilters = {},
+  initialSort,
+  pageSize = 10,
+  rowHref,
+  empty,
+  toolbarExtra,
+  caption,
+}: DataTableProps<T>) {
+  const router = useRouter();
+  const [query, setQuery] = useState("");
+  const [filterValues, setFilterValues] = useState<Record<string, string>>(initialFilters);
+  const [sort, setSort] = useState(initialSort ?? null);
+  const [page, setPage] = useState(0);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let out = rows.filter((row) => {
+      if (q && getSearchText && !getSearchText(row).toLowerCase().includes(q)) return false;
+      return filters.every((f) => {
+        const v = filterValues[f.id];
+        return !v || f.getValue(row) === v;
+      });
+    });
+    if (sort) {
+      const col = columns.find((c) => c.id === sort.columnId);
+      if (col?.sortValue) {
+        const get = col.sortValue;
+        out = [...out].sort((a, b) => {
+          const av = get(a);
+          const bv = get(b);
+          const cmp = typeof av === "number" && typeof bv === "number" ? av - bv : String(av).localeCompare(String(bv));
+          return sort.direction === "asc" ? cmp : -cmp;
+        });
+      }
+    }
+    return out;
+  }, [rows, query, filterValues, filters, sort, columns, getSearchText]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(page, pageCount - 1);
+  const visible = filtered.slice(safePage * pageSize, safePage * pageSize + pageSize);
+
+  const toggleSort = (columnId: string) => {
+    setSort((s) => (s?.columnId === columnId ? { columnId, direction: s.direction === "asc" ? "desc" : "asc" } : { columnId, direction: "asc" }));
+  };
+
+  const hasToolbar = getSearchText || filters.length > 0 || toolbarExtra;
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-line bg-surface">
+      {hasToolbar && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3">
+          {getSearchText && (
+            <label className="relative min-w-[200px] flex-1 sm:max-w-xs">
+              <span className="sr-only">{searchPlaceholder}</span>
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-faint" aria-hidden />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setPage(0);
+                }}
+                placeholder={searchPlaceholder}
+                className="h-9 w-full rounded-lg border border-line-strong bg-surface pr-3 pl-9 text-sm placeholder:text-ink-faint focus:ring-2 focus:ring-brand/30 focus:outline-none"
+              />
+            </label>
+          )}
+          {filters.map((f) => (
+            <label key={f.id} className="flex items-center gap-1.5 text-sm text-ink-muted">
+              <span className="sr-only sm:not-sr-only">{f.label}</span>
+              <select
+                value={filterValues[f.id] ?? ""}
+                onChange={(e) => {
+                  setFilterValues((v) => ({ ...v, [f.id]: e.target.value }));
+                  setPage(0);
+                }}
+                className="h-9 rounded-lg border border-line-strong bg-surface px-2.5 text-sm text-ink focus:ring-2 focus:ring-brand/30 focus:outline-none"
+              >
+                <option value="">All</option>
+                {f.options.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
+          {toolbarExtra && <div className="ml-auto flex items-center gap-2">{toolbarExtra(filtered)}</div>}
+        </div>
+      )}
+
+      {filtered.length === 0 ? (
+        empty
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            {caption && <caption className="sr-only">{caption}</caption>}
+            <thead className="bg-subtle text-xs font-medium tracking-wide text-ink-muted uppercase">
+              <tr>
+                {columns.map((col) => {
+                  const active = sort?.columnId === col.id;
+                  return (
+                    <th
+                      key={col.id}
+                      scope="col"
+                      aria-sort={active ? (sort.direction === "asc" ? "ascending" : "descending") : undefined}
+                      className={`px-4 py-2.5 whitespace-nowrap ${col.align === "right" ? "text-right" : ""} ${col.className ?? ""}`}
+                    >
+                      {col.sortValue ? (
+                        <button
+                          type="button"
+                          onClick={() => toggleSort(col.id)}
+                          className={`inline-flex items-center gap-1 uppercase hover:text-ink ${active ? "text-ink" : ""}`}
+                        >
+                          {col.header}
+                          {active ? (
+                            sort.direction === "asc" ? (
+                              <ChevronUp className="size-3.5" aria-hidden />
+                            ) : (
+                              <ChevronDown className="size-3.5" aria-hidden />
+                            )
+                          ) : (
+                            <ChevronsUpDown className="size-3.5 opacity-50" aria-hidden />
+                          )}
+                        </button>
+                      ) : (
+                        col.header
+                      )}
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {visible.map((row) => {
+                const href = rowHref?.(row);
+                return (
+                  <tr
+                    key={getRowId(row)}
+                    onClick={
+                      href
+                        ? (e) => {
+                            // Let real links/buttons inside the row handle their own clicks.
+                            if ((e.target as HTMLElement).closest("a,button,input,select")) return;
+                            router.push(href);
+                          }
+                        : undefined
+                    }
+                    className={href ? "cursor-pointer hover:bg-subtle" : ""}
+                  >
+                    {columns.map((col) => (
+                      <td key={col.id} className={`px-4 py-3 align-middle ${col.align === "right" ? "text-right tabular-nums" : ""} ${col.className ?? ""}`}>
+                        {col.cell(row)}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {filtered.length > pageSize && (
+        <div className="flex items-center justify-between border-t border-line px-4 py-3 text-sm text-ink-muted">
+          <span>
+            {safePage * pageSize + 1}–{Math.min(filtered.length, (safePage + 1) * pageSize)} of {filtered.length}
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setPage(safePage - 1)}
+              disabled={safePage === 0}
+              className="rounded-md p-1.5 hover:bg-neutral-soft disabled:opacity-40"
+              aria-label="Previous page"
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+            <span className="px-2 tabular-nums">
+              Page {safePage + 1} of {pageCount}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage(safePage + 1)}
+              disabled={safePage >= pageCount - 1}
+              className="rounded-md p-1.5 hover:bg-neutral-soft disabled:opacity-40"
+              aria-label="Next page"
+            >
+              <ChevronRight className="size-4" />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,7 +1,7 @@
 # Row Level Security: access model for review
 
 This describes who can read and write each table in the Badminton Social
-Connect database. The policies themselves live in the four migrations under
+Connect database. The policies themselves live in the 50 migrations under
 `supabase/migrations/`.
 
 **Please read the "Open questions" section at the end.** Several rules were
@@ -13,8 +13,7 @@ tables in the diagram had no way to express ownership at all.
 ## Why this matters more than usual
 
 Our React app talks to Postgres over HTTP using a key that ships in the browser.
-Anyone can open devtools, copy that key and issue their own queries. There is no
-backend of ours in the middle deciding what they may see.
+Anyone can open devtools, copy that key and issue their own queries. The player app uses direct PostgREST/SQL RPCs. The Admin console additionally uses an authenticated Edge Function, which retains the caller JWT and RLS for application data; see [admin-api.md](admin-api.md).
 
 So the permission check has to live in the database. That is what Row Level
 Security is: rules attached to a table saying which rows each caller may touch.
@@ -22,9 +21,7 @@ Postgres applies them to every query regardless of where it came from.
 
 Two consequences worth internalising:
 
-- **A table without RLS is public.** If someone adds a table in a later
-  migration and forgets `enable row level security`, everything in it is
-  readable and writable by anyone with the publishable key. Every table created
+- **Exposed tables need grants and RLS.** On a table granted to browser roles, omitting `enable row level security` leaves no row-level restriction. Exposing a schema and granting table access are separate from enabling RLS. Every table created
   so far has it enabled; new ones need it too.
 - **Denied reads are silent.** A query that a policy blocks returns zero rows,
   not an error. An `update` that matches nothing reports success with zero rows
@@ -35,7 +32,7 @@ Two consequences worth internalising:
 
 | Caller | What it is | Gets |
 |---|---|---|
-| `anon` | Holding the publishable key, not signed in | **Nothing.** No policy grants anon anything. |
+| `anon` | Holding the publishable key, not signed in | State/suburb reference rows and `is_username_available`; no player/game data. |
 | `authenticated` | A signed-in player | Their own data, plus what the app is meant to show publicly |
 | admin | A signed-in player with `role: admin` in their JWT `app_metadata` | Moderation and staff powers |
 | `service_role` | The secret key, server-side only | Everything; bypasses RLS entirely |
@@ -64,7 +61,7 @@ may need to sign out and back in.
 |---|---|
 | `player` | Any signed-in player (the roster: names, bands, verified flag) |
 | `player_profile` | Your own row; other players' rows only while `is_discoverable` is true |
-| `player_private` | Your own row only (first and last name). Other players see `player.username` |
+| `player_private` | Your own row and admins. Other players see `player.username`; the Admin Edge API reads only registration completion, not names, birth date or consent records. |
 | `venue` | Any signed-in player |
 | `state`, `suburb` | Everyone, including signed-out visitors (the sign-up form needs them) |
 | `mini_league` | Any signed-in player |
@@ -90,10 +87,10 @@ may need to sign out and back in.
 | `notification` | Yours only |
 | `report` | Only the person who filed it, plus admins |
 | `blocks` | Only the blocker, plus admins. The blocked player cannot tell |
-| (blocking) | `player` and `game_participant` rows of a blocker are hidden from the player they blocked; `player_profile` rows are hidden both ways; `game_post` rows are hidden from a blocked player when the blocker organises or plays in the game. Rankings are not filtered |
+| (blocking) | `player` and `game_participant` rows of a blocker are hidden from the player they blocked. Direct `player_profile` reads remain hidden both ways; the guarded `get_player_profile` RPC lets the blocker inspect a profile with a badge. `game_post` rows are hidden from a blocked player when the blocker organises or plays in the game. Rankings are not filtered. |
 | `admin_post` | Published announcements only; admins also see drafts |
 
-Admins can read everything in every table.
+Admins have broad domain reads through upstream policies, but this is not a grant to private rating state or every private message. The Admin Edge API exposes only its documented routes. Direct database write permissions below are upstream behavior and can be broader than the Final v6 Admin Edge API.
 
 ## Write access
 
@@ -221,7 +218,7 @@ the API as well.
 | `match_result_flag_ratings_for_rebuild` | A result that counted stops counting (rejected, or excluded when its game is deleted): the next nightly rating run replays every rating |
 | `match_message_limit` | At most 20 quick messages per player per 10 minutes |
 | `match_message_broadcast` | Sends each new quick message on `match:{matchId}:messages` |
-| `<table>_set_updated_metadata` | Stamps `updated_at` and `updated_by` on all 18 changeable tables, ignoring anything the client sent |
+| `<table>_set_updated_metadata` | Stamps `updated_at` and `updated_by` on the mutable domain tables that have these audit columns, ignoring anything the client sent |
 
 Sides can be filled one player at a time, so the exact count is only required at
 completion. The validation triggers raise `23514` (check violation) and the
@@ -230,7 +227,7 @@ frontend can show it.
 
 ## Helper functions
 
-Seven functions live in a `private` schema that is not exposed through the API
+Access-control helpers live in a `private` schema that is not exposed through the API
 (it is absent from `db.schemas` in `config.toml`, and the test suite checks it
 cannot be called as an RPC).
 
@@ -240,7 +237,7 @@ cannot be called as an RPC).
 | `private.is_match_participant(match_id)` | Are you in this match? |
 | `private.can_manage_match(match_id)` | Did you create it, or do you organise its league? |
 | `private.is_league_organiser(league_id)` | Do you organise this league? |
-| `private.can_post_for_group(group_id)` | Are you an approved admin of this groups? |
+| `private.can_post_for_group(group_id)` | Are you an approved admin of this group? |
 | `private.can_manage_post(post_id)` | Did you post this game, or are you an admin of the group that did? |
 | `private.is_game_participant(post_id)` | Are you on this game's accepted roster? |
 | `private.is_registered()` | Have you passed the age gate (or are you an admin)? |
@@ -265,7 +262,7 @@ the caller's own token and needs no extra privilege.
 
 ## Verifying it
 
-`supabase/tests/rls_test.sh` runs 343 checks against the local stack. It creates
+`supabase/tests/rls_test.sh` is the historical BE-1 suite (343 checks at its original baseline). It still has direct match/result/dispute writes removed by Player BE-2, so that count is not a current passing result. It creates
 three real, already-confirmed players through the Auth admin API (email
 confirmation is on, so a plain sign-up returns no session), signs them in, and drives PostgREST exactly as the
 browser would, so it tests the policies as deployed rather than the SQL as
@@ -291,7 +288,7 @@ Also worth running after any schema change:
 supabase db advisors --local --level warn
 ```
 
-It currently reports nothing above INFO. The INFO entries are "unused index"
+At its earlier BE-1 baseline it reported nothing above INFO; this integration has not rerun the complete shared-database advisor audit. The INFO entries are "unused index"
 notices, which are expected on a database with no traffic yet.
 
 ---
@@ -321,9 +318,7 @@ schema working, marked `DEVIATION` in the migration.
    sometimes made by someone arranging but not playing, this is wrong and the
    auto-join should become a choice on the form.
 
-4. **A rejected player can ask again.** The update policy lets a player move
-   their own row back to `requested`, so a rejection is not final. That is
-   friendly but allows pestering. Should `rejected` be a dead end?
+4. **Resolved: a rejected player cannot ask again through `request_to_join`; a withdrawn player can.** Use the join RPC rather than treating the historical row-update policy as the current player workflow.
 
 5. **Check-ins are per match, but people check in to a session.** `check_in` is
    keyed on `(match_id, player_id)`, which predates the game and match split. In
@@ -351,10 +346,7 @@ schema working, marked `DEVIATION` in the migration.
    approves. Only group admins can rename the group or post games for it. A group
    admin can never demote or remove another admin, so two admins who fall out
    cannot lock each other out; platform admins settle those. The
-   `keep_one_group_admin` trigger stops the last admin leaving. Group admins can
-   still add a player directly without a request, which means someone can be
-   listed in a group without having agreed to it. Say so if that should become
-   an invitation the player accepts.
+   `keep_one_group_admin` trigger stops the last admin leaving. Since the join-by-request-only migration, players must submit their own requests; group admins cannot add someone directly.
 
 9. **Resolved (BL-080): groups are deactivated, never deleted.** Deleting a
    group used to cascade through its game posts to every match, result and
@@ -366,9 +358,7 @@ schema working, marked `DEVIATION` in the migration.
    stops new game posts and join requests until it is reactivated. Members can
    still leave and admins can still edit or cancel existing posts.
 
-   The same cascade still exists from `game_post` to `match` (an organiser
-   deleting their own post wipes its results) and from `player` to `game_post`
-   (deleting an account). Those are for BL-013 and account deletion.
+   BL-013 now retains deleted posts with `match.post_id` using `on delete restrict`; account deletion anonymizes retained players. Upstream admin game deletion changes ranking eligibility, so the Final v6 Admin Edge API blocks it.
 
 10. **`match` had no owner, so I added `created_by`.** A casual match created
    from a game post belongs to no league, so there was no way to say in a policy
@@ -388,9 +378,7 @@ schema working, marked `DEVIATION` in the migration.
    so published announcements cannot appear on a logged-out landing page. Easy
    to relax if marketing wants that; I chose the safer default.
 
-14. **Verification and reliability scores have no writer yet.** They are locked to
-   `service_role`, which means something server-side has to update them: an
-   Edge Function, or a scheduled job. Nothing does yet.
+14. **Verification remains a trusted staff operation.** Reliability is now computed by `private.reliability`, refreshed on changes and by the hourly job; players cannot write their own counters.
 
 15. **`league_standing` is writable by the league organiser.** It is derived data,
    so arguably it should be `service_role` only like `ranking`. I left it open

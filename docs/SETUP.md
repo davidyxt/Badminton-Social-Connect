@@ -1,6 +1,6 @@
 # Setup
 
-How to get Badminton Social Connect running on your machine.
+How to get the player app and shared Supabase backend running on your machine. This integrated branch includes Player BE-2 0.4 and all 50 migrations. For the separate Admin console on port 3000, use [admin/README.md](../admin/README.md) and [admin-local-integration.md](admin-local-integration.md).
 
 For how registration and sign-in work (flows, security settings, email templates, hosted dashboard configuration), see [M4: Registration and sign-in](features/M4-registration-and-sign-in.md).
 
@@ -8,7 +8,7 @@ To deploy to the hosted Supabase project, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## 1. Install
 
-- **Node.js 20+**
+- **Node.js 20.19+ or 22.12+** for the Vite player app; use a version satisfying both app packages. The Next.js Admin app requires Node.js 20.9+.
 - **Docker Desktop**, running. The local Supabase stack runs in Docker.
 - **Supabase CLI:** nothing to install. It runs through `npx supabase`.
 
@@ -43,7 +43,7 @@ npx supabase start
 
 # 2. Create the frontend env file (section 5), then:
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -86,7 +86,7 @@ Dev accounts, all with the password `Passw0rd!`:
 The full story is at the top of `supabase/seeds/dev/01_accounts.sql`, and the
 rally players' at the top of `07_rankings.sql`.
 
-Ratings are worked out by a nightly job (2 am Melbourne). The seed replays them
+Ratings are worked out by the shared nightly job (`0 15 * * *` in GMT: 2 am Melbourne during daylight saving, 1 am during standard time). The seed replays them
 once at the end, so they are ready after `db reset`. After recording and
 confirming results locally, run them straight away with
 `select private.rate_new_results();` in the SQL editor (Studio) or psql.
@@ -124,10 +124,12 @@ folder isn't loaded by `db reset` on its own.
 
 ```bash
 npx supabase db reset
-./supabase/tests/rls_test.sh > /tmp/rls.log       # 343 access-control checks
-python3 supabase/tests/api_test.py --rls-log /tmp/rls.log   # 302 API cases, writes docs/api-test-report.md (not in Git)
+./supabase/tests/rls_test.sh > /tmp/rls.log       # historical BE-1 suite; not current 0.4 acceptance
+python3 supabase/tests/api_test.py --rls-log /tmp/rls.log   # historical BE-1 API checks, writes an ignored report
 python3 supabase/scripts/build_openapi.py         # rebuilds both API specs (full, and implemented only)
 ```
+
+The BE-1 scripts above still use direct result/dispute writes removed in 0.4 and may fail at this baseline. Admin tests and live-stack checks are in [admin-api.md](admin-api.md) and [admin-local-integration.md](admin-local-integration.md). Player BE-2 reference checks are described in [M2](features/M2-results-and-rankings.md). Do not reset a database containing data you need to keep merely to run a read or Admin test.
 
 Suburbs come from [GeoNames](https://www.geonames.org) under
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), which requires

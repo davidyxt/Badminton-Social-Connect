@@ -122,14 +122,13 @@ The username is chosen by the player and unique (ignoring case). The sign-up for
 `ratingCard` has `rating`, `band`, `grade`, `ratingChangeThisMonth`, `matches`,
 `wins`, `winRate`, `rankState` and `stateRank` (the "#184 VIC Rank"), and
 `status` (Provisional or Established). Rating, grade, monthly change and rank
-stay null until the rating calculation exists (BL-024).
+come from the shared singles engine in this 0.4 baseline; grade/rank remain null during placement. See [M2](M2-results-and-rankings.md).
 
 These return the player's **own** real name. Other players only ever see the
 username. Full request and response shapes are in the API spec
 (`docs/badminton-social-connect-api_v1.2.yaml`, tag **Profile**).
 
-Filled in once other branches merge: preferred format (M1), blocked-user count
-(M3), live reliability and the email opt-out (M5).
+This integrated baseline includes preferred format (M1), blocking (M3), live reliability and email opt-out (M5). This feature document describes the player app. The separate Admin console uses the role checks in [admin-api.md](../admin-api.md); this frontend baseline has no additional 30-minute browser idle enforcement.
 
 ## Security settings
 
@@ -227,7 +226,7 @@ One team member does this in the [Supabase dashboard](https://supabase.com/dashb
 - **Sign-out button:** `/signout` works but nothing links to it. Planned: a menu on the profile avatar in the top bar.
 - **Redirect logged-in users** away from `/login` and `/signup` to `/dashboard`.
 - **Terms and privacy pages:** the age-gate forms link to `/terms` and `/privacy`, which don't exist yet. The version labels in `config/legal.js` (`2026-10`) are placeholders until the team chooses them.
-- **State list:** `listStates()` returns a fixed list on this branch. Once the foundation branch's `state` table is merged, it can read from the database.
+- **State list:** `listStates()` still returns a fixed list in the player frontend; the shared `state` table already exists, so switching the helper to a database read is frontend work.
 - **CAPTCHA:** off until the app is public (see [Turning CAPTCHA on](#turning-captcha-on)).
 - **Hosted configuration:** the dashboard steps above, custom SMTP, and production URLs once deployed.
 

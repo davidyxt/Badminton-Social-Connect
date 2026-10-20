@@ -2,10 +2,10 @@
 
 How each screen connects to the backend, what the frontend has to change, and what is still missing on either side. Written for whoever wires the React app to Supabase.
 
-Everything here is on the branch `M4-M6-M1-M3-M5`, which combines the backend work from M1, M3, M4, M5 and M6.
+This guide describes the player frontend and shared Player BE-2 0.4 backend, including M1–M6 work. Its screen adjustments refer to the inherited player app, not the separate Admin console. For the connected Admin app use [admin/README.md](../admin/README.md), [admin-api.md](admin-api.md) and [admin-local-integration.md](admin-local-integration.md).
 
 - **Exact calls, parameters, responses and errors:** [the implemented API spec](badminton-social-connect-api_implemented-playerBE1.yaml) (open it in https://editor.swagger.io). It has only what's built, and every response has a real example. [The full spec](badminton-social-connect-api_v1.2.yaml) also lists the design's endpoints that are still Planned.
-- **Proof that the calls work:** run `python3 supabase/tests/api_test.py`. It tests every call against the local stack and writes a report to `docs/api-test-report.md` (not kept in Git).
+- **Historical Player BE-1 checks:** `python3 supabase/tests/api_test.py` writes an ignored report. It still attempts direct result/dispute inserts removed by 0.4, so it does not prove that every current call passes. See [API changes](api-changes-0.4.0.md) and [M2 checks](features/M2-results-and-rankings.md).
 
 ## Contents
 
@@ -72,7 +72,7 @@ A short version for whoever, or whatever AI assistant, picks this up.
 ## Getting started
 
 ```bash
-git checkout M4-M6-M1-M3-M5
+# Use the integrated checkout containing all 50 migrations.
 npx supabase start
 npx supabase db reset        # every migration + the dev seed
 cd frontend && npm install && npm run dev
@@ -275,7 +275,7 @@ Call `rpc('get_game_details', { p_post_id })`. Keep reading by id rather than re
 - **Players:** each has `isBlocked` and `isDeleted`.
 - **The caller:** `myStatus` (pending, invited, accepted, declined, withdrawn or null) and `canManage`.
 - **Invitations:** `isInvite` is true for a Request Game; `invite` has the invited player's `name`, `status` and the organiser's `message` (null for ordinary games).
-- **Matches:** `matches` is always `[]` for now. Matches within a game are being built separately, with results and rankings.
+- **Matches:** `matches[]` contains the caller's recorded matches, created by `submit_result`; `canRecordResult` drives the result button. See M2.
 
 `null` means the game is gone or hidden from this player; show "This game is not available".
 
@@ -534,7 +534,7 @@ if (removed.previousPath) await supabase.storage.from('avatars').remove([removed
 
 Call `rpc('get_notifications', { p_limit, p_offset })`. It returns `id`, `type`, `title`, `message`, `unread`, `createdAt`, `postId` and `matchId`.
 
-- **Tap target:** open the game, `/games/:postId`. `matchId` is for results and rankings, which are being built separately. The sample's `target` field doesn't exist.
+- **Tap target:** result notices open Match Details using `matchId`; game/join/invitation notices use `/games/:postId`. The sample's `target` field does not exist.
 - **Time:** format "2 min ago" from `createdAt`.
 - **Mark all read:** `rpc('mark_all_notifications_read')`.
 - **Mark one read:** `from('notification').update({ is_read: true }).eq('notification_id', id)`.
@@ -544,7 +544,7 @@ Call `rpc('get_notifications', { p_limit, p_offset })`. It returns `id`, `type`,
 | request | `join_request`, `request_accepted`, `request_declined`, `request_withdrawn` |
 | invitation (new) | `match_invite` (to the invited player; open the game to accept or decline), `invite_accepted`, `invite_declined` (to the organiser) |
 | cancelled | `game_cancelled`, `game_removed` |
-| result | `result_submitted`, `dispute_update` |
+| result | `result_submitted`, `result_confirmed`, `dispute_update`, `result_expired` |
 | league | `league_update` |
 | other | `no_show`, `system` |
 | reminder, game, rating | Not sent yet |
@@ -553,7 +553,7 @@ Call `rpc('get_notifications', { p_limit, p_offset })`. It returns `id`, `type`,
 
 - Replace `initialNotifications` with `get_notifications`.
 - Map the backend `type` values to the existing icons using the table above.
-- Build each notification's link from `postId`, since there's no `target` field.
+- Build result links from `matchId` and game links from `postId`; there is no `target` field.
 - Wire **Mark all as read**.
 - Update the unread badge in the top bar from `unreadNotifications` (in `get_my_home` and `get_my_profile`), or live over Realtime.
 
@@ -676,11 +676,11 @@ Report and block categories:
 | Delete account | `delete_my_account` |
 | Live notifications | Realtime on `notification` |
 | Venue Maps links | `mapsUrl` on cards, details and venues |
-| Admin: delete a played game, with a warning | `admin_game_post_deletion_impact`, `admin_delete_game_post` |
+| Upstream admin SQL: delete a played game | `admin_game_post_deletion_impact`, `admin_delete_game_post`; intentionally blocked by the Final v6 Admin Edge API |
 | Results waiting on me (a Home card or a list) | `get_my_pending_results` |
 | Verification badge on results (BL-057) | `verificationStatus` on `get_match` and `get_player_history` |
 | Quick messages on Match Details | `match_message_template`, `match_message`, `get_match_messages`, Realtime `match:{matchId}:messages` |
-| Admin: replay all ratings now | `admin_rebuild_ratings` |
+| Upstream admin SQL: replay ratings | `admin_rebuild_ratings`; intentionally blocked by the Final v6 Admin Edge API |
 
 ## Screens with no backend yet
 
@@ -692,5 +692,5 @@ These are outside the BE-1 stories, or need a team decision first.
 | Mini Leagues, Create League, League Details | League screens and functions. The `mini_league` table lacks format, style, rounds, skill level, venue, max players and description. |
 | Dashboard league and recent activity | No functions yet |
 | Notification types reminder, new game nearby, rating change | Not sent yet. Result notifications (`result_submitted`, `result_confirmed`, `dispute_update`, `result_expired`) are sent |
-| Resolving disputes, reviewing result flags | Admin lane |
+| Resolving disputes, reviewing result flags | No complete decision workflow. The Final v6 Admin console reads disputes/flags; it does not resolve disputed results. |
 | Terms and privacy pages | The documents and their version labels |

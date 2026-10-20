@@ -1,6 +1,6 @@
 # Database Schema
 
-Implemented across forty-four migrations in `supabase/migrations/`:
+Implemented across 50 migrations in `supabase/migrations/`, including Player BE-2 0.4. This describes the shared database; the Admin Edge API adds the Final v6 restrictions in [admin-api.md](admin-api.md).
 
 | Migration | What it adds |
 |---|---|
@@ -71,13 +71,13 @@ which also lists the open questions this schema left unresolved.
 - Every foreign key column has an index. Postgres does not create these
   automatically, and without them both joins and cascading deletes fall back to
   sequential scans.
-- Money and scores use `numeric`, never `float`.
+- Money and reliability copies use exact numeric types. Ranking points are rounded integers; Bayesian rating state/history uses double precision, and per-game scores are integers in JSON arrays.
 - Every table that can change carries `updated_at` and `updated_by`, stamped by
   a trigger. See [Audit columns](#audit-columns) below.
 
 ## Entity relationships
 
-Every entity carries `updated_at` and `updated_by`. Both are stamped by a trigger and ignore anything
+Mutable domain rows carry `updated_at` and `updated_by`; append-only history/messages, blocks and reference tables have their own timestamp rules. The audit columns are stamped by a trigger and ignore anything
 a client sends; `updated_by` is shown without an `FK` marker because it
 deliberately is not one. See [Audit columns](#audit-columns) for why.
 
@@ -158,7 +158,7 @@ erDiagram
         text target_type "player, game_post, group, mini_league, ..."
         uuid target_id "polymorphic, no FK"
         text category "harassment, spam, underage, ..."
-        text reason "details; required for other"
+        text reason "details required for every report"
         jsonb evidence "copied by the server"
         text status
         timestamptz created_at
@@ -597,7 +597,7 @@ twenty.
 
 ## Notes on the tables
 
-**Games and matches.** A game (`game_post`) is the session. A match (`match`, side `a` against side `b`) is created by `submit_result` when a player records a result, from players on the game's accepted roster, together with its `match_result`. Nobody writes `match`, `match_participant`, `match_result` or `dispute` directly: every change goes through `submit_result`, `confirm_result`, `raise_dispute` and the hourly expiry job. `get_game_details` lists the caller's matches in `matches[]`. See [features/M2-results-and-rankings.md](./features/M2-results-and-rankings.md).
+**Games and matches.** A game (`game_post`) is the session. A match (`match`, side `a` against side `b`) is created by `submit_result` when a player records a result, from players on the game's accepted roster, together with its `match_result`. Players never write `match`, `match_participant`, `match_result` or `dispute` directly: every change goes through `submit_result`, `confirm_result`, `raise_dispute` and the hourly expiry job. `get_game_details` lists the caller's matches in `matches[]`. See [features/M2-results-and-rankings.md](./features/M2-results-and-rankings.md).
 
 **Usernames are chosen by the player; real names are private.** `player.username`
 is the only name other players see: 3-20 letters, digits, `_` or `.`, unique
@@ -656,7 +656,7 @@ fast as the tables grow. Postgres ignores them while tables are small. Tested on
 in search, rosters, games and rankings, with `isBlocked: true` for a badge. The
 blocked player loses sight of the blocker: their name, profile, rosters, and
 any game the blocker organises or has joined (unless already in it). Profiles
-stay closed both ways; rankings stay visible both ways. Neither can join a game
+are visible to the blocker with a badge, but hidden from the blocked player; rankings stay visible both ways. Neither can join a game
 the other organises, and the blocked player cannot join a game the blocker is
 playing in. Helpers: `private.blocked_by_me_ids()`, `private.blocked_me_ids()`,
 `private.block_relation(other)`, `private.game_hidden_from_me(post)`. **Any new
@@ -713,7 +713,7 @@ is filled in. This keeps referential integrity in the database and, just as
 importantly, lets PostgREST embed the organiser in a single request:
 
 ```js
-supabase.from('game_post').select('*, player(username), groups(name, logo_url)')
+supabase.from('game_post').select('*, organiser:player!organiser_id(username), groups(name, logo_url)')
 ```
 
 That nested syntax works only because a foreign key exists. The unused side
@@ -753,7 +753,7 @@ exists.
 
 **`ranking` and `league_standing` are derived.** The singles row of `ranking`
 is a rounded copy of the rating, written by the nightly rating run (pg_cron
-`rate-confirmed-results`, 2 am Melbourne). The full-precision state is in the
+`rate-confirmed-results`, `0 15 * * *` in GMT: 2 am Melbourne during daylight saving, 1 am during standard time). The full-precision state is in the
 `private` schema, out of reach of the API: `private.rating_state` (mean,
 variance and placement counters per player), `private.rating_covariance` (one
 row per pair of players with a non-zero covariance), `private.rating_clock` and
@@ -815,13 +815,13 @@ It is text because NT and ACT postcodes start with 0.
 supabase start                  # bring up the local stack (needs Docker running)
 supabase db reset --local       # drop and rebuild from migrations + seeds/
 supabase db advisors --local    # security and performance lint
-./supabase/tests/rls_test.sh    # 343 access-control and integrity checks
-python3 supabase/tests/api_test.py   # 302 API cases, writes docs/api-test-report.md (not in Git)
+./supabase/tests/rls_test.sh    # historical BE-1 suite; see the baseline caveat below
+python3 supabase/tests/api_test.py   # historical BE-1 API suite, writes an ignored report
 
 supabase migration new <name>   # start a new change
 supabase db push                # apply pending migrations to the linked project
 ```
 
-Studio runs at http://127.0.0.1:54323 once the stack is up.
+Studio runs at http://127.0.0.1:54323 once the default stack is up. The old BE-1 test scripts still attempt direct result/dispute inserts that Player BE-2 removed; their historical 343/302 counts are not a passing result for this baseline. Use the Admin verification commands in [admin-api.md](admin-api.md) and the Player BE-2 checks described in [M2](features/M2-results-and-rankings.md).
 
-Nothing has been pushed to the hosted project yet; it is still empty.
+Hosted deployment state has not been verified by this integration. A maintainer must compare the hosted migration history before deploying; GitHub files do not prove that the hosted schema is current.

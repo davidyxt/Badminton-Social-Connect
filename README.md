@@ -1,13 +1,29 @@
 # Badminton Social Connect
 
-Starter repository structure for the Badminton Social Connect platform.
+Badminton Social Connect player application, Supabase backend and integrated Admin web console.
+
+This branch connects the Admin console to the Admin API on the Player BE-2 0.4 database baseline (50 migrations), including the existing shared singles rating engine. Local verification does not establish hosted deployment.
 
 ## Structure
 
-- `frontend/` — React frontend
+- `frontend/` — React frontend (player app)
+- `admin/` — Admin web console (Next.js, mock or integrated Admin API mode; see [admin/README.md](admin/README.md))
 - `supabase/` — Supabase database migrations, functions, and seed data
 - `docs/` — Project documentation
 
 ## Getting started
 
 See [docs/SETUP.md](docs/SETUP.md) for running locally, environment files, and auth configuration.
+
+For the Admin console, start with [admin/README.md](admin/README.md) and the [integration and testing guide](docs/admin-local-integration.md). API mode reads the database; mock mode is a separate browser-only demonstration.
+
+The admin Edge Function and frontend API client are documented in [docs/admin-api.md](docs/admin-api.md), including the team contract adapter, announcement management, legacy operations, transport differences and remaining database gaps.
+
+For the database maintainer, [docs/admin-database-handoff.md](docs/admin-database-handoff.md) maps completed and outstanding admin features to backlog tasks, proposed schema/RLS changes, shared processing requirements and acceptance tests.
+
+## Documentation scope
+
+- [Database schema](docs/database-schema.md) and [RLS policies](docs/rls-policies.md) describe the shared database, including direct Player API permissions.
+- [Player frontend wiring](docs/frontend-wiring-guide.md) and the generated YAML specifications describe `/rest/v1` and shared SQL RPCs, separately from the Admin Edge transport.
+- [Admin API](docs/admin-api.md) describes `/functions/v1/admin-api`, supported writes and Final v6 read-only restrictions.
+- [Deployment](docs/DEPLOYMENT.md) covers hosted setup. Publishing a Git branch does not deploy its database, functions or either frontend.

@@ -4,6 +4,10 @@
 # working directory name when running `supabase init`.
 project_id = "badminton-social-connect"
 
+# This API additionally validates the user through Auth and checks the admin role.
+[functions.admin-api]
+verify_jwt = true
+
 [api]
 enabled = true
 # Port to use for the API URL.
