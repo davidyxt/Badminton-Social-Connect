@@ -9,3 +9,6 @@
 
 # Local secrets (OAuth client secrets etc.)
 .env
+
+# Python bytecode from the seed scripts and their tests
+__pycache__/

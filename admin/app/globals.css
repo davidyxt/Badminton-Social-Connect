@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens. Figma Dev Mode was not available at build time. A calm,
+ * neutral palette with the player app's blue (frontend/src/styles) kept as
+ * the single accent for links, focus and selection.
+ */
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-canvas: #fafafa;
+  --color-surface: #ffffff;
+  --color-subtle: #f6f6f7;
+  --color-line: #ebebed;
+  --color-line-strong: #dcdde0;
+
+  --color-ink: #111318;
+  --color-ink-muted: #5f636d;
+  --color-ink-faint: #8e929b;
+
+  --color-sidebar: #f6f6f7;
+  --color-sidebar-hover: #ececee;
+  --color-sidebar-active: #ffffff;
+  --color-sidebar-text: #5f636d;
+
+  --color-brand: #315b9e;
+  --color-brand-hover: #284b84;
+  --color-brand-soft: #eef2f9;
+  --color-accent: #e8720c;
+
+  --color-success: #17803d;
+  --color-success-soft: #edf7f0;
+  --color-warning: #a35a00;
+  --color-warning-soft: #fdf5e7;
+  --color-danger: #c4352b;
+  --color-danger-hover: #a62c23;
+  --color-danger-soft: #fdf0ee;
+  --color-info: #315b9e;
+  --color-info-soft: #eef2f9;
+  --color-neutral-soft: #f1f1f3;
+}
+
+html,
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--color-brand-soft);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-toast-in {
+  animation: toast-in 140ms ease-out;
+}

@@ -1,7 +1,7 @@
 # Row Level Security: access model for review
 
 This describes who can read and write each table in the Badminton Social
-Connect database. The policies themselves live in the four migrations under
+Connect database. The policies themselves live in the 50 migrations under
 `supabase/migrations/`.
 
 **Please read the "Open questions" section at the end.** Several rules were
@@ -13,8 +13,7 @@ tables in the diagram had no way to express ownership at all.
 ## Why this matters more than usual
 
 Our React app talks to Postgres over HTTP using a key that ships in the browser.
-Anyone can open devtools, copy that key and issue their own queries. There is no
-backend of ours in the middle deciding what they may see.
+Anyone can open devtools, copy that key and issue their own queries. The player app uses direct PostgREST/SQL RPCs. The Admin console additionally uses an authenticated Edge Function, which retains the caller JWT and RLS for application data; see [admin-api.md](admin-api.md).
 
 So the permission check has to live in the database. That is what Row Level
 Security is: rules attached to a table saying which rows each caller may touch.
@@ -22,9 +21,7 @@ Postgres applies them to every query regardless of where it came from.
 
 Two consequences worth internalising:
 
-- **A table without RLS is public.** If someone adds a table in a later
-  migration and forgets `enable row level security`, everything in it is
-  readable and writable by anyone with the publishable key. Every table created
+- **Exposed tables need grants and RLS.** On a table granted to browser roles, omitting `enable row level security` leaves no row-level restriction. Exposing a schema and granting table access are separate from enabling RLS. Every table created
   so far has it enabled; new ones need it too.
 - **Denied reads are silent.** A query that a policy blocks returns zero rows,
   not an error. An `update` that matches nothing reports success with zero rows
@@ -35,7 +32,7 @@ Two consequences worth internalising:
 
 | Caller | What it is | Gets |
 |---|---|---|
-| `anon` | Holding the publishable key, not signed in | **Nothing.** No policy grants anon anything. |
+| `anon` | Holding the publishable key, not signed in | State/suburb reference rows and `is_username_available`; no player/game data. |
 | `authenticated` | A signed-in player | Their own data, plus what the app is meant to show publicly |
 | admin | A signed-in player with `role: admin` in their JWT `app_metadata` | Moderation and staff powers |
 | `service_role` | The secret key, server-side only | Everything; bypasses RLS entirely |
@@ -64,49 +61,100 @@ may need to sign out and back in.
 |---|---|
 | `player` | Any signed-in player (the roster: names, bands, verified flag) |
 | `player_profile` | Your own row; other players' rows only while `is_discoverable` is true |
+| `player_private` | Your own row and admins. Other players see `player.username`; the Admin Edge API reads only registration completion, not names, birth date or consent records. |
 | `venue` | Any signed-in player |
+| `state`, `suburb` | Everyone, including signed-out visitors (the sign-up form needs them) |
 | `mini_league` | Any signed-in player |
 | `league_standing` | Any signed-in player |
-| `game_post` | Any signed-in player |
+| `game_post` | Any signed-in player, except deleted posts (admins see those too). An invitation (`invited_player_id` set, Request Game) only its organiser, the invited player and admins |
+| `game_request_message` | The requester and the game's organiser or group admins |
+| `game_participant_history` | The requester and the game's organiser or group admins |
 | `game_participant` | **Accepted** rows: any signed-in player, so the board can show places taken. **Pending or rejected** rows: only the player who asked, and the organiser |
 | `cancellation_record` | Any signed-in player |
-| `club` | Any signed-in player |
-| `club_representative` | Any signed-in player |
+| `groups` | Any signed-in player |
+| `group_member` | **Approved** members: any signed-in player. **Pending** join requests: only the player who asked, and the group's admins |
 | `match` | Any signed-in player |
 | `match_participant` | Players in that match, plus whoever manages it |
 | `check_in` | Players in that match, plus whoever manages it |
 | `match_result` | Players in that match, plus whoever manages it |
 | `dispute` | Players in that match, the person who raised it, plus whoever manages it |
 | `ranking` | Any signed-in player (leaderboards) |
+| `rating_history` | Your own rows, plus admins. Other players' rating changes reach the screens only through the functions |
+| `result_flag` | Admins only |
+| `match_message` | Players in that match |
+| `match_message_template` | Any signed-in player |
+| (rating state) | `private.rating_state`, `rating_covariance`, `rating_clock`, `rating_batch` are in the `private` schema: never readable through the API |
 | `notification` | Yours only |
 | `report` | Only the person who filed it, plus admins |
+| `blocks` | Only the blocker, plus admins. The blocked player cannot tell |
+| (blocking) | `player` and `game_participant` rows of a blocker are hidden from the player they blocked. Direct `player_profile` reads remain hidden both ways; the guarded `get_player_profile` RPC lets the blocker inspect a profile with a badge. `game_post` rows are hidden from a blocked player when the blocker organises or plays in the game. Rankings are not filtered. |
 | `admin_post` | Published announcements only; admins also see drafts |
 
-Admins can read everything in every table.
+Admins have broad domain reads through upstream policies, but this is not a grant to private rating state or every private message. The Admin Edge API exposes only its documented routes. Direct database write permissions below are upstream behavior and can be broader than the Final v6 Admin Edge API.
 
 ## Write access
 
 | Table | Insert | Update | Delete |
 |---|---|---|---|
-| `player` | Trigger only, on sign-up | Own row, and only `display_name` / `self_rating_band` | Cascades from `auth.users` |
-| `player_profile` | Trigger only, on sign-up | Own row, and only `bio` / `suburb` / `state` / `is_discoverable` | Cascades |
+| `player` | Trigger only, on sign-up | Own row, and only `username` / `self_rating_band` | Never. Deleting the auth user (`delete_my_account`, dashboard) keeps the row as "Deleted User" (`deleted_at`) so results and rankings stay |
+| `player_private` | Trigger only, on sign-up | Own row, and only `first_name` / `last_name` | Never; cleared when the account is deleted |
+| `player_profile` | Trigger only, on sign-up | Own row, and only `bio` / `suburb` / `state` / `is_discoverable` / `preferred_format` / `email_notifications`. `availability` and `availability_note` only through `update_my_profile`, `profile_image_url` only through `set_my_profile_picture` / `remove_my_profile_picture`, which check them | Never; cleared when the account is deleted |
 | `venue` | Admin | Admin | Admin |
+| `state`, `suburb` | Nobody (production seed files only) | Nobody | Nobody |
 | `mini_league` | Any player, as organiser | Organiser or admin | Organiser or admin |
 | `league_standing` | League organiser or admin | Same | Same |
-| `game_post` | As yourself, or as a club you represent | Organiser, club rep or admin | Organiser, club rep or admin |
-| `game_participant` | Request to join as yourself, `status` forced to `requested`. The organiser may add people directly | The organiser decides accept/reject; you may only move your own row to `withdrawn` | Yourself, or the organiser |
-| `cancellation_record` | Organiser of the post (player or club rep), or admin | Admin | Admin |
-| `club` | Any player, as themselves | Representatives or admin, and not `is_verified` | Representatives or admin |
-| `club_representative` | An existing representative, or admin | n/a | Yourself only, or admin |
-| `match` | Anyone on the game's roster, or the league organiser for a fixture | Creator, game organiser, league organiser or admin | Same |
-| `match_participant` | Yourself, or the match manager adding you. Must be on the game's roster | Your own attendance, or the manager's | Yourself, or the manager |
+| `game_request_message`, `game_participant_history` | Nobody directly (`request_to_join` and a trigger) | Nobody | Nobody |
+| `game_post` | As yourself, or as a group you are an admin of. Invitations only through `invite_player` | Organiser, group admin or admin. Cancelling and deleting only through the BL-013 functions; `invited_player_id` never changes | Nobody. Deleting hides the post (`delete_game_post`) |
+| `game_participant` | Request to join as yourself, `status` forced to `requested`. The organiser may add people directly. `invited` and `declined` only through `invite_player`, `accept_invite`, `decline_invite`; nobody else can join an invitation game | The organiser decides accept/reject; you may only move your own row to `withdrawn` | Yourself, or the organiser |
+| `cancellation_record` | Organiser of the post (player or group admin), or admin | Admin | Admin |
+| `groups` | Any player, as themselves (they become its first group admin) | Group admins or platform admin (including `is_active`), and not `is_verified` | Nobody. Groups are deactivated, not deleted |
+| `group_member` | Request to join as yourself, forced to `pending` / `member`. Nobody can add someone else (team item 4) | Group admins approve requests and promote members; only `role` and `status`; never another admin's row | Yourself (leave or withdraw), group admins removing a non-admin, or platform admin. The last group admin cannot leave |
+| `match`, `match_participant` | Nobody directly. `submit_result` creates both, from players on the game's accepted roster | Admin | Admin |
 | `check_in` | Yourself, only if you are a participant, only unverified | Admin | Admin |
-| `match_result` | Participants, `status` forced to `pending` | Admin | Admin |
-| `dispute` | Participants, `status` forced to `open` | Admin | Admin |
-| `ranking` | Nobody | Admin | Nobody |
+| `match_result` | Nobody directly (`submit_result`, always `pending`) | Admin. Players confirm only through `confirm_result` (the opposing side) and dispute through `raise_dispute`; the hourly expiry job sets `expired` | Admin |
+| `dispute` | Nobody directly (`raise_dispute`) | Admin (resolving disputes belongs to the admin lane) | Admin |
+| `ranking` | Nobody (the nightly rating run) | Admin | Nobody |
+| `rating_history`, `result_flag` | Nobody (the nightly rating run, `private.check_result`) | Nobody | Nobody |
+| `match_message` | As yourself, a player in the match, with a preset `template_code` only; at most 20 per 10 minutes | Nobody | Nobody |
 | `notification` | Admin | Own row, and only `is_read` | Own row |
-| `report` | Yourself, `status` forced to `open` | Admin | Admin |
+| `report` | Nobody directly. Only `report_player` / `report_post` / `report_league` / `report_group`, which capture the evidence | Admin | Admin |
+| `blocks` | Nobody directly (`block_player`) | Nobody | Nobody directly (`unblock_player`) |
 | `admin_post` | Admin, as themselves | Admin | Admin |
+
+## Storage: profile pictures
+
+The `avatars` bucket (migration `..._my_games_availability_profile_pictures.sql`) is public, so pictures load from their URL without a token. Four policies on `storage.objects` let a signed-in player **insert, select, update and delete only inside `avatars/<their own id>/`**. Nobody can write to anyone else's folder. The API hands out a picture's URL (`profileImageUrl`) only where the profile itself may be seen. Bucket limits: 2 MB, JPEG, PNG or WebP.
+
+## The age gate (BL-007)
+
+An account is **unusable until it is registered**: a date of birth showing 18
+or over, the 18+ declaration, and accepted versions of the terms of use and the
+privacy notice (`player_private.registered_at` set). Until then:
+
+- it can read and edit its own `player`, `player_profile` and `player_private` rows, and read states, suburbs, venues, announcements and its own notifications;
+- every other player, game, group, match, league, ranking and report is invisible, and it cannot create any.
+
+This is enforced by **restrictive** policies (`<table>: registered players
+only`), which Postgres ANDs with the normal permissive ones. They narrow access
+without changing any existing policy. The helper is `private.is_registered()`;
+admins always pass.
+
+The gate has to work this way because sign-up metadata is written by the
+client, and anyone can call the Supabase sign-up API directly. A check that only
+ran when a date of birth was supplied could be skipped by not supplying one.
+
+Registration happens in one place, `private.complete_registration`, reached two
+ways:
+
+| Path | When | Under-18 |
+|---|---|---|
+| Sign-up metadata: `date_of_birth`, `age_declared`, `terms_version`, `privacy_version`, `state` in `options.data` | Email sign-up | The sign-up fails; no account is created |
+| `supabase.rpc('register_player', { p_date_of_birth, p_age_declared, p_terms_version, p_privacy_version, p_state })` | Google sign-in, or any account that skipped the fields | Error `23514`; nothing is stored |
+
+A minor's date of birth is never stored. Registration runs once; the date of
+birth cannot be edited afterwards. Age is judged by the date in the player's
+own state (Melbourne time for VIC, Perth time for WA, …), not the database's
+UTC date, so someone turning 18 today is accepted from local midnight.
 
 ## Things deliberately out of reach
 
@@ -119,11 +167,13 @@ operation, or a trigger that overwrites whatever the client sent.
 | Column | Why |
 |---|---|
 | `player.is_verified` | Otherwise any player awards themselves a verification badge |
-| `club.is_verified` | Same. Anyone can register a club, so the badge is the only signal that it is genuine |
+| `group.is_verified` | Same. Anyone can register a group, so the badge is the only signal that it is genuine |
 | `player_profile.reliability_score` | Derived from no-shows; self-reporting defeats the point |
-| `player_profile.games_played`, `.no_show_count` | Same |
+| `player_profile.games_played`, `.no_show_count`, `.late_withdrawal_count`, `.late_cancellation_count` | Same. Refreshed from `private.reliability` |
+| `game_participant.status = no_show`, `.late_withdrawal` | Only `mark_no_show` / `clear_no_show` and a trigger. A player who could clear their own no-show would undo the point |
 | `notification` (all but `is_read`) | Otherwise players rewrite the text of their own notifications |
 | `ranking` (inserts and deletes) | Points are computed from confirmed results, never claimed |
+| `player_private.date_of_birth`, consent columns, `registered_at` | Set once by the age gate. A player who could edit their date of birth could undo the age check |
 | `updated_at` / `updated_by`, everywhere | A trigger overwrites whatever the client sends. A field recording who changed a status is worthless if the person changing it picks the value |
 
 Four more rules are enforced in the policies rather than by grants:
@@ -134,13 +184,21 @@ Four more rules are enforced in the policies rather than by grants:
   `withdrawn`.
 - A player can only insert a `check_in` for themselves, for a match they are
   in, and only with `verified = false`. Staff verify separately.
-- A submitted `match_result` must start as `pending`. Confirming it is a
-  separate, privileged step.
+- A result is only created by `submit_result`, as `pending`, after checking the
+  roster, the format and the scores. Confirming it needs a player on the
+  **opposing** side (`confirm_result`); the submitter and their partner cannot.
 - A `report` and a `dispute` must start as `open`, and the person who filed it
-  cannot edit it afterwards, so the moderation trail holds.
+  cannot edit it afterwards, so the moderation trail holds. A dispute is only
+  raised through `raise_dispute`, by the opposing side, on a pending result.
+- A quick message (`match_message`) is a preset `template_code`, never free
+  text, sent as yourself by a player in the match.
 
 There is also a partial unique index ensuring **at most one `confirmed` result
 per match**, no matter how many are submitted.
+
+Realtime: quick messages are broadcast on the private channel
+`match:{matchId}:messages`. A policy on `realtime.messages` lets only that
+match's players join it.
 
 ## Integrity enforced by triggers
 
@@ -152,17 +210,24 @@ the API as well.
 | Trigger | Rule |
 |---|---|
 | `game_participant_capacity` | A game cannot accept more players than `player_limit` |
+| `game_post_validate` | Suburb required (copied from the venue); start time in the future; `status = cancelled` and `deleted_*` can only be set by `cancel_game_post`, `delete_game_post` and `admin_delete_game_post` |
+| `group_has_no_upcoming_games` | A group cannot be deactivated while it has upcoming games |
+| `game_participant_validate_change` | Join requests and responses only while the game is open (not cancelled, deleted or started) |
 | `match_participant_validate` | Players must be on the game's accepted roster; one per side for singles, two for doubles |
 | `match_completion_validate` | A match cannot become `completed` with sides that are not full |
-| `<table>_set_updated_metadata` | Stamps `updated_at` and `updated_by` on all 18 changeable tables, ignoring anything the client sent |
+| `match_result_flag_ratings_for_rebuild` | A result that counted stops counting (rejected, or excluded when its game is deleted): the next nightly rating run replays every rating |
+| `match_message_limit` | At most 20 quick messages per player per 10 minutes |
+| `match_message_broadcast` | Sends each new quick message on `match:{matchId}:messages` |
+| `<table>_set_updated_metadata` | Stamps `updated_at` and `updated_by` on the mutable domain tables that have these audit columns, ignoring anything the client sent |
 
 Sides can be filled one player at a time, so the exact count is only required at
-completion. All three raise `23514` (check violation), which PostgREST returns
-as a `400` with the message intact, so the frontend can show it.
+completion. The validation triggers raise `23514` (check violation) and the
+message limit `54000`; PostgREST returns them with the message intact, so the
+frontend can show it.
 
 ## Helper functions
 
-Seven functions live in a `private` schema that is not exposed through the API
+Access-control helpers live in a `private` schema that is not exposed through the API
 (it is absent from `db.schemas` in `config.toml`, and the test suite checks it
 cannot be called as an RPC).
 
@@ -172,9 +237,10 @@ cannot be called as an RPC).
 | `private.is_match_participant(match_id)` | Are you in this match? |
 | `private.can_manage_match(match_id)` | Did you create it, or do you organise its league? |
 | `private.is_league_organiser(league_id)` | Do you organise this league? |
-| `private.can_post_for_club(club_id)` | Are you a listed representative of this club? |
-| `private.can_manage_post(post_id)` | Did you post this game, or represent the club that did? |
+| `private.can_post_for_group(group_id)` | Are you an approved admin of this group? |
+| `private.can_manage_post(post_id)` | Did you post this game, or are you an admin of the group that did? |
 | `private.is_game_participant(post_id)` | Are you on this game's accepted roster? |
+| `private.is_registered()` | Have you passed the age gate (or are you an admin)? |
 
 All but the first are `security definer`, which means they run with elevated
 privileges and skip RLS on the tables they read. That is not laziness. It is
@@ -183,6 +249,12 @@ participant?" would re-enter `match_participant`'s own policy and recurse
 forever. Each function checks `auth.uid()` internally, so it can only ever
 answer questions about the caller.
 
+**Signed-out visitors** (the `anon` role) can call only `is_username_available`.
+Supabase's default privileges grant `anon` EXECUTE on every new function in
+`public`, and `revoke ... from public` does not remove that, so
+`20261008100700_revoke_anon_function_access.sql` revokes it and changes the
+default for future functions. `supabase/tests/api_test.py` checks it.
+
 `private.is_admin()` is deliberately **not** `security definer`: it reads only
 the caller's own token and needs no extra privilege.
 
@@ -190,8 +262,9 @@ the caller's own token and needs no extra privilege.
 
 ## Verifying it
 
-`supabase/tests/rls_test.sh` runs 68 checks against the local stack. It signs up
-two real players through the Auth API and drives PostgREST exactly as the
+`supabase/tests/rls_test.sh` is the historical BE-1 suite (343 checks at its original baseline). It still has direct match/result/dispute writes removed by Player BE-2, so that count is not a current passing result. It creates
+three real, already-confirmed players through the Auth admin API (email
+confirmation is on, so a plain sign-up returns no session), signs them in, and drives PostgREST exactly as the
 browser would, so it tests the policies as deployed rather than the SQL as
 written.
 
@@ -201,10 +274,10 @@ supabase db reset --local
 ./supabase/tests/rls_test.sh
 ```
 
-All 68 pass as of this migration. It covers: the sign-up trigger, the
+All 343 pass with every migration up to the API descriptions (2026-10-08). It covers: the sign-up trigger, the
 discoverability rule, cross-user writes, the escalation paths above, anonymous
-access, game post ownership, the private schema not being exposed, club
-representation, the exactly-one-organiser constraint, and organiser embedding.
+access, game post ownership, the private schema not being exposed, group
+admins, members, join requests and deactivation, the exactly-one-organiser constraint, and organiser embedding.
 
 Add a case here whenever you add a policy. A policy that is subtly too
 permissive is worse than no policy, because it looks like it is protecting you.
@@ -215,7 +288,7 @@ Also worth running after any schema change:
 supabase db advisors --local --level warn
 ```
 
-It currently reports nothing above INFO. The INFO entries are "unused index"
+At its earlier BE-1 baseline it reported nothing above INFO; this integration has not rerun the complete shared-database advisor audit. The INFO entries are "unused index"
 notices, which are expected on a database with no traffic yet.
 
 ---
@@ -226,7 +299,7 @@ These need a decision from the team. Each one is a guess I made to get the
 schema working, marked `DEVIATION` in the migration.
 
 1. **`updated_by` is not a foreign key to `player`.** Making it one gives every
-   table a second relationship to `player`, which makes `player(display_name)`
+   table a second relationship to `player`, which makes `player(username)`
    ambiguous in PostgREST and forces every embed in the app to name its foreign
    key explicitly. The trigger is the only writer and takes the value from
    `auth.uid()`, so the constraint would protect nothing. The cost is that a
@@ -245,9 +318,7 @@ schema working, marked `DEVIATION` in the migration.
    sometimes made by someone arranging but not playing, this is wrong and the
    auto-join should become a choice on the form.
 
-4. **A rejected player can ask again.** The update policy lets a player move
-   their own row back to `requested`, so a rejection is not final. That is
-   friendly but allows pestering. Should `rejected` be a dead end?
+4. **Resolved: a rejected player cannot ask again through `request_to_join`; a withdrawn player can.** Use the join RPC rather than treating the historical row-update policy as the current player workflow.
 
 5. **Check-ins are per match, but people check in to a session.** `check_in` is
    keyed on `(match_id, player_id)`, which predates the game and match split. In
@@ -260,24 +331,34 @@ schema working, marked `DEVIATION` in the migration.
    or we add a trigger. I avoided one because it would fight with an organiser
    setting the status by hand.
 
-7. **Anyone can register a club, and unverified clubs can post.** Nothing stops
+7. **Anyone can register a group, and unverified groups can post.** Nothing stops
    someone creating "Melbourne Badminton Association" and posting as it. The
    `is_verified` badge is the only signal, and it is staff-set. The alternatives
-   are to let only admins create clubs (no self-service) or to block unverified
-   clubs from posting until approved. I chose the open default to match how
+   are to let only admins create groups (no self-service) or to block unverified
+   groups from posting until approved. I chose the open default to match how
    player verification already works, but this is an impersonation risk and
    worth a deliberate decision.
 
-8. **Club representatives can add other representatives.** Whoever registers the
-   club becomes the first one, and any representative can add more. A
-   representative can only remove *themselves*, never another, so two people who
-   fall out cannot remove each other in a race. Admins settle those disputes.
-   If clubs should instead have a single owner who controls the list, say so.
+8. **Resolved (BL-080): groups have admins, members and join requests.**
+   `group_member` is the membership list, with `role` (`admin` /
+   `member`) and `status` (`pending` / `approved`). The creator is the first
+   admin; a group can have several. Players request to join and a group admin
+   approves. Only group admins can rename the group or post games for it. A group
+   admin can never demote or remove another admin, so two admins who fall out
+   cannot lock each other out; platform admins settle those. The
+   `keep_one_group_admin` trigger stops the last admin leaving. Since the join-by-request-only migration, players must submit their own requests; group admins cannot add someone directly.
 
-9. **Deleting a club deletes its game posts.** `game_post.organiser_club_id`
-   cascades. Representatives can delete the club, so one representative can
-   destroy the club's whole posting history. Should deletion be admin-only, or
-   should we soft-delete instead?
+9. **Resolved (BL-080): groups are deactivated, never deleted.** Deleting a
+   group used to cascade through its game posts to every match, result and
+   dispute played in them. Now nobody can delete a group through the API (no
+   policy and no privilege), and `game_post.organiser_group_id` is `on delete
+   restrict`, so even a `service_role` delete fails while the group has posts.
+   A group admin sets `group.is_active = false` instead: posts and results stay,
+   the group page shows it as inactive, and the `group_must_be_active` trigger
+   stops new game posts and join requests until it is reactivated. Members can
+   still leave and admins can still edit or cancel existing posts.
+
+   BL-013 now retains deleted posts with `match.post_id` using `on delete restrict`; account deletion anonymizes retained players. Upstream admin game deletion changes ranking eligibility, so the Final v6 Admin Edge API blocks it.
 
 10. **`match` had no owner, so I added `created_by`.** A casual match created
    from a game post belongs to no league, so there was no way to say in a policy
@@ -297,9 +378,7 @@ schema working, marked `DEVIATION` in the migration.
    so published announcements cannot appear on a logged-out landing page. Easy
    to relax if marketing wants that; I chose the safer default.
 
-14. **Verification and reliability scores have no writer yet.** They are locked to
-   `service_role`, which means something server-side has to update them: an
-   Edge Function, or a scheduled job. Nothing does yet.
+14. **Verification remains a trusted staff operation.** Reliability is now computed by `private.reliability`, refreshed on changes and by the hourly job; players cannot write their own counters.
 
 15. **`league_standing` is writable by the league organiser.** It is derived data,
    so arguably it should be `service_role` only like `ranking`. I left it open
