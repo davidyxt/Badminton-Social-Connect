@@ -17,6 +17,8 @@ npm run dev        # http://localhost:3000
 
 In mock mode, sign in with any email and password. An email starting with `player` signs in as a non-admin and shows the access-restricted screen.
 
+For presentations, keep `NEXT_PUBLIC_ADMIN_DATA_SOURCE=mock` (the default). If this app was previously configured for API mode, change that value in `.env.local` and restart development or rebuild production. Do not run `setup:local` for a mock presentation because that helper switches to API mode. Demo changes persist in the browser and do not update Supabase.
+
 Other scripts: `npm run build`, `npm run lint`, `npm test`, `npm run setup:local` (local Supabase only; credentials stay in ignored `.local/`).
 
 Visual conventions (tokens, spacing, components to reuse) are in [DESIGN.md](DESIGN.md).

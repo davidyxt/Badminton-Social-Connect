@@ -1,6 +1,6 @@
 # Admin console integration and testing
 
-The local `admin-api/main-console-integration-20261020` branch combines latest `main` (`e42beb7`), our completed Admin integration (`6d8e8f2`) and latest `admin-console-frontend` (`5b204e7`). The Next.js console in `admin/` uses the Admin Edge Function and the existing 50 migrations. Mini Leagues remain hidden by default, following the latest frontend scope. This local integration has not been pushed or deployed.
+The local `admin-api/main-console-integration-20261020` branch combines latest `main` (`e42beb7`), our completed Admin integration (`6d8e8f2`) and latest `admin-console-frontend` (`5b204e7`). The Next.js console in `admin/` uses the Admin Edge Function and the existing 50 migrations. Mini Leagues remain hidden by default, following the latest frontend scope. The default frontend mode is mock data for presentations. API mode remains available through the setup below. Publishing this code to main does not deploy the database, Edge Function or either frontend.
 
 ## Data sources and boundaries
 

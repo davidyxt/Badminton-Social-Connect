@@ -2,7 +2,7 @@
 
 Updated 20 October 2026. This document describes the features actually exposed by the integrated Admin console. It replaces the broader earlier proposal: invitations, deletion retry workers and extra leaderboard snapshots are not requirements of the current screens.
 
-The local branch `admin-api/main-console-integration-20261020` combines main `e42beb7`, our completed integration `6d8e8f2` and the latest frontend `5b204e7`. The existing 50 database migrations and shared singles rating engine are unchanged. Mini Leagues are hidden by default in the latest frontend and are outside the current delivery scope. Local integration does not establish hosted deployment.
+The integration assembled on `admin-api/main-console-integration-20261020` combines main `e42beb7`, our completed integration `6d8e8f2` and the latest frontend `5b204e7`. The existing 50 database migrations and shared singles rating engine are unchanged. Mini Leagues are hidden by default in the latest frontend and are outside the current delivery scope. Local integration does not establish hosted deployment.
 
 ## Connected functionality
 
@@ -87,6 +87,6 @@ Use new reviewed migrations for any agreed schema changes, preserving existing d
 
 On 20 October 2026, 158 Admin HTTP/SDK tests, 7 inherited player-session tests and 9 console tests passed (174 total), with 124 real local Auth/Postgres/RLS/Edge checks. A supplemental 12-check run executed actual frontend modules against local Supabase, including real announcement writes, stale/concurrent saves, directory failure, idle expiry and cache clearing. Admin lint/build and Deno check/lint passed. The separate player frontend currently cannot build because latest main lacks `services/badmintonApi`; this does not prevent the Admin console build.
 
-The local demo uses the existing 50 migrations and development/reference seed. Tests remove only their own temporary fixtures. No hosted deployment or push is performed by this integration. A teammate with Supabase access must check hosted migration state before deploying the function; development seed data must stay local.
+The local demo uses the existing 50 migrations and development/reference seed. Tests remove only their own temporary fixtures. The console defaults to browser mock data for presentations; publishing the integration to main does not deploy Supabase or enable unavailable backend features. A teammate with Supabase access must check hosted migration state before deploying the function; development seed data must stay local.
 
 See [Admin API](admin-api.md), [integration/setup/testing](admin-local-integration.md) and [deployment](DEPLOYMENT.md) for contracts and commands.

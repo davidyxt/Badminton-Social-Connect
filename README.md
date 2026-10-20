@@ -2,7 +2,7 @@
 
 Badminton Social Connect player application, Supabase backend and integrated Admin web console.
 
-This local branch combines main `e42beb7`, our Admin integration and frontend `admin-console-frontend` at `5b204e7`. It connects the Admin console to the Admin API on the Player BE-2 0.4 database baseline (50 migrations), including the existing shared singles rating engine. Local verification does not establish hosted deployment.
+This integrated version combines main `e42beb7`, our Admin integration and frontend `admin-console-frontend` at `5b204e7`. It includes the Admin console and its optional connection to the Admin API on the Player BE-2 0.4 database baseline (50 migrations), including the existing shared singles rating engine. Local verification does not establish hosted deployment.
 
 ## Structure
 
@@ -20,6 +20,12 @@ For the Admin console, start with [admin/README.md](admin/README.md) and the [in
 The admin Edge Function and frontend API client are documented in [docs/admin-api.md](docs/admin-api.md), including the team contract adapter, announcement management, legacy operations, transport differences and remaining database gaps.
 
 For the database maintainer, [docs/admin-database-handoff.md](docs/admin-database-handoff.md) maps completed and outstanding admin features to backlog tasks, proposed schema/RLS changes, shared processing requirements and acceptance tests.
+
+## Admin presentation mode
+
+The Admin console defaults to frontend mock data for presentations; it needs no Supabase connection. Run `npm ci` and `npm run dev` in `admin/`, then open `http://localhost:3000`. Use any valid email that does not start with `player` and any nonempty password. All mock actions stay in the browser; they do not establish completion of the corresponding backend feature.
+
+If an existing `admin/.env.local` or hosting environment sets `NEXT_PUBLIC_ADMIN_DATA_SOURCE=api`, change it to `mock` and restart development or rebuild production before presenting. Do not run `setup:local` for the mock presentation: it configures API mode. The real API integration remains available through the setup guide.
 
 ## Documentation scope
 
