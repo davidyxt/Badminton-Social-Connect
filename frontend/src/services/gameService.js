@@ -1,4 +1,17 @@
-// Game creation goes through the shared adapter so column naming and
-// current-user ownership are consistent with all the other pages.
-import {createGame} from './badmintonApi';
-export {createGame};
+// Temporary frontend-only service.
+// Replace the contents of this function with Supabase later.
+
+export const createGame = async (gameData) => {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+  
+    const id =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `temp-${Date.now()}`;
+  
+    return {
+      id,
+      ...gameData,
+      status: "open",
+    };
+  };

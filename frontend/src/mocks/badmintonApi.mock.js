@@ -37,6 +37,38 @@ Object.values(db.joinRequests).flat().forEach((request) => moveDates(request.gam
 
 const game = (id) => db.games[id];
 const matchByResult = (resultId) => Object.values(db.matches).find((m) => m.result?.id === resultId);
+// The BSC201 pages pass a match id where BSC-202 passes a result id.
+const matchFor = (id) => db.matches[id] ?? matchByResult(id);
+const person = (id) => (id === me ? db.profile : db.players[id]);
+
+// The BSC201 pages read table-style rows (displayName, postId, rankingPoints...).
+// These build them from the same data, so both versions of the pages work.
+const playerRow = (p) => ({
+  playerId: p.id, id: p.id, displayName: p.name, name: p.name, username: p.username ?? p.name,
+  initials: p.initials, selfRatingBand: p.level, rank: p.level, location: p.area ?? p.location,
+  isVerified: p.isVerified ?? false,
+});
+const profileRow = (p) => ({
+  playerId: p.id, gamesPlayed: p.gamesPlayed ?? null, reliabilityScore: p.reliability == null ? null : p.reliability / 100,
+  noShowCount: p.noShows ?? 0, suburb: p.suburb ?? p.area ?? null, state: p.state ?? "VIC", bio: p.bio ?? null,
+  isDiscoverable: p.isDiscoverable ?? true,
+});
+const rankingRow = (id) => {
+  const row = db.leaderboards.state.entries.find((e) => e.id === id);
+  const summary = db.ratingSummaries[id];
+  const points = summary?.rating ?? row?.rating;
+  if (points == null) return null;
+  return {
+    playerId: id, format: "singles", rankingPoints: points,
+    band: summary?.grade || row?.grade ? `Grade ${summary?.grade ?? row.grade}` : person(id)?.level ?? "Unrated",
+    // Leaderboard players are established: at least 10 trusted matches.
+    verifiedGamesCount: summary?.placement?.played ?? Math.max(10, person(id)?.matches ?? 0),
+  };
+};
+const gameRow = (g) => ({
+  ...g, postId: g.id, organiserId: g.host?.isGroup ? null : g.host?.id, proposedTime: g.startsAt,
+});
+const winnerId = (m) => m.result && m.sides[m.result.winningSide]?.[0]?.id;
 
 // Session and profile
 export const getCurrentUserId = () => out(me);
@@ -48,14 +80,21 @@ export const updateMyProfile = (changes) => {
   return out(db.profile);
 };
 export const registerPlayer = () => out({ registered: true });
-export const getPlayer = (id) => {
-  const p = id === me ? db.profile : db.players[id];
-  if (!p) return out(null);
-  return out({ playerId: p.id, username: p.username ?? p.name, displayName: p.name, selfRatingBand: p.selfRatingBand ?? p.level });
+export const getPlayer = (id) => out(person(id) ? playerRow(person(id)) : null);
+export const getPlayerProfile = (id) => out(person(id) ? profileRow(person(id)) : null);
+export const updatePlayer = (id, changes) => {
+  if (id === me) {
+    if (changes.displayName) db.profile.name = changes.displayName;
+    if (changes.selfRatingBand) db.profile.level = changes.selfRatingBand;
+  }
+  return out(null);
+};
+export const updateProfile = (id, changes) => {
+  if (id === me) Object.assign(db.profile, changes);
+  return out(null);
 };
 export const getPublicPlayerProfile = (id) => out(db.players[id] ?? null);
-export const listPlayers = () =>
-  out([db.profile, ...Object.values(db.players)].map((p) => ({ playerId: p.id, displayName: p.name ?? p.username })));
+export const listPlayers = () => out([db.profile, ...Object.values(db.players)].map(playerRow));
 export const searchPlayers = (query = "") =>
   out(Object.values(db.players).filter((p) => !query || `${p.name} ${p.area}`.toLowerCase().includes(query.toLowerCase())));
 export const mapPlayer = (p) => ({ ...p, rank: p.rank ?? p.level, location: p.location ?? p.area });
@@ -67,8 +106,9 @@ export const searchGames = (query = "", format = "all") =>
     g.status === "open" &&
     (format === "all" || g.format.toLowerCase() === format) &&
     (!query || `${g.title} ${g.suburb} ${g.location}`.toLowerCase().includes(query.toLowerCase()))));
+export const listGames = () => out(Object.values(db.games).map(gameRow));
 export const mapGame = (g) => g;
-export const getGame = (id) => out(game(id) ?? null);
+export const getGame = (id) => out(game(id) ? gameRow(game(id)) : null);
 export const createGame = (form) => {
   const id = newId();
   db.games[id] = {
@@ -99,9 +139,26 @@ export const acceptRequest = (postId, playerId) => answerRequest(postId, playerI
 export const declineRequest = (postId, playerId) => answerRequest(postId, playerId, "declined");
 
 // Matches and results
-export const getMatch = (id) => out(db.matches[id] ?? null);
-export const getMatchResults = (matchId) => out(db.matches[matchId]?.result ? [db.matches[matchId].result] : []);
+export const getMatch = (id) => {
+  const m = db.matches[id];
+  return out(m ? { ...m, status: m.result?.status ?? "scheduled", suburb: game(m.gameId)?.suburb ?? m.location } : null);
+};
+export const getMatchParticipants = (matchId) => {
+  const m = db.matches[matchId];
+  return out(m ? Object.entries(m.sides).flatMap(([side, list]) => list.map((p) => ({ matchId, playerId: p.id, side }))) : []);
+};
+export const getMatchResults = (matchId) => {
+  const m = db.matches[matchId];
+  return out(m?.result ? [{ ...m.result, matchId, winnerId: winnerId(m) }] : []);
+};
 export const submitResult = (postId, opponents, partner, games) => {
+  // BSC201 calls submitResult(matchId, "21-18, 19-21") on an existing match.
+  if (typeof opponents === "string") {
+    const m = db.matches[postId];
+    if (!m) return fail("Match not found.");
+    m.result = { ...(m.result ?? {}), id: m.result?.id ?? newId(), status: "pending", verificationStatus: "pending", score: opponents, ratingPending: true };
+    return out({ matchId: postId, score: opponents, status: "pending" });
+  }
   const g = game(postId);
   const person = (id) => (g.players ?? []).find((p) => p.id === id) ?? { id, name: "Player" };
   const matchId = newId();
@@ -117,13 +174,13 @@ export const submitResult = (postId, opponents, partner, games) => {
   return out({ matchId, status: "pending" });
 };
 export const confirmResult = (resultId) => {
-  const m = matchByResult(resultId);
-  if (!m) return fail("Result not found.");
+  const m = matchFor(resultId);
+  if (!m?.result) return fail("Result not found.");
   Object.assign(m.result, { status: "confirmed", verificationStatus: "verified", canConfirm: false, canDispute: false });
-  return out({ result: m.result });
+  return out({ ...m.result, result: m.result });
 };
 export const raiseDispute = (resultId, reason) => {
-  const m = matchByResult(resultId);
+  const m = matchFor(resultId);
   if (!m) return fail("Result not found.");
   Object.assign(m.result, { status: "disputed", verificationStatus: "disputed", canConfirm: false, canDispute: false, dispute: { reason } });
   return out({ status: "disputed" });
@@ -133,9 +190,16 @@ export const raiseDispute = (resultId, reason) => {
 export const getRatingSummary = (playerId) => out(db.ratingSummaries[playerId ?? me] ?? null);
 export const getRatingTrend = () => out(db.ratingTrend);
 export const getLeaderboard = (scope = "state") => out(db.leaderboards[scope] ?? db.leaderboards.state);
+export const getRanking = (playerId = me) => out([rankingRow(playerId)].filter(Boolean));
+export const listRankings = (format = "singles") =>
+  out(format === "singles" ? db.leaderboards.state.entries.map((e) => rankingRow(e.id)).filter(Boolean) : []);
 
-// Notifications (the menu bar reads isRead, the Notifications page reads unread)
-export const getNotifications = () => out(db.notifications.map((n) => ({ ...n, isRead: !n.unread })));
+// Notifications. The BSC201 page shows `message` as the headline, so it
+// carries the full sentence; the menu bar counts the ones not isRead.
+export const getNotifications = () =>
+  out(db.notifications.map((n) => ({ ...n, notificationId: n.id, isRead: !n.unread, message: n.title })));
+export const getMyActivity = () =>
+  out(db.notifications.map((n) => ({ logId: n.id, action: n.title, targetType: n.type.replaceAll("_", " "), createdAt: n.createdAt })));
 export const markNotificationRead = (id) => {
   const n = db.notifications.find((x) => x.id === id);
   if (n) n.unread = false;

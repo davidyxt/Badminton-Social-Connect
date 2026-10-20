@@ -20,18 +20,21 @@ import {
     const { gameId } = useParams();
   
   
-    // Organiser details are provided only after request_to_join succeeds.
+    /*
+      Temporary player data.
+  
+      Later this can come from Supabase or from
+      the game details page when the request is sent.
+    */
   
     const passedPlayer = location.state?.player;
-    const confirmed = location.state?.confirmed === true;
-    if (!confirmed) return <div className="request-confirmation-page"><p>No successfully sent request was found for this page.</p><button type="button" onClick={() => navigate(`/games/${gameId}`)}>View game</button></div>;
   
   
     const player =
       passedPlayer ?? {
-        id: "",
-        name: "the game organiser",
-        initials: "",
+        id: "temporary-player",
+        name: "Jordan K.",
+        initials: "JK",
         profileImageUrl: null,
       };
   
@@ -55,9 +58,15 @@ import {
           </>
         }
   
-        primaryLabel="View Game"
-
-        onPrimary={() => navigate(`/games/${gameId}`)}
+        primaryLabel="View My Requests"
+  
+        onPrimary={() => {
+          // Temporary route until My Requests page exists
+          console.log(
+            "View requests for game:",
+            gameId
+          );
+        }}
   
         secondaryLabel="Find Another Game"
   

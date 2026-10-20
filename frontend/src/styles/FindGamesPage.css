@@ -269,6 +269,10 @@
     background-size: cover;
   }
 
+  .game-card .game-image-empty .game-image-placeholder {
+    display: none;
+  }
+
   .game-card:nth-of-type(5n + 1) .game-image-empty {
     background-image: url("../assets/images/game-placeholder-1.webp");
   }

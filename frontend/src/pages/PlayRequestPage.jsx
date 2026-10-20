@@ -1,101 +1,697 @@
-import {useEffect,useState} from 'react';
-import {useLocation,useNavigate,useParams} from 'react-router-dom';
-import {ArrowLeft} from 'lucide-react';
-import * as api from '../services/badmintonApi';
-import '../styles/PlayRequestPage.css';
+import { useState } from "react";
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 
-function PlayRequestPage(){
- const navigate=useNavigate(),location=useLocation();
- const {requestId}=useParams();
- const initialRequest=location.state?.request;
- // Supports a game ID from Notifications and the older postId:playerId links.
- const postId=initialRequest?.postId||initialRequest?.game?.postId||initialRequest?.game?.id||requestId?.split(':')[0];
- const [requests,setRequests]=useState([]);
- const [loading,setLoading]=useState(true),[error,setError]=useState(''),[saving,setSaving]=useState(null);
+import {
+  ArrowLeft,
+  Clock3,
+  MapPin,
+  Star,
+  MessageCircle,
+  UserRound,
+  Users,
+  TriangleAlert,
+  Check,
+  X,
+} from "lucide-react";
 
- useEffect(()=>{
-  let live=true;
-  (async()=>{
-   setLoading(true);setError('');
-   try{
-    if(!postId)throw new Error('Missing game post ID.');
-    const rows=await api.getJoinRequests(postId);
-    if(live)setRequests(Array.isArray(rows)?rows:[]);
-   }catch(e){if(live)setError(e.message||'Could not load game requests.');}
-   finally{if(live)setLoading(false);}
-  })();
-  return()=>{live=false;};
- },[postId]);
+import "../styles/PlayRequestPage.css";
 
- const act=async(request,accept)=>{
-  const playerId=request?.requester?.id;
-  if(!postId||!playerId){setError('Requester or game ID is missing.');return;}
-  setSaving(request.id);setError('');
-  try{
-   if(accept)await api.acceptRequest(postId,playerId);
-   else await api.declineRequest(postId,playerId);
-   const latest=await api.getJoinRequests(postId);
-   setRequests(Array.isArray(latest)?latest:[]);
-  }catch(e){setError(e.message||'Could not respond to request.');}
-  finally{setSaving(null);}
- };
 
- const ordered=[...requests].sort((a,b)=>{
-  if(a.status==='pending'&&b.status!=='pending')return -1;
-  if(a.status!=='pending'&&b.status==='pending')return 1;
-  return new Date(b.requestedAt||0)-new Date(a.requestedAt||0);
- });
- const game=requests[0]?.game;
- const pending=ordered.filter(r=>r.status==='pending').length;
+const fallbackRequest = {
+  id: "request-1",
 
- return <div className="play-request-page">
-  <header className="play-request-header">
-   <button type="button" onClick={()=>navigate('/notifications')} aria-label="Back to notifications"><ArrowLeft size={20}/></button>
-   <h1>Play Requests</h1>
-  </header>
-  {loading&&<p style={{padding:16}}>Loading requests...</p>}
-  {error&&<p role="alert" style={{padding:'8px 16px',color:'#b42318'}}>{error}</p>}
-  {!loading&&<main className="play-request-content">
-   <section className="play-request-card">
-    <h2 style={{margin:'0 0 8px',fontSize:18}}>{game?.title||'Game requests'}</h2>
-    <p style={{margin:'0 0 8px',fontSize:12,color:'#73798a'}}>
-     {game?.format||'Badminton'}{game?.date?` · ${game.date}`:''}{game?.time?` · ${game.time}`:''}
-    </p>
-    <div className="play-request-card-header">
-     <strong>{pending} pending {pending===1?'request':'requests'}</strong>
-     <button type="button" className="requester-secondary-button" onClick={()=>navigate(`/games/${postId}`)}>View Game</button>
-    </div>
-   </section>
+  status: "pending",
 
-   {ordered.length===0&&<section className="play-request-card">
-    <h2>No game requests found</h2>
-    <p>There are no accessible requests for this game, or the request was removed.</p>
-   </section>}
+  game: {
+    id: 1,
 
-   {ordered.map(request=>{
-    const requester=request.requester||{};
-    const isPending=request.status==='pending';
-    return <section className="play-request-card" key={request.id||requester.id}>
-     <div className="requester-main-row">
-      <div className="requester-avatar">{requester.initials||'P'}</div>
-      <div className="requester-info">
-       <strong>{requester.name||'Player'}</strong>
-       <div className="requester-rating">{requester.level||'Level unavailable'}
-        {requester.rating!=null?` · ${requester.rating} rating`:''}</div>
-       <span className="pending-pill">{request.status||'Unknown'}</span>
+    format: "Singles",
+    style: "Competitive",
+
+    date: "Saturday",
+    time: "3:00 PM",
+
+    duration: "Approx. 60–90 mins",
+
+    venue:
+      "Melbourne Sports & Aquatic Centre",
+
+    venueDetail:
+      "Albert Park · 2.4 km",
+
+    maxPlayers: 2,
+  },
+
+  requester: {
+    id: 2,
+
+    name: "Alex T.",
+    initials: "AT",
+
+    rating: 1248,
+    verifiedMatches: 12,
+
+    reliability: 94,
+
+    level: "Intermediate",
+
+    preferredFormat:
+      "Singles",
+
+    profileImageUrl: null,
+
+    message:
+      "Hi! I’d love to join this game if a spot is still available.",
+  },
+
+  host: {
+    id: 1,
+
+    name: "Jordan K.",
+    initials: "JK",
+
+    profileImageUrl: null,
+  },
+};
+
+
+function PlayRequestPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { requestId } = useParams();
+
+
+  const passedRequest =
+    location.state?.request;
+
+
+  const request = {
+    ...fallbackRequest,
+    ...passedRequest,
+
+    id:
+      passedRequest?.id ??
+      requestId,
+  };
+
+
+  const [requestStatus, setRequestStatus] =
+    useState(
+      request.status ??
+      "pending"
+    );
+
+
+  /* ======================================================
+     ACCEPT
+
+     Later:
+     1. update game_requests status → accepted
+     2. add requester to game_players
+     3. send notification to requester
+     ====================================================== */
+
+  const handleAccept = async () => {
+
+    console.log(
+      "Accept request:",
+      request.id
+    );
+
+    setRequestStatus(
+      "accepted"
+    );
+  };
+
+
+  /* ======================================================
+     DECLINE
+
+     Later:
+     update game_requests status → declined
+     ====================================================== */
+
+  const handleDecline = async () => {
+
+    console.log(
+      "Decline request:",
+      request.id
+    );
+
+    setRequestStatus(
+      "declined"
+    );
+  };
+
+
+  return (
+    <div className="play-request-page">
+
+
+      {/* ==================================================
+          HEADER
+          ================================================== */}
+
+      <header className="play-request-header">
+
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          aria-label="Go back"
+        >
+          <ArrowLeft size={22} />
+        </button>
+
+
+        <h1>
+          Play Request
+        </h1>
+
+      </header>
+
+
+      {/* ==================================================
+          GAME SUMMARY
+          ================================================== */}
+
+      <section className="play-request-game-summary">
+
+        <div className="play-request-tags">
+
+          <span className="play-request-format">
+            {request.game.format}
+          </span>
+
+          <span className="play-request-style">
+            {request.game.style}
+          </span>
+
+        </div>
+
+
+        <div className="play-request-game-row">
+
+          <div className="play-request-info-icon">
+            <Clock3 size={18} />
+          </div>
+
+
+          <div>
+
+            <strong>
+              {request.game.date},{" "}
+              {request.game.time}
+            </strong>
+
+            <span>
+              {request.game.duration}
+            </span>
+
+          </div>
+
+        </div>
+
+
+        <div className="play-request-divider" />
+
+
+        <button
+          type="button"
+          className="play-request-game-row venue-row"
+          onClick={() =>
+            navigate(
+              `/games/${request.game.id}`
+            )
+          }
+        >
+
+          <div className="play-request-info-icon">
+            <MapPin size={18} />
+          </div>
+
+
+          <div>
+
+            <strong>
+              {request.game.venue}
+            </strong>
+
+            <span>
+              {
+                request.game
+                  .venueDetail
+              }
+            </span>
+
+          </div>
+
+        </button>
+
+      </section>
+
+
+      {/* ==================================================
+          REQUESTER
+          ================================================== */}
+
+      <section className="play-request-card">
+
+        <div className="play-request-section-label">
+          REQUEST FROM
+        </div>
+
+
+        <div className="requester-main-row">
+
+
+          {/* AVATAR */}
+
+          <div className="requester-avatar">
+
+            {request.requester
+              .profileImageUrl ? (
+
+              <img
+                src={
+                  request
+                    .requester
+                    .profileImageUrl
+                }
+                alt={
+                  request
+                    .requester
+                    .name
+                }
+              />
+
+            ) : (
+
+              request.requester
+                .initials
+
+            )}
+
+          </div>
+
+
+          {/* DETAILS */}
+
+          <div className="requester-info">
+
+            <strong>
+              {
+                request.requester
+                  .name
+              }
+            </strong>
+
+
+            <div className="requester-rating">
+
+              <Star
+                size={13}
+                fill="currentColor"
+              />
+
+              <span>
+                Rating{" "}
+                {
+                  request.requester
+                    .rating
+                }
+                {" · "}
+                {
+                  request.requester
+                    .verifiedMatches
+                }{" "}
+                verified
+              </span>
+
+            </div>
+
+
+            <div className="requester-reliability">
+
+              <div className="requester-reliability-track">
+
+                <div
+                  className="requester-reliability-fill"
+                  style={{
+                    width:
+                      `${request.requester.reliability}%`,
+                  }}
+                />
+
+              </div>
+
+
+              <strong>
+                {
+                  request.requester
+                    .reliability
+                }
+                %
+              </strong>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        {/* TAGS */}
+
+        <div className="requester-tags">
+
+          <span>
+            {
+              request.requester
+                .level
+            }
+          </span>
+
+          <span>
+            Preferred:{" "}
+            {
+              request.requester
+                .preferredFormat
+            }
+          </span>
+
+        </div>
+
+
+        {/* MESSAGE */}
+
+        {request.requester.message && (
+
+          <div className="requester-message">
+
+            “{request.requester.message}”
+
+          </div>
+
+        )}
+
+
+        {/* PROFILE / MESSAGE */}
+
+        <div className="requester-actions">
+
+          <button
+            type="button"
+            className="requester-secondary-button"
+            onClick={() =>
+              navigate(
+                `/players/${request.requester.id}`,
+                {
+                  state: {
+                    player:
+                      request.requester,
+                  },
+                }
+              )
+            }
+          >
+            View Full Profile
+          </button>
+
+
+          <button
+            type="button"
+            className="requester-secondary-button"
+            onClick={() =>
+              console.log(
+                "Message:",
+                request.requester.id
+              )
+            }
+          >
+            <MessageCircle
+              size={16}
+            />
+
+            Message
+          </button>
+
+        </div>
+
+      </section>
+
+
+      {/* ==================================================
+          PLAYERS GOING
+          ================================================== */}
+
+      <section className="play-request-card">
+
+        <div className="play-request-card-header">
+
+          <div className="play-request-section-label">
+            PLAYERS GOING
+          </div>
+
+
+          <div className="play-request-count">
+            <Users size={14} />
+
+            1 confirmed
+            {" · "}
+            1 pending
+          </div>
+
+        </div>
+
+
+        <div className="request-player-list">
+
+
+          {/* HOST */}
+
+          <div className="request-player">
+
+            <div className="request-player-avatar">
+
+              {request.host.initials}
+
+            </div>
+
+            <strong>
+              {request.host.name}
+            </strong>
+
+            <span className="host-pill">
+              Host
+            </span>
+
+          </div>
+
+
+          {/* REQUESTER */}
+
+          <div className="request-player">
+
+            <div className="request-player-avatar pending">
+
+              {
+                request.requester
+                  .initials
+              }
+
+            </div>
+
+            <strong>
+              {
+                request.requester
+                  .name
+              }
+            </strong>
+
+            <span className="pending-pill">
+              Requested
+            </span>
+
+          </div>
+
+
+          {/* OPEN SPOT */}
+
+          {request.game.maxPlayers >
+            2 && (
+
+            <div className="request-player">
+
+              <div className="request-open-avatar">
+
+                <UserRound
+                  size={22}
+                />
+
+              </div>
+
+              <strong>
+                Open spot
+              </strong>
+
+            </div>
+
+          )}
+
+        </div>
+
+      </section>
+
+
+      {/* ==================================================
+          WARNING
+          ================================================== */}
+
+      {requestStatus ===
+        "pending" && (
+
+        <div className="play-request-warning">
+
+          <TriangleAlert
+            size={22}
+          />
+
+          <p>
+            Review the player’s
+            profile before accepting.
+            Accepting this request
+            reserves the spot and
+            notifies the player.
+          </p>
+
+        </div>
+
+      )}
+
+
+      {/* ==================================================
+          ACCEPTED STATE
+          ================================================== */}
+
+      {requestStatus ===
+        "accepted" && (
+
+        <div className="play-request-result accepted">
+
+          <Check size={22} />
+
+          <div>
+
+            <strong>
+              Request accepted
+            </strong>
+
+            <p>
+              {
+                request.requester
+                  .name
+              }{" "}
+              has been added to the
+              game.
+            </p>
+
+          </div>
+
+        </div>
+
+      )}
+
+
+      {/* ==================================================
+          DECLINED STATE
+          ================================================== */}
+
+      {requestStatus ===
+        "declined" && (
+
+        <div className="play-request-result declined">
+
+          <X size={22} />
+
+          <div>
+
+            <strong>
+              Request declined
+            </strong>
+
+            <p>
+              The player will be
+              notified that the
+              request was declined.
+            </p>
+
+          </div>
+
+        </div>
+
+      )}
+
+
+      {/* ==================================================
+          ACTIONS
+          ================================================== */}
+
+      <div className="play-request-actions">
+
+
+        {requestStatus ===
+          "pending" ? (
+
+          <>
+
+            <button
+              type="button"
+              className="decline-request-button"
+              onClick={
+                handleDecline
+              }
+            >
+              Decline
+            </button>
+
+
+            <button
+              type="button"
+              className="accept-request-button"
+              onClick={
+                handleAccept
+              }
+            >
+              Accept Request
+            </button>
+
+          </>
+
+        ) : (
+
+          <button
+            type="button"
+            className="view-game-after-request"
+            onClick={() =>
+              navigate(
+                `/games/${request.game.id}`
+              )
+            }
+          >
+            View Game
+          </button>
+
+        )}
+
       </div>
-     </div>
-     {requester.message&&<div className="requester-message">{requester.message}</div>}
-     {isPending&&<div className="requester-actions">
-      <button type="button" className="decline-request-button" disabled={!!saving} onClick={()=>act(request,false)}>Decline</button>
-      <button type="button" className="accept-request-button" disabled={!!saving} onClick={()=>act(request,true)}>
-       {saving===request.id?'Saving...':'Accept'}
-      </button>
-     </div>}
-    </section>;
-   })}
-  </main>}
- </div>;
+
+    </div>
+  );
 }
+
 
 export default PlayRequestPage;
