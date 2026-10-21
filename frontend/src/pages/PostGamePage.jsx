@@ -64,7 +64,7 @@ function PostGamePage() {
         `/post-game/confirmation/${game.id}`,
         {
           state: {
-            game,
+            game: { ...game, ...formData },
           },
         }
       );
