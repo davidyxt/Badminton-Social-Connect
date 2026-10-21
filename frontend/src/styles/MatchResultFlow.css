@@ -974,3 +974,596 @@
   
     color: white;
   }
+
+/* ======================================================
+   MATCH DETAILS: STATUS AND CONFIRM ACTIONS
+   ====================================================== */
+
+.match-flow-header button svg {
+  display: block;
+}
+
+.match-status-pill {
+  padding: 4px 11px;
+  border-radius: 11px;
+  background: #eef0f4;
+  color: #5d6577;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.match-status-pill.status-pending {
+  background: #fff2dd;
+  color: #d96d06;
+}
+
+.match-status-pill.status-verified,
+.match-status-pill.status-confirmed {
+  background: #e3f5e7;
+  color: #2f8a45;
+}
+
+.match-status-pill.status-disputed {
+  background: #fde8e8;
+  color: #c53030;
+}
+
+.match-confirm-card p {
+  margin: 0 0 14px;
+  color: #73798a;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.match-confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.match-confirm-button,
+.match-dispute-button {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 14px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.match-confirm-button {
+  border: none;
+  background: #f58220;
+  color: white;
+}
+
+.match-dispute-button {
+  border: 1.5px solid #ef6767;
+  background: white;
+  color: #df4a4a;
+}
+
+.match-confirm-button:disabled,
+.match-dispute-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.match-dispute-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.match-dispute-form label {
+  color: #202536;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.match-dispute-form textarea {
+  min-height: 80px;
+  padding: 10px;
+  border: 1px solid #dfe3ea;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+
+/* ======================================================
+   RESULT CONFIRMED: RECORDED RESULT CARD
+   ====================================================== */
+
+.recorded-result-card {
+  width: 100%;
+  padding: 20px 18px;
+  border-radius: 18px;
+  background: white;
+  color: #202536;
+  box-shadow: 0 10px 24px rgba(9, 25, 56, 0.18);
+}
+
+.recorded-result-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.recorded-result-top h2 {
+  margin: 0;
+  color: #73798a;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+}
+
+.recorded-result-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 11px;
+  background: #e3f5e7;
+  color: #2f8a45;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.recorded-result-status.pending {
+  background: #fff2dd;
+  color: #d96d06;
+}
+
+.recorded-result-players {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.recorded-result-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.recorded-result-avatar {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #294b87;
+  color: white;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.recorded-result-player.winner .recorded-result-avatar {
+  background: #f58220;
+}
+
+.recorded-result-player strong {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 13px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.recorded-result-player span {
+  color: #73798a;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.recorded-result-player.winner span {
+  color: #e2780b;
+}
+
+.recorded-result-vs {
+  color: #9aa1ae;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.recorded-result-sets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.recorded-result-set {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px;
+  border-radius: 12px;
+  background: #f2f5fa;
+}
+
+.recorded-result-set span {
+  color: #73798a;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.recorded-result-set strong {
+  color: #202536;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.match-detail-sets {
+  margin: 4px 0 10px;
+}
+
+
+/* ======================================================
+   MATCH DETAILS: MATCHUP CARD
+   ====================================================== */
+
+.match-hero-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.match-hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px 0;
+}
+
+.match-format-chip {
+  padding: 5px 11px;
+  border-radius: 12px;
+  background: #eef4ff;
+  color: #315b9e;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.match-versus {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: start;
+  gap: 8px;
+  padding: 20px 14px 18px;
+}
+
+.match-side {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  text-align: center;
+}
+
+.match-side-avatars {
+  display: flex;
+}
+
+.match-side-avatar {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border: 3px solid white;
+  border-radius: 50%;
+  background: #294b87;
+  color: white;
+  font-size: 18px;
+  font-weight: 800;
+  box-shadow: 0 4px 10px rgba(21, 34, 57, 0.15);
+}
+
+.match-side-avatar + .match-side-avatar {
+  margin-left: -14px;
+}
+
+.match-side.winner .match-side-avatar {
+  background: #f58220;
+}
+
+.match-side strong {
+  max-width: 100%;
+  color: #202536;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.match-side-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 10px;
+  background: #eef0f4;
+  color: #6b7385;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.match-side.winner .match-side-tag {
+  background: #fff2dd;
+  color: #e2780b;
+}
+
+.match-versus-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding-top: 12px;
+}
+
+.match-versus-score strong {
+  color: #202536;
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  white-space: nowrap;
+}
+
+.match-versus-score span {
+  color: #9aa1ae;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+}
+
+.match-versus-score .match-versus-vs {
+  color: #9aa1ae;
+  font-size: 18px;
+}
+
+.match-set-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0 14px 16px;
+}
+
+.match-set {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 6px;
+  border-radius: 12px;
+  background: #f2f5fa;
+}
+
+.match-set span {
+  color: #73798a;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+}
+
+.match-set strong {
+  color: #9aa1ae;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.match-set em {
+  font-style: normal;
+}
+
+.match-set em.won {
+  color: #202536;
+}
+
+.match-set small {
+  color: #315b9e;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.match-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 13px 18px;
+  border-top: 1px solid #edf0f4;
+  background: #fafbfd;
+  color: #5d6577;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.match-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.match-meta svg {
+  flex-shrink: 0;
+  color: #315b9e;
+}
+
+.match-rating-note {
+  margin: 0;
+  padding: 0 18px 14px;
+  background: #fafbfd;
+  color: #73798a;
+  font-size: 11px;
+}
+
+.match-flow-secondary {
+  width: 100%;
+  height: 48px;
+  border: 1.5px solid #315b9e;
+  border-radius: 14px;
+  background: white;
+  color: #315b9e;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+
+/* ======================================================
+   RECORD RESULT: PLAYER CHIPS AND SCORES
+   ====================================================== */
+
+.record-message {
+  margin: 0;
+  padding: 14px 16px;
+  font-size: 13px;
+}
+
+.record-error {
+  color: #a32727;
+}
+
+.record-label {
+  display: block;
+  margin: 16px 0 10px;
+  color: #73798a;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+}
+
+.match-flow-card > .record-label:first-child {
+  margin-top: 0;
+}
+
+.record-game-title {
+  margin: 0 0 4px;
+  color: #202536;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.record-game-meta {
+  margin: 0;
+  color: #73798a;
+  font-size: 12px;
+}
+
+.record-player-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.record-player-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 14px 6px 6px;
+  border: 1.5px solid #dfe3ea;
+  border-radius: 26px;
+  background: white;
+  color: #202536;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.record-player-chip strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.record-player-avatar {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #294b87;
+  color: white;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.record-player-chip.selected {
+  border-color: #f58220;
+  background: #fff7ef;
+}
+
+.record-player-chip.selected .record-player-avatar {
+  background: #f58220;
+}
+
+.record-help {
+  margin: -4px 0 12px;
+  color: #73798a;
+  font-size: 12px;
+}
+
+.record-result-content .score-row {
+  grid-template-columns: 64px 1fr 18px 1fr;
+}
+
+.record-result-content .score-row > span {
+  font-size: 12px;
+}
+
+.record-result-content .score-row input {
+  width: 100%;
+  height: 48px;
+  border-radius: 12px;
+  background: #f7f9fc;
+  color: #202536;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.record-result-content .score-row input:focus {
+  border-color: #315b9e;
+  background: white;
+}
+
+.score-row-head {
+  margin-bottom: 6px;
+}
+
+.score-row-head em {
+  color: #73798a;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  text-align: center;
+}
+
+.record-result-content .add-set-button {
+  font-size: 12px;
+}
+
+.record-result-content .result-info-message {
+  align-items: center;
+}
+
+.record-result-content .result-info-message p {
+  font-size: 12px;
+}
+
+.record-submit-button {
+  width: 100%;
+  height: 52px;
+  font-size: 15px;
+}
+
+.submitted-details-button {
+  margin-top: 16px;
+}

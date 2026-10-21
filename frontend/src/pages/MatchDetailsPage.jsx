@@ -1,6 +1,6 @@
 import {useEffect,useState} from 'react';
 import {useNavigate,useParams} from 'react-router-dom';
-import {CheckCircle2,TriangleAlert} from 'lucide-react';
+import {ArrowLeft,CalendarDays,CheckCircle2,Crown,MapPin,TriangleAlert} from 'lucide-react';
 import * as api from '../services/badmintonApi';
 import '../styles/MatchResultFlow.css';
 function MatchDetailsPage(){
@@ -12,27 +12,46 @@ function MatchDetailsPage(){
  const confirm=async()=>{setError('');setBusy(true);try{if(!latest?.id)throw new Error('No pending result ID.');const card=await api.confirmResult(latest.id);navigate(`/matches/${matchId}/result-confirmed`,{state:{result:card?.result||null}});}catch(e){setError(e.message||'Could not confirm result.');}finally{setBusy(false);}};
  const dispute=async e=>{e.preventDefault();setError('');setBusy(true);try{if(!latest?.id)throw new Error('No result to dispute.');await api.raiseDispute(latest.id,reason.trim());setDisputing(false);await refresh();}catch(e){setError(e.message||'Could not dispute result.');}finally{setBusy(false);}};
  const a=match?.sides?.a||[],b=match?.sides?.b||[];
- return <div className="match-flow-page"><header className="match-flow-header"><button type="button" onClick={()=>navigate(-1)}>←</button><h1>Match Details</h1></header>
+ const rawStatus=String(latest?.verificationStatus||latest?.status||'No result').replaceAll('_',' ');
+ const status=rawStatus.charAt(0).toUpperCase()+rawStatus.slice(1);
+ // Set scores come as [[21,17],...] or as a "21-17 18-21" string, side A's points first.
+ const sets=(Array.isArray(latest?.games)&&latest.games.length?latest.games:String(latest?.score||'').split(/\s+/).filter(Boolean).map(s=>s.split('-').map(Number))).filter(g=>g.length===2);
+ const setsWon=side=>sets.filter(([x,y])=>side==='a'?x>y:y>x).length;
+ const nameOf=side=>(side==='a'?a:b).map(p=>p.name).join(' & ')||'Unknown';
+ const firstName=side=>((side==='a'?a:b)[0]?.name||'').split(' ')[0];
+ const initialsOf=name=>String(name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+ const playedAt=match?.playedAt?new Date(match.playedAt).toLocaleString('en-AU',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}):'Date TBC';
+ const sideBlock=side=>{const players=side==='a'?a:b;const won=latest?.winningSide===side;
+  return <div className={`match-side ${won?'winner':''}`}>
+   <div className="match-side-avatars">{players.map(p=><div key={p.id} className="match-side-avatar">{p.initials||initialsOf(p.name)}</div>)}</div>
+   <strong>{nameOf(side)}</strong>
+   {latest&&<span className="match-side-tag">{won&&<Crown size={12}/>}{players.some(p=>p.isMe)?'You \u00b7 ':''}{won?'Winner':'Runner-up'}</span>}
+  </div>;};
+ return <div className="match-flow-page"><header className="match-flow-header"><button type="button" onClick={()=>navigate(-1)} aria-label="Back"><ArrowLeft size={20}/></button><h1>Match Details</h1></header>
   {error&&<p role="alert" style={{padding:14,color:'#a32727'}}>{error}</p>}{loading&&<p>Loading match...</p>}
-  {match&&<main className="match-flow-content"><section className="match-flow-card"><h2>{match.format||'Badminton'} Match</h2>
-   <div className="match-detail-row"><span>Status</span><strong>{latest?.verificationStatus||latest?.status||'No result'}</strong></div>
-   <div className="match-detail-row"><span>Played at</span><strong>{match.playedAt?new Date(match.playedAt).toLocaleString('en-AU'):'Not scheduled'}</strong></div>
-   <div className="match-detail-row"><span>Location</span><strong>{match.location||'Not specified'}</strong></div>
-   <div className="match-detail-row"><span>Side A</span><strong>{a.map(p=>p.name).join(', ')||'Unknown'}</strong></div>
-   <div className="match-detail-row"><span>Side B</span><strong>{b.map(p=>p.name).join(', ')||'Unknown'}</strong></div>
-   {latest&&<><div className="match-flow-divider"/><h3>Result</h3>
-    <div className="match-detail-row"><span>Score</span><strong>{latest.score||'Not recorded'}</strong></div>
-    <div className="match-detail-row"><span>Winning side</span><strong>{latest.winningSide?.toUpperCase()||'Unknown'}</strong></div>
-    {latest.ratingChange&&<div className="match-detail-row"><span>Rating change</span><strong>{latest.ratingChange.before} → {latest.ratingChange.after}</strong></div>}
-    {latest.ratingPending&&<p>Rating will update after the nightly calculation.</p>}
-   </>}
+  {match&&<main className="match-flow-content"><section className="match-flow-card match-hero-card">
+   <div className="match-hero-top"><span className="match-format-chip">{match.format||'Badminton'} match</span><span className={`match-status-pill status-${status.toLowerCase().replaceAll(' ','-')}`}>{status}</span></div>
+   <div className="match-versus">
+    {sideBlock('a')}
+    <div className="match-versus-score">{sets.length?<><strong>{setsWon('a')} - {setsWon('b')}</strong><span>SETS</span></>:<strong className="match-versus-vs">VS</strong>}</div>
+    {sideBlock('b')}
+   </div>
+   {sets.length>0&&<div className="match-set-list">{sets.map(([x,y],i)=><div key={i} className="match-set"><span>SET {i+1}</span><strong><em className={x>y?'won':''}>{x}</em>-<em className={y>x?'won':''}>{y}</em></strong><small>{firstName(x>y?'a':'b')}</small></div>)}</div>}
+   <div className="match-meta">
+    <span><CalendarDays size={14}/>{playedAt}</span>
+    <span><MapPin size={14}/>{match.location||'Location TBC'}</span>
+   </div>
+   {latest?.ratingChange&&<p className="match-rating-note">Rating {latest.ratingChange.before} {'\u2192'} {latest.ratingChange.after}</p>}
+   {latest?.ratingPending&&<p className="match-rating-note">Rating will update after the nightly calculation.</p>}
   </section>
-  {match.gameId&&<button type="button" className="match-flow-primary" onClick={()=>navigate(`/games/${match.gameId}`)}>View Game</button>}
-  {latest?.canConfirm&&<section className="match-flow-card"><p>Only a player from the opposing side can confirm or dispute this result.</p>
-   <button type="button" disabled={busy} onClick={confirm}><CheckCircle2 size={16}/> Confirm Result</button>
-   <button type="button" onClick={()=>setDisputing(v=>!v)}><TriangleAlert size={16}/> Dispute</button>
-   {disputing&&<form onSubmit={dispute}><label htmlFor="disputeReason">Dispute reason</label><textarea id="disputeReason" value={reason} onChange={e=>setReason(e.target.value)} required/><button type="submit" disabled={busy||!reason.trim()}>Submit Dispute</button></form>}
+  {latest?.canConfirm&&<section className="match-flow-card match-confirm-card"><p>{latest.submittedBy?.name?`${latest.submittedBy.name} submitted this result.`:'A result was submitted.'} Check the score, then confirm or dispute it.</p>
+   <div className="match-confirm-actions">
+    <button type="button" className="match-confirm-button" disabled={busy} onClick={confirm}><CheckCircle2 size={18}/> Confirm Result</button>
+    <button type="button" className="match-dispute-button" onClick={()=>setDisputing(v=>!v)}><TriangleAlert size={18}/> Dispute</button>
+   </div>
+   {disputing&&<form className="match-dispute-form" onSubmit={dispute}><label htmlFor="disputeReason">Dispute reason</label><textarea id="disputeReason" value={reason} onChange={e=>setReason(e.target.value)} required/><button type="submit" className="match-dispute-button" disabled={busy||!reason.trim()}>Submit Dispute</button></form>}
   </section>}
+  {match.gameId&&<button type="button" className="match-flow-secondary" onClick={()=>navigate(`/games/${match.gameId}`)}>View Game</button>}
   </main>}
  </div>;
 }
