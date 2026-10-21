@@ -544,3 +544,143 @@
   .details-request-button:active {
     transform: scale(0.99);
   }
+
+/* ======================================================
+   TITLE, STATUS AND READABILITY
+   ====================================================== */
+
+.game-details-loading,
+.game-details-error {
+  margin: 0;
+  padding: 16px;
+  font-size: 13px;
+}
+
+.game-details-error {
+  color: #b42318;
+}
+
+.details-title-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.details-title-card h2 {
+  margin: 0;
+  color: #202536;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.details-status-pill {
+  flex-shrink: 0;
+  padding: 5px 11px;
+  border-radius: 12px;
+  background: #eef0f4;
+  color: #5d6577;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.details-status-pill.status-open {
+  background: #e3f5e7;
+  color: #2f8a45;
+}
+
+.details-status-pill.status-full {
+  background: #fff2dd;
+  color: #e2780b;
+}
+
+.details-status-pill.status-cancelled {
+  background: #fde8e8;
+  color: #c53030;
+}
+
+.details-format-badge,
+.details-style-badge {
+  font-size: 11px;
+}
+
+.details-section-label {
+  font-size: 11px;
+}
+
+.details-info-text strong {
+  font-size: 14px;
+}
+
+.details-info-text span {
+  font-size: 12px;
+}
+
+.details-host-info > strong {
+  font-size: 15px;
+}
+
+.details-host-rating,
+.details-player-count,
+.details-reliability-row > strong {
+  font-size: 11px;
+}
+
+.details-profile-button {
+  font-size: 12px;
+}
+
+.details-player > strong {
+  font-size: 11px;
+}
+
+.details-host-badge,
+.details-open-text {
+  font-size: 10px;
+}
+
+.details-warning {
+  align-items: center;
+}
+
+.details-warning p {
+  font-size: 12px;
+}
+
+.details-withdraw-button {
+  border: 1.5px solid #f58220;
+  background: white;
+  color: #f58220;
+}
+
+.details-withdraw-button:hover {
+  background: #fff7ef;
+}
+
+.details-invite-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.details-invite-actions p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.details-player-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px 6px;
+  overflow: visible;
+}
+
+.details-player {
+  min-width: 0;
+}
+
+.details-player > strong {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
