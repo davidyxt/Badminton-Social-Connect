@@ -699,3 +699,39 @@
   
     color: white;
   }
+
+/* ======================================================
+   REQUEST STATUS COLOURS
+   ====================================================== */
+
+.pending-pill {
+  display: inline-block;
+  margin-top: 2px;
+  padding: 4px 10px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.pending-pill.status-pending {
+  background: #fff2dd;
+  color: #d96d06;
+}
+
+.pending-pill.status-accepted {
+  background: #e3f5e7;
+  color: #2f8a45;
+}
+
+.pending-pill.status-declined {
+  background: #fde8e8;
+  color: #c53030;
+}
+
+.pending-pill.status-expired,
+.pending-pill.status-withdrawn,
+.pending-pill.status-cancelled,
+.pending-pill.status-unknown {
+  background: #eef0f4;
+  color: #6b7385;
+}

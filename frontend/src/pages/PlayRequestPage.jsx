@@ -4,6 +4,8 @@ import {ArrowLeft} from 'lucide-react';
 import * as api from '../services/badmintonApi';
 import '../styles/PlayRequestPage.css';
 
+const statusLabel=status=>status?String(status).charAt(0).toUpperCase()+String(status).slice(1).replaceAll('_',' '):'Unknown';
+
 function PlayRequestPage(){
  const navigate=useNavigate(),location=useLocation();
  const {requestId}=useParams();
@@ -82,7 +84,7 @@ function PlayRequestPage(){
        <strong>{requester.name||'Player'}</strong>
        <div className="requester-rating">{requester.level||'Level unavailable'}
         {requester.rating!=null?` · ${requester.rating} rating`:''}</div>
-       <span className="pending-pill">{request.status||'Unknown'}</span>
+       <span className={`pending-pill status-${String(request.status||'unknown').toLowerCase()}`}>{statusLabel(request.status)}</span>
       </div>
      </div>
      {requester.message&&<div className="requester-message">{requester.message}</div>}
