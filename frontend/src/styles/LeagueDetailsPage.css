@@ -701,3 +701,193 @@
     }
   
   }
+
+/* ======================================================
+   HERO: STATUS PILL AND META CHIPS
+   ====================================================== */
+
+.league-hero-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.league-hero-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.league-hero-title svg {
+  flex-shrink: 0;
+  color: #ffd54c;
+}
+
+.league-hero-title h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.league-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.league-status-pill,
+.league-hero-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.league-hero-chip {
+  background: rgba(255, 255, 255, 0.16);
+  color: white;
+}
+
+.league-status-pill {
+  background: #eef0f4;
+  color: #5d6577;
+  font-weight: 800;
+}
+
+.league-status-pill.status-active {
+  background: #e3f5e7;
+  color: #2f8a45;
+}
+
+.league-status-pill.status-draft {
+  background: #fff2dd;
+  color: #d96d06;
+}
+
+.league-status-pill.status-cancelled {
+  background: #fde8e8;
+  color: #c53030;
+}
+
+.league-position-box strong {
+  font-size: 26px;
+}
+
+.league-position-box span {
+  font-size: 10px;
+  text-align: center;
+}
+
+
+/* ======================================================
+   STANDINGS TABLE: CENTRED NUMBERS
+   ====================================================== */
+
+.league-table {
+  overflow: hidden;
+  border-radius: 15px;
+  background: white;
+  box-shadow:
+    0 2px 5px rgba(0, 0, 0, 0.06),
+    0 6px 14px rgba(0, 0, 0, 0.03);
+}
+
+.league-table-header,
+.league-table-row {
+  grid-template-columns: 24px minmax(0, 1fr) 24px 24px 24px 32px;
+  column-gap: 4px;
+}
+
+.league-table-header > :nth-child(n + 3),
+.league-table-row > :nth-child(n + 3) {
+  text-align: center;
+}
+
+.league-table-header {
+  font-size: 11px;
+}
+
+.league-table-row {
+  min-height: 60px;
+  font-size: 13px;
+}
+
+.table-player {
+  gap: 8px;
+}
+
+.table-player strong {
+  font-size: 12.5px;
+}
+
+.table-avatar {
+  width: 30px;
+  height: 30px;
+  font-size: 10px;
+}
+
+
+/* ======================================================
+   MATCHES AND PLAYERS TABS
+   ====================================================== */
+
+.league-matches-list,
+.league-player-list {
+  margin-top: 12px;
+}
+
+.match-status {
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.league-match-date {
+  font-size: 12px;
+}
+
+.league-match-where {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 12px;
+  color: #202536;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.league-match-where svg {
+  flex-shrink: 0;
+  color: #315b9e;
+}
+
+.league-outline-button {
+  height: 36px;
+  padding: 0 16px;
+  border: 1.5px solid #315b9e;
+  border-radius: 18px;
+  background: white;
+  color: #315b9e;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.league-player-avatar {
+  color: white;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.league-player-details strong {
+  font-size: 14px;
+}
+
+.league-player-details span {
+  font-size: 12px;
+}

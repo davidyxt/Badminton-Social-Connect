@@ -503,3 +503,27 @@
     }
   
   }
+
+/* ======================================================
+   LEAGUE STATUS COLOURS
+   ====================================================== */
+
+.league-style-tag.status-active {
+  background: #e3f5e7;
+  color: #2f8a45;
+}
+
+.league-style-tag.status-completed {
+  background: #eef0f4;
+  color: #5d6577;
+}
+
+.league-style-tag.status-draft {
+  background: #fff2dd;
+  color: #d96d06;
+}
+
+.league-style-tag.status-cancelled {
+  background: #fde8e8;
+  color: #c53030;
+}
