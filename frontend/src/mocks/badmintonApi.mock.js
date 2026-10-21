@@ -65,7 +65,7 @@ export const reportPlayer = () => out({ reported: true });
 export const searchGames = (query = "", format = "all") =>
   out(Object.values(db.games).filter((g) =>
     g.status === "open" &&
-    (format === "all" || g.format.toLowerCase() === format) &&
+    (format === "all" || g.format.toLowerCase().includes(format)) &&
     (!query || `${g.title} ${g.suburb} ${g.location}`.toLowerCase().includes(query.toLowerCase()))));
 export const mapGame = (g) => g;
 export const getGame = (id) => out(game(id) ?? null);
