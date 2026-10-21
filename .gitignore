@@ -2,3 +2,14 @@
 # outside Git (items-to-confirm 7).
 docs/*.docx
 docs/*.xlsx
+
+# Personal working notes, kept local.
+docs/player-be2-handoff.md
+docs/player-be2-plan.md
+
+# Admin console build output (admin/.gitignore covers this once the console lands).
+admin/node_modules/
+admin/.next/
+admin/next-env.d.ts
+brag*/
+brag*.md
